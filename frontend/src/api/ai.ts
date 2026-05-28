@@ -1,0 +1,23 @@
+import api from './index'
+
+export const aiApi = {
+  getSessions: (params?: { page?: number; size?: number }) =>
+    api.get('/ai/sessions', { params }),
+
+  getMessages: (sessionId: string) =>
+    api.get(`/ai/sessions/${sessionId}/messages`),
+
+  feedback: (messageId: number, data: { rating: string; reason?: string }) =>
+    api.post(`/ai/messages/${messageId}/feedback`, data),
+
+  addToWrongBook: (messageId: number, data: { subject: string; tags: string[] }) =>
+    api.post(`/ai/messages/${messageId}/add-to-wrong-book`, data),
+}
+
+export function createChatStream(
+  data: { session_id?: string; question: string; subject: string },
+  token: string
+): EventSource | null {
+  // 使用 fetch SSE
+  return null // handled directly in component
+}
