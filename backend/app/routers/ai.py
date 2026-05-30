@@ -70,6 +70,10 @@ async def chat(
     db.add(user_msg)
     db.commit()
 
+    # 提前读取 current_user 的属性，避免 StreamingResponse 中 Session 关闭后 DetachedInstanceError
+    user_id = current_user.id
+    user_grade = current_user.grade
+
     # 收集完整回复以便保存
     full_response = []
     message_id_holder = []
@@ -78,7 +82,7 @@ async def chat(
         async for chunk in ai_service.chat_stream(
             question=data.question,
             subject=data.subject,
-            grade=current_user.grade,
+            grade=user_grade,
             history=history,
         ):
             full_response.append(chunk)
@@ -88,7 +92,7 @@ async def chat(
         full_content = "".join(full_response)
         ai_msg = ChatMessage(
             session_id=session_id,
-            user_id=current_user.id,
+            user_id=user_id,
             role="assistant",
             content=full_content,
         )
@@ -161,6 +165,24 @@ def get_messages(
         }
         for m in messages
     ]}
+
+
+@router.delete("/sessions/{session_id}")
+def delete_session(
+    session_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    session = db.query(ChatSession).filter(
+        ChatSession.id == session_id, ChatSession.user_id == current_user.id
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="会话不存在")
+    # 删除该会话下的所有消息
+    db.query(ChatMessage).filter(ChatMessage.session_id == session_id).delete()
+    db.delete(session)
+    db.commit()
+    return {"code": 200, "message": "会话已删除"}
 
 
 @router.post("/messages/{message_id}/feedback")

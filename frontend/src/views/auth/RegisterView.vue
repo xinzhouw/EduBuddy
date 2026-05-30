@@ -28,6 +28,9 @@
           <el-form-item prop="password">
             <el-input v-model="form.password" placeholder="密码（至少6位）" size="large" type="password" show-password prefix-icon="Lock" />
           </el-form-item>
+          <el-form-item prop="confirmPassword">
+            <el-input v-model="form.confirmPassword" placeholder="再次输入密码" size="large" type="password" show-password prefix-icon="Lock" />
+          </el-form-item>
           <el-button type="primary" size="large" class="w-full mt-2" :loading="loading" @click="handleRegister">
             注 册
           </el-button>
@@ -45,19 +48,31 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import type { FormInstance } from 'element-plus'
+import type { FormInstance, FormItemRule } from 'element-plus'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const formRef = ref<FormInstance>()
 const loading = ref(false)
 const grades = ['初一', '初二', '初三', '高一', '高二', '高三']
-const form = reactive({ nickname: '', email: '', grade: '', password: '' })
+const form = reactive({ nickname: '', email: '', grade: '', password: '', confirmPassword: '' })
+
+const validateConfirmPassword = (_rule: FormItemRule, value: string, callback: (err?: Error) => void) => {
+  if (value === '') {
+    callback(new Error('请再次输入密码'))
+  } else if (value !== form.password) {
+    callback(new Error('两次输入的密码不一致'))
+  } else {
+    callback()
+  }
+}
+
 const rules = {
   nickname: [{ required: true, message: '请输入昵称', trigger: 'blur' }],
   email: [{ required: true, type: 'email', message: '请输入有效邮箱', trigger: 'blur' }],
   grade: [{ required: true, message: '请选择年级', trigger: 'change' }],
   password: [{ required: true, min: 6, message: '密码至少6位', trigger: 'blur' }],
+  confirmPassword: [{ required: true, validator: validateConfirmPassword, trigger: 'blur' }],
 }
 
 async function handleRegister() {

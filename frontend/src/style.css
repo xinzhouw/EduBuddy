@@ -1,6 +1,18 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* Tailwind v4 自定义主题（原 tailwind.config.js 内容迁移至此） */
+@theme {
+  --color-primary-50: #EFF6FF;
+  --color-primary-100: #DBEAFE;
+  --color-primary-500: #3B82F6;
+  --color-primary-600: #2563EB;
+  --color-primary-700: #1D4ED8;
+  --color-accent-100: #D1FAE5;
+  --color-accent-500: #10B981;
+
+  --font-family-sans: 'PingFang SC', 'Noto Sans SC', 'Inter', -apple-system, sans-serif;
+  --font-family-mono: 'JetBrains Mono', monospace;
+}
 
 @layer base {
   html {
@@ -28,7 +40,7 @@
     @apply bg-white rounded-xl shadow-sm border border-gray-100 p-6;
   }
   .card-hover {
-    @apply card hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 cursor-pointer;
+    @apply bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 cursor-pointer;
   }
   .badge-error {
     @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700;

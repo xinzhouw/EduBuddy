@@ -5,6 +5,8 @@ import os
 
 class Settings(BaseSettings):
     openai_api_key: str = ""
+    openai_base_url: str = ""          # OpenAI 兼容接口地址，留空则使用官方地址
+    openai_model: str = "gpt-4o"       # 模型名称，可改为兼容服务提供的模型名
     secret_key: str = "dev-secret-key-change-in-production"
     database_url: str = "sqlite:///./data/edubuddy.db"
     upload_dir: str = "./uploads"

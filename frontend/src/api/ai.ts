@@ -12,6 +12,9 @@ export const aiApi = {
 
   addToWrongBook: (messageId: number, data: { subject: string; tags: string[] }) =>
     api.post(`/ai/messages/${messageId}/add-to-wrong-book`, data),
+
+  deleteSession: (sessionId: string) =>
+    api.delete(`/ai/sessions/${sessionId}`),
 }
 
 export function createChatStream(

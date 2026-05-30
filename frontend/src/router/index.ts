@@ -17,6 +17,7 @@ const router = createRouter({
     { path: '/plan', component: () => import('@/views/plan/StudyPlanView.vue') },
     { path: '/docs', component: () => import('@/views/docs/DocsView.vue') },
     { path: '/stats', component: () => import('@/views/stats/StatsView.vue') },
+    { path: '/homework', component: () => import('@/views/homework/HomeworkGradingView.vue') },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 })
