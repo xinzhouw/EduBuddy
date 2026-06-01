@@ -7,11 +7,7 @@
         <div class="flex-1 flex flex-col overflow-hidden">
           <AppHeader />
           <main class="flex-1 overflow-y-auto p-6 bg-gray-50">
-            <RouterView v-slot="{ Component }">
-              <Transition name="fade" mode="out-in">
-                <component :is="Component" />
-              </Transition>
-            </RouterView>
+            <RouterView :key="route.fullPath" />
           </main>
         </div>
       </div>
@@ -24,20 +20,11 @@
 </template>
 
 <script setup lang="ts">
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import AppSidebar from '@/components/layout/AppSidebar.vue'
 import AppHeader from '@/components/layout/AppHeader.vue'
 
 const authStore = useAuthStore()
+const route = useRoute()
 </script>
-
-<style>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.15s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-</style>

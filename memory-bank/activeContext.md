@@ -1,10 +1,19 @@
 # EduBuddy 活跃上下文
 
 ## 当前工作焦点
-**日期**：2026-05-30  
-**阶段**：V1.0 开发阶段 — 新增 PDF 导出 & Undo/Redo 功能
+**日期**：2026-06-01  
+**阶段**：V1.0 开发阶段 — Bug 修复：页面切换后显示空白问题
 
 ## 最近完成的工作
+
+- **修复页面切换后显示空白问题**（`frontend/src/App.vue`）：
+  - **根因**：`App.vue` 使用了 `<Transition name="fade" mode="out-in">` 包装 `<RouterView>`
+  - `HomeworkGradingView.vue` 引入了 `import 'mathlive'`（注册 `<math-field>` Web Component）
+  - 当用户执行「批改作业 → 导出 PDF（`window.open` 打开新窗口）→ 切换页面」时，mathlive Web Component 在 `disconnectedCallback` 触发额外 DOM 操作，干扰了 Vue `<Transition out-in>` 的 `transitionend` 状态机，导致新页面组件卡在 `opacity: 0`（`fade-enter-from`）状态，视觉上表现为空白页
+  - **修复**：移除 `<Transition>` 包装，改用 `<RouterView :key="route.fullPath" />`
+  - 使用 `:key="route.fullPath"` 的好处：每次路由变化强制 Vue 完整卸载/重建组件，避免任何过渡动画竞态问题；同时保证带参数路由（如 `/wrong-book/:id`）在参数变化时也能正确刷新
+  - TypeScript 编译验证通过（`tsc --noEmit` exit 0）
+
 - **新增题目练习扫描图片/文档输入功能**：
   - **背景**：当题目中含有复杂公式时，手动输入知识点非常困难
   - **后端 `backend/app/services/ai_service.py`**：
