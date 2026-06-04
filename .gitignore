@@ -85,3 +85,9 @@ yarn-error.log*
 # ========================
 coverage/
 *.lcov
+
+# ========================
+# 教材 PDF 缓存 & RAG 向量库（体积大，不提交）
+# ========================
+agents/textbook_crawler/cache/
+backend/data/knowledge_base/chroma/

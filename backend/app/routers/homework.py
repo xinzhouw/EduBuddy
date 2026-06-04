@@ -1,9 +1,11 @@
 import base64
 import json
+import mimetypes
+import os
 from datetime import datetime
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
@@ -371,6 +373,50 @@ def get_grading_detail(
             "graded_at": record.graded_at.isoformat() if record.graded_at else None,
         },
     }
+
+
+@router.get("/history/{grading_id}/file")
+def download_grading_file(
+    grading_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """下载作业原始文件（仅文件上传类型有效）"""
+    record = db.query(HomeworkGrading).filter(
+        HomeworkGrading.id == grading_id,
+        HomeworkGrading.user_id == current_user.id,
+    ).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="批改记录不存在")
+    if not record.file_path:
+        raise HTTPException(status_code=404, detail="该记录无上传文件")
+    if not os.path.exists(record.file_path):
+        raise HTTPException(status_code=404, detail="文件已被删除或不存在")
+
+    # 推断 MIME 类型
+    mime_type, _ = mimetypes.guess_type(record.file_path)
+    if not mime_type:
+        # 根据文件扩展名兜底
+        ext = os.path.splitext(record.file_path)[1].lower()
+        mime_map = {
+            ".pdf": "application/pdf",
+            ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".png": "image/png",
+            ".gif": "image/gif",
+            ".webp": "image/webp",
+        }
+        mime_type = mime_map.get(ext, "application/octet-stream")
+
+    # 使用原始文件名作为下载文件名
+    filename = record.file_name or os.path.basename(record.file_path)
+
+    return FileResponse(
+        path=record.file_path,
+        media_type=mime_type,
+        filename=filename,
+    )
 
 
 @router.delete("/history/{grading_id}")

@@ -2,16 +2,15 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from jose import jwt
-from passlib.context import CryptContext
 from app.database import get_db
 from app.config import get_settings
 from app.dependencies import get_current_user
 from app.models.user import User
+from app.security import hash_password, verify_password
 from app.schemas.auth import UserRegister, UserLogin, UserOut, TokenData, UserUpdate, PasswordChange
 
 router = APIRouter(prefix="/api/auth", tags=["认证"])
 settings = get_settings()
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def create_token(user_id: int) -> str:
@@ -27,7 +26,7 @@ def create_token(user_id: int) -> str:
 def register(data: UserRegister, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == data.email).first():
         raise HTTPException(status_code=400, detail="该邮箱已被注册")
-    hashed = pwd_context.hash(data.password)
+    hashed = hash_password(data.password)
     user = User(email=data.email, password=hashed, nickname=data.nickname, grade=data.grade)
     db.add(user)
     db.commit()
@@ -38,7 +37,7 @@ def register(data: UserRegister, db: Session = Depends(get_db)):
 @router.post("/login")
 def login(data: UserLogin, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == data.email, User.is_active == True).first()
-    if not user or not pwd_context.verify(data.password, user.password):
+    if not user or not verify_password(data.password, user.password):
         raise HTTPException(status_code=401, detail="邮箱或密码错误")
     token = create_token(user.id)
     return {
@@ -71,8 +70,8 @@ def update_me(data: UserUpdate, db: Session = Depends(get_db), current_user: Use
 
 @router.put("/password")
 def change_password(data: PasswordChange, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if not pwd_context.verify(data.old_password, current_user.password):
+    if not verify_password(data.old_password, current_user.password):
         raise HTTPException(status_code=400, detail="旧密码错误")
-    current_user.password = pwd_context.hash(data.new_password)
+    current_user.password = hash_password(data.new_password)
     db.commit()
     return {"code": 200, "message": "密码修改成功"}

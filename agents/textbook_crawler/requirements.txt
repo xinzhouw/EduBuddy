@@ -1,0 +1,5 @@
+# agents/textbook_crawler 依赖
+requests>=2.31.0
+PyMuPDF>=1.24.0
+chromadb>=0.5.0
+sentence-transformers>=2.7.0

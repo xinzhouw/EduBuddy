@@ -1,7 +1,8 @@
 import json
 from datetime import date
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
+
 from sqlalchemy.orm import Session
 from typing import Optional
 from app.database import get_db
@@ -69,18 +70,6 @@ def create_wrong_item(
     db.commit()
     db.refresh(item)
     return {"code": 200, "data": WrongItemOut.model_validate(item)}
-
-
-@router.post("/ocr")
-async def ocr_image(
-    file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user),
-):
-    """OCR 识别图片（简化版，返回提示信息）"""
-    allowed = {"image/jpeg", "image/png"}
-    if file.content_type not in allowed:
-        raise HTTPException(status_code=400, detail="仅支持 JPG/PNG 图片")
-    return {"code": 200, "data": {"recognized_text": "（OCR功能需要配置OpenAI Vision API，请手动输入题目内容）"}}
 
 
 @router.get("/{item_id}")

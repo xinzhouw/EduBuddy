@@ -49,15 +49,16 @@
     <div class="flex-1 card flex flex-col overflow-hidden">
       <!-- 顶部工具栏 -->
       <div class="flex items-center gap-3 pb-3 border-b border-gray-100 shrink-0 flex-wrap">
-        <!-- 学科 -->
+        <!-- 学科：只读显示（来自批改历史中选择的学科） -->
         <div class="flex items-center gap-1.5">
           <span class="text-sm text-gray-500">学科：</span>
-          <el-select v-model="form.subject" size="small" style="width: 110px" :disabled="isGrading || isRecognizing">
-            <el-option v-for="s in subjects" :key="s" :label="s" :value="s" />
-          </el-select>
+          <span
+            class="text-xs px-2 py-1 rounded-md font-medium"
+            :class="subjectColorClass(form.subject)"
+          >{{ form.subject }}</span>
         </div>
-        <!-- 提交方式切换 -->
-        <el-radio-group v-model="submitMode" size="small" :disabled="isGrading || isRecognizing">
+        <!-- 提交方式切换（仅表单视图显示） -->
+        <el-radio-group v-if="viewMode === 'form'" v-model="submitMode" size="small" :disabled="isGrading || isRecognizing">
           <el-radio-button value="text">📝 文本输入</el-radio-button>
           <el-radio-button value="file">📎 上传文件</el-radio-button>
         </el-radio-group>
@@ -124,17 +125,183 @@
               </div>
               <!-- 流式输出预览 -->
               <div v-if="gradingReport" class="markdown-body px-1 py-2 bg-gray-50 rounded-xl"
+                v-dyn-figures
                 v-html="renderMessage(gradingReport)">
               </div>
               <span class="typing-cursor"></span>
             </div>
             <!-- 批改报告内容区域（用于 PDF 导出的 ref） -->
-            <div
-              v-else-if="gradingReport"
-              ref="reportContentEl"
-              class="markdown-body px-1"
-              v-html="renderMessage(gradingReport)"
-            ></div>
+            <template v-else-if="gradingReport">
+              <!-- 语音朗读工具栏 -->
+              <div
+                class="flex items-center gap-2 mb-3 p-2.5 border rounded-xl transition-colors"
+                :class="ttsDisabled
+                  ? 'bg-gray-50 border-gray-200'
+                  : 'bg-indigo-50 border-indigo-100'"
+              >
+                <span class="text-sm shrink-0" :class="ttsDisabled ? 'text-gray-400' : 'text-indigo-500'">🔊</span>
+                <span class="text-xs font-medium shrink-0" :class="ttsDisabled ? 'text-gray-400' : 'text-indigo-600'">语音朗读</span>
+
+                <!-- 禁用状态（数学/物理/化学） -->
+                <template v-if="ttsDisabled">
+                  <span class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-200 text-gray-400 cursor-not-allowed select-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M8 5v14l11-7z"/>
+                    </svg>
+                    开始朗读
+                  </span>
+                  <span class="ml-auto text-xs text-gray-400">{{ form.subject }}学科公式复杂，暂不支持语音朗读</span>
+                </template>
+
+                <!-- 正常状态 -->
+                <template v-else>
+                  <!-- 播放按钮（idle 状态时显示） -->
+                  <button
+                    v-if="ttsState === 'idle'"
+                    @click="startSpeech"
+                    class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 active:bg-indigo-700 transition-colors shadow-sm"
+                    title="朗读批改报告"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M8 5v14l11-7z"/>
+                    </svg>
+                    开始朗读
+                  </button>
+                  <!-- 播放中：暂停 + 停止 -->
+                  <template v-else>
+                    <!-- 暂停 / 继续 -->
+                    <button
+                      @click="togglePauseSpeech"
+                      class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors shadow-sm"
+                      :class="ttsState === 'playing'
+                        ? 'bg-amber-500 text-white hover:bg-amber-600'
+                        : 'bg-green-500 text-white hover:bg-green-600'"
+                      :title="ttsState === 'playing' ? '暂停' : '继续'"
+                    >
+                      <!-- 暂停图标 -->
+                      <svg v-if="ttsState === 'playing'" xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                      </svg>
+                      <!-- 继续图标 -->
+                      <svg v-else xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 5v14l11-7z"/>
+                      </svg>
+                      {{ ttsState === 'playing' ? '暂停' : '继续' }}
+                    </button>
+                    <!-- 停止 -->
+                    <button
+                      @click="stopSpeech"
+                      class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-500 text-white hover:bg-gray-600 transition-colors shadow-sm"
+                      title="停止朗读"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M6 6h12v12H6z"/>
+                      </svg>
+                      停止
+                    </button>
+                  </template>
+                  <!-- 播放状态指示 -->
+                  <span class="ml-auto text-xs flex items-center gap-1"
+                    :class="ttsState === 'playing' ? 'text-indigo-600' : ttsState === 'paused' ? 'text-amber-600' : 'text-gray-400'">
+                    <span v-if="ttsState === 'playing'" class="flex gap-0.5 items-end h-4">
+                      <span class="tts-bar w-1 rounded-sm bg-indigo-500" style="animation-delay: 0s"></span>
+                      <span class="tts-bar w-1 rounded-sm bg-indigo-500" style="animation-delay: 0.15s"></span>
+                      <span class="tts-bar w-1 rounded-sm bg-indigo-500" style="animation-delay: 0.3s"></span>
+                      <span class="tts-bar w-1 rounded-sm bg-indigo-500" style="animation-delay: 0.45s"></span>
+                    </span>
+                    <span v-if="ttsState === 'playing'">正在朗读...</span>
+                    <span v-else-if="ttsState === 'paused'">⏸ 已暂停</span>
+                  </span>
+                </template>
+              </div>
+              <div
+                ref="reportContentEl"
+                class="markdown-body px-1"
+                v-dyn-figures
+                v-html="renderMessage(gradingReport)"
+              ></div>
+
+              <!-- 查看原始作业内容（可折叠） -->
+              <div v-if="originalContentText || originalFileName" class="mt-4 border border-gray-200 rounded-xl overflow-hidden">
+                <button
+                  class="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 hover:bg-gray-100 transition-colors text-sm text-gray-600 font-medium"
+                  @click="showOriginalContent = !showOriginalContent"
+                >
+                  <span class="flex items-center gap-2">
+                    <span>📄</span>
+                    <span>查看原始作业内容</span>
+                    <span v-if="originalFileName" class="text-xs text-gray-400 font-normal">（{{ originalFileName }}）</span>
+                    <span v-else-if="originalContentType" class="text-xs text-gray-400 font-normal">（{{ contentTypeLabel(originalContentType) }}）</span>
+                  </span>
+                  <span class="text-gray-400 text-xs transition-transform" :style="showOriginalContent ? 'transform:rotate(180deg)' : ''">▼</span>
+                </button>
+                <div v-if="showOriginalContent" class="p-4 bg-white border-t border-gray-100">
+                  <!-- 有原始文件（PDF/DOCX/图片）：提供下载/预览入口 -->
+                  <div v-if="originalFileName" class="space-y-3">
+                    <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <span class="text-2xl">{{ fileTypeIcon(originalContentType) }}</span>
+                      <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-gray-700 truncate">{{ originalFileName }}</p>
+                        <p class="text-xs text-gray-400 mt-0.5">{{ contentTypeLabel(originalContentType) }}</p>
+                      </div>
+                      <div class="flex gap-2 shrink-0">
+                        <!-- 图片：在新标签页打开预览 -->
+                        <button
+                          v-if="isImageContentType(originalContentType)"
+                          @click="openFileInNewTab(currentGradingId!)"
+                          class="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+                        >
+                          <span>🖼️</span>
+                          <span>查看图片</span>
+                        </button>
+                        <!-- PDF：在新标签页预览 -->
+                        <button
+                          v-else-if="originalContentType === 'pdf'"
+                          @click="openFileInNewTab(currentGradingId!)"
+                          class="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+                        >
+                          <span>📄</span>
+                          <span>预览 PDF</span>
+                        </button>
+                        <!-- 下载按钮（所有文件类型都有） -->
+                        <button
+                          @click="downloadFile(currentGradingId!)"
+                          class="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors border border-gray-200"
+                        >
+                          <span>⬇️</span>
+                          <span>下载文件</span>
+                        </button>
+                      </div>
+                    </div>
+                    <!-- 对于 PDF/DOCX，如果有提取的文字也同时展示 -->
+                    <div v-if="originalContentText" class="space-y-1.5">
+                      <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-500 font-medium">📝 提取的文字内容</span>
+                        <div class="flex items-center gap-2">
+                          <span class="text-xs text-gray-400">{{ originalContentText.length }} 字</span>
+                          <button
+                            class="text-xs text-blue-500 hover:text-blue-600 transition-colors"
+                            @click="copyOriginalContent"
+                          >📋 复制</button>
+                        </div>
+                      </div>
+                      <pre class="text-xs text-gray-700 bg-gray-50 rounded-lg p-3 max-h-48 overflow-y-auto whitespace-pre-wrap leading-relaxed font-sans border border-gray-100">{{ originalContentText }}</pre>
+                    </div>
+                  </div>
+                  <!-- 纯文本输入：直接展示内容 -->
+                  <div v-else-if="originalContentText" class="space-y-2">
+                    <div class="flex items-center justify-between">
+                      <span class="text-xs text-gray-400">{{ contentTypeLabel(originalContentType) }} · {{ originalContentText.length }} 字</span>
+                      <button
+                        class="text-xs text-blue-500 hover:text-blue-600 transition-colors"
+                        @click="copyOriginalContent"
+                      >📋 复制内容</button>
+                    </div>
+                    <pre class="text-xs text-gray-700 bg-gray-50 rounded-lg p-3 max-h-64 overflow-y-auto whitespace-pre-wrap leading-relaxed font-sans">{{ originalContentText }}</pre>
+                  </div>
+                </div>
+              </div>
+            </template>
             <div v-else class="text-center text-gray-400 py-12">
               <span class="text-4xl block mb-3">📋</span>
               <p>批改报告将在这里显示</p>
@@ -438,7 +605,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, nextTick, onUnmounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { homeworkApi, createTextGradingStream, createFileGradingStream } from '@/api/homework'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -629,6 +796,12 @@ const currentGradingId = ref<number | null>(null)
 const currentTitle = ref('')
 const currentGradedAt = ref('')
 
+// 原始作业内容（用于"查看原始内容"面板）
+const originalContentText = ref<string>('')
+const originalContentType = ref<string>('')
+const originalFileName = ref<string>('')
+const showOriginalContent = ref(false)
+
 // 历史记录
 const historyList = ref<any[]>([])
 
@@ -643,6 +816,12 @@ const isImageFile = computed(() => {
   const ext = selectedFile.value.name.split('.').pop()?.toLowerCase() || ''
   return IMAGE_TYPES.includes(ext)
 })
+
+/** 数学、物理、化学公式复杂，语音输出效果差，禁用这三个学科的语音功能 */
+const TTS_DISABLED_SUBJECTS = ['数学', '物理', '化学']
+const ttsDisabled = computed(() =>
+  TTS_DISABLED_SUBJECTS.includes(form.value.subject)
+)
 
 const canSubmit = computed(() => {
   if (isGrading.value || isRecognizing.value) return false
@@ -816,7 +995,30 @@ async function loadHistory() {
   } catch {}
 }
 
-watch(filterSubject, loadHistory)
+watch(filterSubject, (newSubject) => {
+  loadHistory()
+  // 切换学科筛选时清空右侧批改内容，回到空白状态
+  stopSpeech()
+  viewMode.value = 'form'
+  gradingReport.value = ''
+  finalScore.value = null
+  currentGradingId.value = null
+  currentTitle.value = ''
+  currentGradedAt.value = ''
+  // 同步更新表单学科：若筛选了具体学科则同步，否则保持当前值
+  if (newSubject) {
+    form.value.subject = newSubject
+  }
+  form.value.title = ''
+  form.value.content = ''
+  selectedFile.value = null
+  recognizedText.value = null
+  recognizeConfidence.value = ''
+  recognizeError.value = ''
+  undoStack.value = []
+  redoStack.value = []
+  if (fileInputEl.value) fileInputEl.value.value = ''
+})
 
 async function loadDetail(id: number) {
   try {
@@ -828,6 +1030,11 @@ async function loadDetail(id: number) {
     gradingReport.value = data.detailed_feedback || ''
     finalScore.value = data.score ?? null
     currentGradedAt.value = data.graded_at ? formatDate(data.graded_at) : ''
+    // 保存原始内容
+    originalContentText.value = data.content_text || ''
+    originalContentType.value = data.content_type || ''
+    originalFileName.value = data.file_name || ''
+    showOriginalContent.value = false
     viewMode.value = 'result'
   } catch {
     ElMessage.error('加载批改详情失败')
@@ -1041,6 +1248,101 @@ function scoreLabel(score: number) {
   return '需要加油 📖'
 }
 
+/** 原始内容类型标签 */
+function contentTypeLabel(type: string): string {
+  const map: Record<string, string> = {
+    text: '📝 文本输入',
+    pdf: '📄 PDF 文档',
+    docx: '📝 Word 文档',
+    image: '🖼️ 图片',
+    jpg: '🖼️ 图片',
+    jpeg: '🖼️ 图片',
+    png: '🖼️ 图片',
+    gif: '🖼️ 图片',
+    webp: '🖼️ 图片',
+  }
+  return map[type] || type
+}
+
+/** 文件类型图标（用于无文字内容的图片提示） */
+function fileTypeIcon(type: string): string {
+  const imageTypes = ['image', 'jpg', 'jpeg', 'png', 'gif', 'webp']
+  if (imageTypes.includes(type)) return '🖼️'
+  if (type === 'pdf') return '📄'
+  if (type === 'docx') return '📝'
+  return '📎'
+}
+
+/** 是否是图片类型 */
+function isImageContentType(type: string): boolean {
+  return ['image', 'jpg', 'jpeg', 'png', 'gif', 'webp'].includes(type)
+}
+
+/** 构造文件查看 URL（带 token，用于 PDF/图片在新标签页打开） */
+function getFileUrl(gradingId: number): string {
+  return `/api/homework/history/${gradingId}/file`
+}
+
+/** 触发文件下载（带 Authorization header，使用 fetch + Blob） */
+async function downloadFile(gradingId: number) {
+  const token = authStore.token
+  if (!token) { ElMessage.error('未登录'); return }
+  try {
+    const resp = await fetch(`/api/homework/history/${gradingId}/file`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    })
+    if (!resp.ok) { ElMessage.error('文件下载失败'); return }
+    const blob = await resp.blob()
+    const contentDisposition = resp.headers.get('content-disposition') || ''
+    let filename = originalFileName.value || 'homework_file'
+    const match = contentDisposition.match(/filename\*?=(?:UTF-8'')?["']?([^"';\n]+)["']?/i)
+    if (match) filename = decodeURIComponent(match[1])
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  } catch {
+    ElMessage.error('文件下载失败')
+  }
+}
+
+/** 在新窗口预览文件（带 Authorization header，使用 fetch + Object URL） */
+async function openFileInNewTab(gradingId: number) {
+  const token = authStore.token
+  if (!token) { ElMessage.error('未登录'); return }
+  try {
+    const resp = await fetch(`/api/homework/history/${gradingId}/file`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    })
+    if (!resp.ok) { ElMessage.error('文件加载失败'); return }
+    const blob = await resp.blob()
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank')
+    // 延迟释放，给浏览器时间打开
+    setTimeout(() => URL.revokeObjectURL(url), 10000)
+  } catch {
+    ElMessage.error('文件加载失败')
+  }
+}
+
+// getFileDownloadUrl 保留为兼容占位（实际由 downloadFile 函数处理）
+function getFileDownloadUrl(_gradingId: number): string { return '' }
+
+/** 复制原始作业内容到剪贴板 */
+async function copyOriginalContent() {
+  if (!originalContentText.value) return
+  try {
+    await navigator.clipboard.writeText(originalContentText.value)
+    ElMessage.success('已复制到剪贴板')
+  } catch {
+    ElMessage.error('复制失败，请手动选中文本复制')
+  }
+}
+
 function subjectColorClass(subject: string) {
   const map: Record<string, string> = {
     数学: 'bg-blue-100 text-blue-700',
@@ -1056,9 +1358,367 @@ function subjectColorClass(subject: string) {
   return map[subject] || 'bg-gray-100 text-gray-600'
 }
 
+// ─── 语音朗读 ───────────────────────────────────────────────
+/** 语音播放状态：idle | playing | paused */
+const ttsState = ref<'idle' | 'playing' | 'paused'>('idle')
+/** 当前使用的语音（中文优先） */
+let ttsVoice: SpeechSynthesisVoice | null = null
+/** 当前 utterance 实例 */
+let ttsUtterance: SpeechSynthesisUtterance | null = null
+/**
+ * Chrome 长文本 TTS bug workaround：
+ * Chrome 在朗读约 15 秒后会静默暂停（不触发 onend），
+ * 需要每隔 10 秒调用一次 resume() 来保持朗读继续。
+ */
+let ttsKeepAliveTimer: ReturnType<typeof setInterval> | null = null
+
+function startTtsKeepAlive() {
+  stopTtsKeepAlive()
+  ttsKeepAliveTimer = setInterval(() => {
+    if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
+      window.speechSynthesis.pause()
+      window.speechSynthesis.resume()
+    }
+  }, 10000)
+}
+
+function stopTtsKeepAlive() {
+  if (ttsKeepAliveTimer !== null) {
+    clearInterval(ttsKeepAliveTimer)
+    ttsKeepAliveTimer = null
+  }
+}
+
+/** 从浏览器中选取最优中文语音 */
+function pickChineseVoice(): SpeechSynthesisVoice | null {
+  if (!('speechSynthesis' in window)) return null
+  const voices = window.speechSynthesis.getVoices()
+  // 优先：zh-CN > zh-TW > zh > 其他包含 zh 的
+  return (
+    voices.find(v => v.lang === 'zh-CN') ||
+    voices.find(v => v.lang === 'zh-TW') ||
+    voices.find(v => v.lang.startsWith('zh')) ||
+    voices.find(v => v.lang.includes('zh')) ||
+    null
+  )
+}
+
+/**
+ * 展开 LaTeX 中最外层的单对花括号（不含嵌套），反复执行直到无变化
+ * 用于将 \frac 等处理后残留的 {content} → content
+ */
+function stripBraces(s: string): string {
+  let prev = ''
+  while (prev !== s) {
+    prev = s
+    s = s.replace(/\{([^{}]*)\}/g, '$1')
+  }
+  return s
+}
+
+/**
+ * 将单个 LaTeX 公式内容转换为可朗读的中文文本
+ * 按优先级依次处理各种结构，最后清理剩余命令符号
+ */
+function latexToSpeech(latex: string): string {
+  let s = latex.trim()
+
+  // ── 0. 预处理：统一 \dfrac \cfrac \tfrac → \frac ──
+  s = s.replace(/\\[dct]frac/g, '\\frac')
+
+  // ── 1. 块级结构（多轮处理，直到无法继续替换，以处理嵌套） ──
+
+  // \frac{num}{den}：用不含嵌套花括号的正则，多轮替换
+  let prev = ''
+  while (prev !== s) {
+    prev = s
+    s = s.replace(/\\frac\{([^{}]*)\}\{([^{}]*)\}/g,
+      (_, num, den) => `(${latexToSpeech(num)}除以${latexToSpeech(den)})`)
+  }
+
+  // \sqrt[n]{x} → "x 的 n 次方根"
+  prev = ''
+  while (prev !== s) {
+    prev = s
+    s = s.replace(/\\sqrt\[([^\]]*)\]\{([^{}]*)\}/g,
+      (_, n, x) => `${latexToSpeech(x)}的${latexToSpeech(n)}次方根`)
+  }
+
+  // \sqrt{x} → "根号x"
+  prev = ''
+  while (prev !== s) {
+    prev = s
+    s = s.replace(/\\sqrt\{([^{}]*)\}/g,
+      (_, x) => `根号${latexToSpeech(x)}`)
+  }
+
+  // \int_{a}^{b} 或 \int^{b}_{a} → "从a到b的积分"
+  s = s.replace(/\\int_\{([^{}]*)\}\^\{([^{}]*)\}/g,
+    (_, a, b) => `从${latexToSpeech(a)}到${latexToSpeech(b)}的积分`)
+  s = s.replace(/\\int\^\{([^{}]*)\}_\{([^{}]*)\}/g,
+    (_, b, a) => `从${latexToSpeech(a)}到${latexToSpeech(b)}的积分`)
+  s = s.replace(/\\int_([a-zA-Z0-9])\^([a-zA-Z0-9])/g,
+    (_, a, b) => `从${a}到${b}的积分`)
+  s = s.replace(/\\int/g, '积分')
+
+  // \sum_{sub}^{sup} → "sub到sup求和"
+  s = s.replace(/\\sum_\{([^{}]*)\}\^\{([^{}]*)\}/g,
+    (_, sub, sup) => `${latexToSpeech(sub)}到${latexToSpeech(sup)}求和`)
+  s = s.replace(/\\sum/g, '求和')
+
+  // \lim_{x \to a} → "当x趋近于a时的极限"
+  s = s.replace(/\\lim_\{([^{}]*)\}/g,
+    (_, sub) => {
+      const readable = latexToSpeech(sub).replace(/\\to|→/g, '趋近于')
+      return `当${readable}时的极限`
+    })
+  s = s.replace(/\\lim/g, '极限')
+
+  // ── 2. 上下标（幂次/下标） ──
+
+  // ^{2} → "的平方"，^{3} → "的立方"，^{n} → "的n次方"
+  s = s.replace(/\^\{2\}/g, '的平方')
+  s = s.replace(/\^\{3\}/g, '的立方')
+  prev = ''
+  while (prev !== s) {
+    prev = s
+    s = s.replace(/\^\{([^{}]+)\}/g, (_, e) => `的${latexToSpeech(e)}次方`)
+  }
+  s = s.replace(/\^2(?=[^{]|$)/g, '的平方')
+  s = s.replace(/\^3(?=[^{]|$)/g, '的立方')
+  s = s.replace(/\^([a-zA-Z0-9])/g, (_, e) => `的${e}次方`)
+
+  // _{i} → 下标内容（直接保留）
+  prev = ''
+  while (prev !== s) {
+    prev = s
+    s = s.replace(/_\{([^{}]+)\}/g, (_, e) => latexToSpeech(e))
+  }
+  s = s.replace(/_([a-zA-Z0-9])/g, '$1')
+
+  // 去掉剩余花括号（多轮）
+  s = stripBraces(s)
+
+  // ── 3. 常用 LaTeX 命令符号映射 ──
+  const cmdMap: [RegExp, string][] = [
+    // 希腊字母
+    [/\\alpha/g, 'α'], [/\\beta/g, 'β'], [/\\gamma/g, 'γ'],
+    [/\\delta/g, 'δ'], [/\\epsilon/g, 'ε'], [/\\varepsilon/g, 'ε'],
+    [/\\zeta/g, 'ζ'], [/\\eta/g, 'η'], [/\\theta/g, 'θ'],
+    [/\\vartheta/g, 'θ'], [/\\iota/g, 'ι'], [/\\kappa/g, 'κ'],
+    [/\\lambda/g, 'λ'], [/\\mu/g, 'μ'], [/\\nu/g, 'ν'],
+    [/\\xi/g, 'ξ'], [/\\pi/g, 'π'], [/\\varpi/g, 'π'],
+    [/\\rho/g, 'ρ'], [/\\sigma/g, 'σ'], [/\\tau/g, 'τ'],
+    [/\\upsilon/g, 'υ'], [/\\phi/g, 'φ'], [/\\varphi/g, 'φ'],
+    [/\\chi/g, 'χ'], [/\\psi/g, 'ψ'], [/\\omega/g, 'ω'],
+    [/\\Gamma/g, 'Γ'], [/\\Delta/g, 'Δ'], [/\\Theta/g, 'Θ'],
+    [/\\Lambda/g, 'Λ'], [/\\Xi/g, 'Ξ'], [/\\Pi/g, 'Π'],
+    [/\\Sigma/g, 'Σ'], [/\\Phi/g, 'Φ'], [/\\Psi/g, 'Ψ'],
+    [/\\Omega/g, 'Ω'],
+    // 运算符
+    [/\\times/g, '乘以'], [/\\div/g, '除以'],
+    [/\\cdot/g, '乘以'], [/\\pm/g, '正负'], [/\\mp/g, '负正'],
+    // 关系符
+    [/\\leq|\\le\b/g, '小于等于'], [/\\geq|\\ge\b/g, '大于等于'],
+    [/\\neq|\\ne\b/g, '不等于'], [/\\approx/g, '约等于'],
+    [/\\equiv/g, '恒等于'], [/\\sim/g, '约等于'],
+    [/\\propto/g, '正比于'],
+    // 箭头
+    [/\\to\b|\\rightarrow/g, '趋近于'], [/\\leftarrow/g, '←'],
+    [/\\Rightarrow/g, '推出'], [/\\Leftrightarrow/g, '等价于'],
+    // 集合
+    [/\\in\b/g, '属于'], [/\\notin/g, '不属于'],
+    [/\\subset/g, '包含于'], [/\\supset/g, '包含'],
+    [/\\cup/g, '并'], [/\\cap/g, '交'],
+    [/\\emptyset|\\varnothing/g, '空集'],
+    // 其他符号
+    [/\\infty/g, '无穷大'], [/\\partial/g, '偏导'],
+    [/\\nabla/g, '梯度'], [/\\forall/g, '对任意'],
+    [/\\exists/g, '存在'],
+    [/\\ldots|\\cdots|\\dots/g, '……'],
+    [/\\because/g, '因为'], [/\\therefore/g, '所以'],
+    [/\\angle/g, '角'], [/\\perp/g, '垂直于'],
+    [/\\parallel/g, '平行于'],
+    [/\\triangle/g, '三角形'], [/\\square/g, '正方形'],
+    [/\\circ/g, '度'],
+    // 三角与对数（用中文读法，避免 TTS 逐字母朗读）
+    [/\\arcsin/g, '反正弦'], [/\\arccos/g, '反余弦'],
+    [/\\arctan/g, '反正切'],
+    [/\\sin/g, '正弦'], [/\\cos/g, '余弦'], [/\\tan/g, '正切'],
+    [/\\cot/g, '余切'], [/\\sec/g, '正割'], [/\\csc/g, '余割'],
+    [/\\ln/g, '自然对数'], [/\\lg/g, '常用对数'],
+    [/\\log/g, '对数'],
+    [/\\exp/g, '指数函数'], [/\\max/g, '最大值'],
+    [/\\min/g, '最小值'], [/\\gcd/g, '最大公因数'],
+    [/\\lcm/g, '最小公倍数'],
+    [/\\det/g, '行列式'], [/\\dim/g, '维数'],
+    // 空格类
+    [/\\quad|\\qquad/g, ' '], [/\\[,;! ]/g, ''],
+    [/\\,|\\:|\\;/g, ''],
+    // 字体命令（直接去除）
+    [/\\(?:mathrm|mathbf|mathit|mathsf|mathbb|mathcal|boldsymbol|text)\{([^{}]*)\}/g, '$1'],
+    [/\\(?:left|right)[.()\[\]|\\{\\}]/g, ''],
+    [/\\(?:left|right)/g, ''],
+    [/\\(?:big|Big|bigg|Bigg)[lmr]?/g, ''],
+    [/\\(?:overline|underline|hat|bar|vec|tilde|dot|ddot)\{([^{}]*)\}/g, '$1'],
+  ]
+  for (const [pattern, replacement] of cmdMap) {
+    s = s.replace(pattern, replacement)
+  }
+
+  // ── 4. 清理剩余 LaTeX 命令 & 符号 ──
+  // 剩余 \cmd → 去掉反斜杠保留命令名
+  s = s.replace(/\\([a-zA-Z]+)/g, '$1')
+  // ASCII 运算符号 → 中文
+  s = s.replace(/=/g, '等于')
+  s = s.replace(/</g, '小于')
+  s = s.replace(/>/g, '大于')
+  // 清理多余空白
+  s = s.replace(/\s+/g, ' ').trim()
+
+  return s
+}
+
+/**
+ * 将批改报告纯文本化：
+ * - LaTeX 公式用 latexToSpeech() 智能转为可读文本
+ * - 去除 Markdown 标记（#、*、`、> 等）
+ * - 去除 HTML 标签
+ * - 清理多余空白
+ */
+function reportToPlainText(md: string): string {
+  let text = md
+  // 去除 HTML 标签（若有，须在 LaTeX 处理前）
+  text = text.replace(/<[^>]+>/g, '')
+  // 处理 $$...$$（块级公式）→ 智能语音文本，两侧加停顿
+  text = text.replace(/\$\$([\s\S]*?)\$\$/g, (_, inner) => `，${latexToSpeech(inner)}，`)
+  // 处理 $...$（行内公式）→ 智能语音文本
+  text = text.replace(/\$([^$\n]+?)\$/g, (_, inner) => latexToSpeech(inner))
+  // 去除 Markdown 标题符号 #
+  text = text.replace(/^#{1,6}\s+/gm, '')
+  // 去除加粗 **text** 或 __text__
+  text = text.replace(/\*\*(.+?)\*\*/g, '$1')
+  text = text.replace(/__(.+?)__/g, '$1')
+  // 去除斜体 *text* 或 _text_
+  text = text.replace(/\*(.+?)\*/g, '$1')
+  text = text.replace(/_(.+?)_/g, '$1')
+  // 去除代码块 ``` ... ```
+  text = text.replace(/```[\s\S]*?```/g, '，代码块，')
+  // 去除行内代码 `code`
+  text = text.replace(/`[^`]+`/g, '')
+  // 去除引用符号 >
+  text = text.replace(/^>\s*/gm, '')
+  // 去除 Markdown 链接 [text](url)
+  text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+  // 去除分隔线 ---
+  text = text.replace(/^[-*_]{3,}\s*$/gm, '。')
+  // 清理多余空行与空格
+  text = text.replace(/\n{3,}/g, '\n\n')
+  text = text.trim()
+  return text
+}
+
+/** 开始朗读 */
+function startSpeech() {
+  if (!('speechSynthesis' in window)) {
+    ElMessage.warning('您的浏览器不支持语音朗读功能')
+    return
+  }
+  if (!gradingReport.value) return
+
+  // 停止之前的朗读并清理定时器
+  stopTtsKeepAlive()
+  window.speechSynthesis.cancel()
+
+  const text = reportToPlainText(gradingReport.value)
+  if (!text.trim()) return
+
+  ttsUtterance = new SpeechSynthesisUtterance(text)
+  ttsUtterance.lang = 'zh-CN'
+  ttsUtterance.rate = 1.0
+  ttsUtterance.pitch = 1.0
+  ttsUtterance.volume = 1.0
+
+  // 选取中文语音（语音列表可能异步加载，兜底用已缓存的）
+  const voice = ttsVoice || pickChineseVoice()
+  if (voice) ttsUtterance.voice = voice
+
+  ttsUtterance.onstart = () => {
+    ttsState.value = 'playing'
+    // 启动 Chrome 长文本 bug workaround
+    startTtsKeepAlive()
+  }
+  ttsUtterance.onpause = () => {
+    ttsState.value = 'paused'
+  }
+  ttsUtterance.onresume = () => {
+    ttsState.value = 'playing'
+  }
+  ttsUtterance.onend = () => {
+    stopTtsKeepAlive()
+    ttsState.value = 'idle'
+    ttsUtterance = null
+  }
+  ttsUtterance.onerror = (e) => {
+    stopTtsKeepAlive()
+    // 以下错误类型属于正常流程（用户取消、keepAlive 触发的 pause/resume 造成的中断）
+    const ignoredErrors = ['interrupted', 'canceled', 'not-allowed']
+    if (!e.error || ignoredErrors.includes(e.error)) {
+      // 如果是被 keepAlive 打断后重新朗读失败，尝试静默恢复
+      return
+    }
+    ttsState.value = 'idle'
+    ttsUtterance = null
+    console.warn('TTS error:', e.error)
+  }
+
+  window.speechSynthesis.speak(ttsUtterance)
+  // 部分浏览器 onstart 触发较晚，先乐观设置状态
+  ttsState.value = 'playing'
+}
+
+/** 暂停 / 继续 */
+function togglePauseSpeech() {
+  if (!('speechSynthesis' in window)) return
+  if (ttsState.value === 'playing') {
+    stopTtsKeepAlive()
+    window.speechSynthesis.pause()
+    ttsState.value = 'paused'
+  } else if (ttsState.value === 'paused') {
+    window.speechSynthesis.resume()
+    ttsState.value = 'playing'
+    startTtsKeepAlive()
+  }
+}
+
+/** 停止朗读 */
+function stopSpeech() {
+  if (!('speechSynthesis' in window)) return
+  stopTtsKeepAlive()
+  window.speechSynthesis.cancel()
+  ttsState.value = 'idle'
+  ttsUtterance = null
+}
+
 // ─── 生命周期 ───────────────────────────────────────────────
 onMounted(async () => {
   await loadHistory()
+  // 初始化语音列表（Chrome 等浏览器语音列表异步加载）
+  if ('speechSynthesis' in window) {
+    const tryPickVoice = () => {
+      ttsVoice = pickChineseVoice()
+    }
+    tryPickVoice()
+    window.speechSynthesis.addEventListener('voiceschanged', tryPickVoice)
+  }
+})
+
+onUnmounted(() => {
+  // 页面卸载时停止语音并清理定时器，避免资源泄漏
+  stopTtsKeepAlive()
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel()
+  }
 })
 </script>
 
@@ -1182,6 +1842,18 @@ onMounted(async () => {
 
 .markdown-body :deep(.katex) {
   font-size: 1em;
+}
+
+/* 语音朗读音频波形动画 */
+.tts-bar {
+  display: inline-block;
+  height: 4px;
+  animation: tts-wave 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes tts-wave {
+  0%   { height: 4px; }
+  100% { height: 14px; }
 }
 </style>
 

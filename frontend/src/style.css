@@ -62,7 +62,27 @@
   .subject-tag-politics { @apply inline-flex px-2 py-0.5 rounded text-xs font-medium bg-rose-100 text-rose-700; }
 }
 
+/* AI 解说中的几何矢量图（教科书风格插图） */
+.svg-figure {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0.9rem auto;
+  padding: 0.75rem 1rem;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.svg-figure svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
 /* AI 打字机光标动画 */
+
 .typing-cursor::after {
   content: '▋';
   animation: blink 0.7s step-end infinite;

@@ -1,6 +1,6 @@
 import uuid
 import json
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -11,7 +11,11 @@ from app.models.user import User
 from app.models.note import ChatSession, ChatMessage
 from app.models.wrong_item import WrongItem
 from app.services.ai_service import ai_service
+from app.services.rag_service import rag_service
+from app.services.meta_service import meta_service, build_meta_context
 from app.services.review_service import get_initial_review_date
+
+
 
 router = APIRouter(prefix="/api/ai", tags=["AI问答"])
 
@@ -74,6 +78,26 @@ async def chat(
     user_id = current_user.id
     user_grade = current_user.grade
 
+    # 应用元信息上下文：当用户询问「本应用功能 / 知识库收录的科目教材 / 教材章节目录」时，
+    # 注入应用自身知识，使 AI 能正确回答这类问题（不属于元信息类则为空字符串）。
+    meta_context = build_meta_context(
+        question=data.question,
+        subject=data.subject if data.subject != "全部" else None,
+        grade=user_grade if user_grade else None,
+    )
+
+    # RAG 检索：从教材知识库中召回相关内容（知识库不可用时自动降级为空字符串）
+    rag_context = rag_service.build_context_prompt(
+        query=data.question,
+        subject=data.subject if data.subject != "全部" else None,
+        grade=user_grade if user_grade else None,
+        top_k=4,
+    )
+
+    # 合并上下文（元信息优先注入，确保功能/知识库类问题能被正确回答）
+    combined_context = (meta_context or "") + (rag_context or "")
+
+
     # 收集完整回复以便保存
     full_response = []
     message_id_holder = []
@@ -84,6 +108,7 @@ async def chat(
             subject=data.subject,
             grade=user_grade,
             history=history,
+            rag_context=combined_context,
         ):
             full_response.append(chunk)
             yield f"data: {json.dumps({'type': 'content', 'delta': chunk}, ensure_ascii=False)}\n\n"
@@ -236,3 +261,38 @@ def add_to_wrong_book(
     db.add(item)
     db.commit()
     return {"code": 200, "message": "已加入错题本"}
+
+
+@router.get("/knowledge-base/stats")
+def get_knowledge_base_stats(
+    current_user: User = Depends(get_current_user),
+):
+    """
+    查询教材知识库状态（是否可用、已索引教材数量等）
+    """
+    stats = rag_service.get_stats()
+    return {"code": 200, "data": stats}
+
+
+@router.get("/knowledge-base/retrieve")
+async def retrieve_from_knowledge_base(
+    query: str = Query(..., description="查询内容"),
+    subject: Optional[str] = Query(None, description="学科过滤（如：数学、物理）"),
+    top_k: int = Query(4, ge=1, le=10, description="返回条数"),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    直接从教材知识库检索相关内容（调试/预览用）
+    """
+    if not query.strip():
+        raise HTTPException(status_code=400, detail="查询内容不能为空")
+
+    results = rag_service.retrieve(query=query.strip(), subject=subject, top_k=top_k)
+    return {
+        "code": 200,
+        "data": {
+            "query": query,
+            "rag_available": rag_service.is_available,
+            "results": results,
+        }
+    }

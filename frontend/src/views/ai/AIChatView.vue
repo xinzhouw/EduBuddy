@@ -56,11 +56,50 @@
               class="px-4 py-3 rounded-2xl text-sm leading-relaxed bg-blue-500 text-white rounded-tr-sm user-message-content"
               v-html="renderUserMessage(msg.content)">
             </div>
-            <!-- AI 消息：Markdown + LaTeX 富文本渲染 -->
-            <div v-else
-              class="ai-message-content px-4 py-3 rounded-2xl rounded-tl-sm bg-gray-100 text-gray-800">
-              <div class="markdown-body" v-html="renderMessage(msg.content)"></div>
+            <!-- AI 消息：Markdown + LaTeX 富文本渲染 + 图片 -->
+            <div v-else class="ai-message-content px-4 py-3 rounded-2xl rounded-tl-sm bg-gray-100 text-gray-800">
+              <div class="markdown-body" v-dyn-figures v-html="renderMessageWithImagePlaceholders(msg.content)"></div>
               <span v-if="msg.streaming" class="typing-cursor"></span>
+              <!-- 图片展示区：已搜索完的图片 -->
+              <template v-if="!msg.streaming && msg.imageBlocks && msg.imageBlocks.length > 0">
+                <div v-for="(block, bi) in msg.imageBlocks" :key="bi" class="mt-3">
+                  <div class="image-block-label text-xs text-gray-500 mb-1.5 flex items-center gap-1">
+                    <span>📷</span>
+                    <span>参考图片：{{ block.keyword }}</span>
+                  </div>
+                  <div v-if="block.loading" class="image-loading-placeholder">
+                    <span class="text-xs text-gray-400">搜索图片中...</span>
+                  </div>
+                  <div v-else-if="block.images && block.images.length > 0" class="image-grid">
+                    <a
+                      v-for="(img, ii) in block.images"
+                      :key="ii"
+                      :href="img.source_url"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="image-card"
+                      :title="img.title">
+                      <img
+                        :src="img.thumbnail || img.url"
+                        :alt="img.title"
+                        class="image-card-img"
+                        loading="lazy"
+                        @error="onImgError($event)"
+                      />
+                      <div class="image-card-caption">{{ img.title }}</div>
+                    </a>
+                  </div>
+                  <div v-else class="text-xs text-gray-400 italic">未找到相关图片</div>
+                </div>
+              </template>
+              <!-- 流式输出中：显示正在搜索的图片占位 -->
+              <template v-if="msg.streaming && msg.pendingImageKeywords && msg.pendingImageKeywords.length > 0">
+                <div v-for="kw in msg.pendingImageKeywords" :key="kw" class="mt-3">
+                  <div class="image-loading-placeholder">
+                    <span class="text-xs text-gray-400">🔍 正在搜索图片：{{ kw }}</span>
+                  </div>
+                </div>
+              </template>
             </div>
             <!-- AI 回复操作按钮 -->
             <div v-if="msg.role === 'assistant' && !msg.streaming && msg.id" class="flex gap-2 mt-1.5 ml-1">
@@ -120,27 +159,80 @@ import { useAuthStore } from '@/stores/auth'
 import { aiApi } from '@/api/ai'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { renderMessage, renderLatexOnly } from '@/utils/markdown'
+import { searchEducationalImages } from '@/utils/imageSearch'
+
+// ===================== 类型定义 =====================
+interface ImageItem {
+  url: string
+  thumbnail: string
+  title: string
+  description: string
+  source_url: string
+}
+
+interface ImageBlock {
+  keyword: string
+  loading: boolean
+  images: ImageItem[]
+}
+
+interface ChatMessage {
+  id?: number
+  tempId?: number
+  role: 'user' | 'assistant'
+  content: string
+  streaming?: boolean
+  feedback?: string
+  imageBlocks?: ImageBlock[]
+  pendingImageKeywords?: string[]
+}
+
+// ===================== 图片标记处理 =====================
+
+/** 从 AI 回复内容中提取所有 [[IMAGE:关键词]] 标记的关键词列表 */
+function extractImageKeywords(content: string): string[] {
+  const pattern = /\[\[IMAGE:([^\]]+)\]\]/gi
+  const keywords: string[] = []
+  let match
+  while ((match = pattern.exec(content)) !== null) {
+    const kw = match[1].trim()
+    if (kw && !keywords.includes(kw)) {
+      keywords.push(kw)
+    }
+  }
+  return keywords
+}
+
+/**
+ * 渲染消息内容：将 [[IMAGE:xxx]] 标记替换为"图片占位锚点"
+ * 实际图片由 imageBlocks 数据驱动渲染，此处只去掉标记文字避免显示在正文中
+ */
+function renderMessageWithImagePlaceholders(content: string): string {
+  // 先去掉 [[IMAGE:...]] 标记（图片由下方的 imageBlocks 区域展示）
+  const cleaned = content.replace(/\[\[IMAGE:[^\]]*\]\]/gi, '')
+  return renderMessage(cleaned)
+}
 
 /**
  * 渲染用户消息：支持 LaTeX 公式，同时保留换行（将 \n 转为 <br>）
  */
 function renderUserMessage(content: string): string {
-  // 先做 LaTeX 渲染，再把换行符转成 <br>
   const withLatex = renderLatexOnly(content)
-  // 将剩余的换行符转为 <br>（renderLatexOnly 输出的是纯文本+KaTeX HTML）
   return withLatex.replace(/\n/g, '<br>')
 }
 
+// ===================== 状态 =====================
 const authStore = useAuthStore()
 const subjects = ['数学', '物理', '化学', '生物', '语文', '英语', '历史', '地理', '政治']
 const selectedSubject = ref('数学')
 const inputText = ref('')
-const messages = ref<any[]>([])
+const messages = ref<ChatMessage[]>([])
 const sessions = ref<any[]>([])
 const currentSessionId = ref<string | null>(null)
 const isLoading = ref(false)
 const messagesEl = ref<HTMLElement>()
 
+// ===================== 工具函数 =====================
 async function scrollToBottom() {
   await nextTick()
   if (messagesEl.value) {
@@ -148,6 +240,49 @@ async function scrollToBottom() {
   }
 }
 
+/** 图片加载失败时隐藏破图 */
+function onImgError(event: Event) {
+  const img = event.target as HTMLImageElement
+  if (img) {
+    img.style.display = 'none'
+  }
+}
+
+// ===================== 图片搜索 =====================
+/** 为一条 AI 消息搜索所有 [[IMAGE:...]] 关键词对应的图片 */
+async function fetchImagesForMessage(msg: ChatMessage) {
+  const keywords = extractImageKeywords(msg.content)
+  if (keywords.length === 0) return
+
+  // 初始化 imageBlocks（loading 状态）
+  msg.imageBlocks = keywords.map(kw => ({
+    keyword: kw,
+    loading: true,
+    images: [],
+  }))
+  msg.pendingImageKeywords = []
+  await scrollToBottom()
+
+  // 逐个关键词搜索（前端直接调用 Wikimedia API，无需后端中转）
+  for (let i = 0; i < keywords.length; i++) {
+    const kw = keywords[i]
+    try {
+      const imgs = await searchEducationalImages(kw, 3)
+      if (msg.imageBlocks && msg.imageBlocks[i]) {
+        msg.imageBlocks[i].loading = false
+        msg.imageBlocks[i].images = imgs
+      }
+    } catch {
+      if (msg.imageBlocks && msg.imageBlocks[i]) {
+        msg.imageBlocks[i].loading = false
+        msg.imageBlocks[i].images = []
+      }
+    }
+    await scrollToBottom()
+  }
+}
+
+// ===================== 会话管理 =====================
 async function loadSessions() {
   try {
     const res: any = await aiApi.getSessions()
@@ -159,8 +294,20 @@ async function loadSession(sessionId: string) {
   currentSessionId.value = sessionId
   try {
     const res: any = await aiApi.getMessages(sessionId)
-    messages.value = res.data || []
+    const rawMsgs: ChatMessage[] = res.data || []
+    // 历史消息加载后也需要搜索图片
+    messages.value = rawMsgs.map(m => ({
+      ...m,
+      imageBlocks: [],
+      pendingImageKeywords: [],
+    }))
     await scrollToBottom()
+    // 为每条历史 AI 消息加载图片（非阻塞）
+    for (const msg of messages.value) {
+      if (msg.role === 'assistant') {
+        fetchImagesForMessage(msg)
+      }
+    }
   } catch {}
 }
 
@@ -169,18 +316,26 @@ function newChat() {
   messages.value = []
 }
 
+// ===================== 发送消息 =====================
 async function sendMessage() {
   const text = inputText.value.trim()
   if (!text || isLoading.value) return
 
   // 添加用户消息
-  const userMsg = { tempId: Date.now(), role: 'user', content: text }
+  const userMsg: ChatMessage = { tempId: Date.now(), role: 'user', content: text }
   messages.value.push(userMsg)
   inputText.value = ''
   await scrollToBottom()
 
   // 创建 AI 回复占位
-  const aiMsg = ref<{ tempId: number; role: string; content: string; streaming: boolean; id?: number }>({ tempId: Date.now() + 1, role: 'assistant', content: '', streaming: true })
+  const aiMsg = ref<ChatMessage>({
+    tempId: Date.now() + 1,
+    role: 'assistant',
+    content: '',
+    streaming: true,
+    imageBlocks: [],
+    pendingImageKeywords: [],
+  })
   messages.value.push(aiMsg.value)
   isLoading.value = true
 
@@ -219,14 +374,19 @@ async function sendMessage() {
           const data = JSON.parse(line.slice(6))
           if (data.type === 'content') {
             aiMsg.value.content += data.delta
+            // 实时更新正在出现的图片关键词（流式输出时显示搜索占位）
+            aiMsg.value.pendingImageKeywords = extractImageKeywords(aiMsg.value.content)
             await scrollToBottom()
           } else if (data.type === 'done') {
             aiMsg.value.streaming = false
+            aiMsg.value.pendingImageKeywords = []
             if (data.message_id) aiMsg.value.id = data.message_id
             if (data.session_id && !currentSessionId.value) {
               currentSessionId.value = data.session_id
               await loadSessions()
             }
+            // AI 回复完成后，搜索图片（非阻塞）
+            fetchImagesForMessage(aiMsg.value)
           }
         } catch {}
       }
@@ -234,21 +394,22 @@ async function sendMessage() {
   } catch (e) {
     aiMsg.value.content = '抱歉，请求失败，请检查网络或 API 配置。'
     aiMsg.value.streaming = false
+    aiMsg.value.pendingImageKeywords = []
   } finally {
     isLoading.value = false
   }
 }
 
-async function handleFeedback(msg: any, rating: string) {
+// ===================== 反馈 & 错题本 =====================
+async function handleFeedback(msg: ChatMessage, rating: string) {
   try {
-    await aiApi.feedback(msg.id, { rating })
+    await aiApi.feedback(msg.id!, { rating })
     ElMessage.success(rating === 'thumbs_up' ? '感谢你的反馈！' : '已记录，我们会改进')
   } catch {}
 }
 
-async function addToWrongBook(msg: any) {
+async function addToWrongBook(msg: ChatMessage) {
   try {
-    // 找到对应的用户问题
     const idx = messages.value.indexOf(msg)
     const userMsg = messages.value[idx - 1]
     if (!userMsg || !msg.id) return
@@ -270,22 +431,20 @@ async function confirmDeleteSession(session: any) {
       }
     )
     await aiApi.deleteSession(session.id)
-    // 如果删除的是当前会话，清空聊天区域
     if (currentSessionId.value === session.id) {
       currentSessionId.value = null
       messages.value = []
     }
-    // 刷新会话列表
     await loadSessions()
     ElMessage.success('会话已删除')
   } catch (e: any) {
-    // 用户取消不提示
     if (e !== 'cancel' && e?.message !== 'cancel') {
       ElMessage.error('删除失败，请重试')
     }
   }
 }
 
+// ===================== 生命周期 =====================
 onMounted(async () => {
   await loadSessions()
 })
@@ -437,5 +596,73 @@ onMounted(async () => {
 .input-preview-content :deep(.katex-display) {
   margin: 0.3em 0;
   overflow-x: auto;
+}
+
+/* ============ 图片相关样式 ============ */
+
+/* 图片块标签 */
+.image-block-label {
+  color: #6b7280;
+  font-size: 0.75rem;
+  margin-bottom: 6px;
+}
+
+/* 图片加载占位 */
+.image-loading-placeholder {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: #f9fafb;
+  border: 1px dashed #d1d5db;
+  border-radius: 8px;
+  margin-top: 4px;
+}
+
+/* 图片网格（最多3列） */
+.image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* 单张图片卡片 */
+.image-card {
+  display: block;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  text-decoration: none;
+  background: #f9fafb;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.image-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+/* 图片本体 */
+.image-card-img {
+  width: 100%;
+  height: 100px;
+  object-fit: cover;
+  display: block;
+  background: #e5e7eb;
+}
+
+/* 图片标题 */
+.image-card-caption {
+  padding: 4px 6px;
+  font-size: 0.7rem;
+  color: #6b7280;
+  line-height: 1.3;
+  max-height: 2.6em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 </style>

@@ -1,6 +1,9 @@
 import MarkdownIt from 'markdown-it'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
+// mhchem：为 KaTeX 增加化学方程式支持，使 \ce{...}、\pu{...} 可被渲染
+import 'katex/dist/contrib/mhchem.mjs'
+
 
 // 配置 markdown-it（关闭 html，防止注入；关闭 breaks，避免单换行被转成 <br>）
 const md = new MarkdownIt({
@@ -26,6 +29,31 @@ function renderFormula(formula: string, displayMode: boolean): string {
 }
 
 /**
+ * 安全清洗 AI 生成的 SVG 代码：
+ * - 移除 <script>、外部引用（<image>/<foreignObject>）、事件处理属性（on*）、javascript: 链接
+ * - 仅保留矢量几何绘图所需的基础元素，避免 XSS 风险
+ * 用于把 AI 生成的几何图（SVG 代码块）渲染成清晰的矢量图。
+ */
+function sanitizeSvg(svg: string): string {
+  let s = svg
+  // 去除注释、DOCTYPE、xml 声明
+  s = s.replace(/<!--[\s\S]*?-->/g, '')
+  s = s.replace(/<\?[\s\S]*?\?>/g, '')
+  s = s.replace(/<!DOCTYPE[^>]*>/gi, '')
+  // 移除危险元素（含内容）
+  s = s.replace(/<script[\s\S]*?<\/script>/gi, '')
+  s = s.replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, '')
+  s = s.replace(/<(image|use|iframe|object|embed|a)\b[\s\S]*?(\/>|<\/\1>)/gi, '')
+  // 移除事件处理属性 on*="..."
+  s = s.replace(/\son\w+\s*=\s*"[^"]*"/gi, '')
+  s = s.replace(/\son\w+\s*=\s*'[^']*'/gi, '')
+  // 移除 javascript: 协议
+  s = s.replace(/javascript:/gi, '')
+  return s.trim()
+}
+
+
+/**
  * 将消息内容渲染为 HTML（支持 Markdown + LaTeX）
  *
  * 策略：
@@ -38,14 +66,83 @@ function renderFormula(formula: string, displayMode: boolean): string {
 export function renderMessage(content: string): string {
   const DISPLAY_TOKEN = '\uFFFD\uFFFED\uFFFD'   // 块级公式标记前缀
   const INLINE_TOKEN  = '\uFFFD\uFFFEI\uFFFD'   // 行内公式标记前缀
+  const SVG_TOKEN     = '\uFFFD\uFFFES\uFFFD'   // SVG 几何图标记前缀
+  const FIG_TOKEN     = '\uFFFD\uFFFEF\uFFFD'   // 动态图（函数图/分子式）标记前缀
 
   const displayBuf: string[] = []
   const inlineBuf:  string[] = []
+  const svgBuf:     string[] = []
+  // 动态图占位 HTML（函数图 funcplot、分子结构 smiles），由 hydrateDynamicFigures 异步渲染
+  const figBuf:     string[] = []
+
+  let s = content
+
+  // -1. 提取专业学科图代码块（在 SVG/公式之前处理）：
+  //     ```funcplot ...```  → 数学函数图像（ECharts 异步渲染）
+  //     ```smiles ...```     → 化学分子结构式（smiles-drawer 异步渲染）
+  //     这里仅生成带 data-* 的占位 div，真正绘制在组件挂载后调用 hydrateDynamicFigures()。
+  s = s.replace(/```\s*funcplot\s*\n?([\s\S]*?)```/gi, (_m, code: string) => {
+    const payload = encodeURIComponent(code.trim())
+    figBuf.push(
+      `<div class="dyn-figure func-plot" data-type="funcplot" data-spec="${payload}">📈 正在绘制函数图…</div>`
+    )
+    return `\n\n${FIG_TOKEN}${figBuf.length - 1}${FIG_TOKEN}\n\n`
+  })
+  s = s.replace(/```\s*smiles\s*\n?([\s\S]*?)```/gi, (_m, code: string) => {
+    const payload = encodeURIComponent(code.trim())
+    figBuf.push(
+      `<div class="dyn-figure smiles-figure" data-type="smiles" data-spec="${payload}">⚛️ 正在绘制分子结构…</div>`
+    )
+    return `\n\n${FIG_TOKEN}${figBuf.length - 1}${FIG_TOKEN}\n\n`
+  })
+
+
+  // 0. 先提取 SVG 几何图：支持 ```svg ... ``` 代码块，以及裸 <svg>...</svg>
+  //    用占位符替换，避免被 markdown-it 转义成代码文本或被公式逻辑破坏。
+  s = s.replace(/```\s*svg\s*\n?([\s\S]*?)```/gi, (_m, code) => {
+    svgBuf.push(sanitizeSvg(code))
+    return `\n\n${SVG_TOKEN}${svgBuf.length - 1}${SVG_TOKEN}\n\n`
+  })
+  s = s.replace(/<svg[\s\S]*?<\/svg>/gi, (m) => {
+    svgBuf.push(sanitizeSvg(m))
+    return `\n\n${SVG_TOKEN}${svgBuf.length - 1}${SVG_TOKEN}\n\n`
+  })
+
+  // 0a. 兜底：个别情况下 AI 仍会用 ASCII 字符（+ - | / \ 等）在普通代码块里"画图"，
+  //     这种字符画又粗糙又难看。检测此类代码块并替换为提示，避免暴露给用户。
+  s = s.replace(/```[^\n]*\n([\s\S]*?)```/g, (whole, body: string) => {
+    const lines = body.split('\n').filter((l) => l.trim().length > 0)
+    if (lines.length < 3) return whole
+    // 统计"制图字符"占比：+ - | / \ _ 以及空格
+    const drawingChars = (body.match(/[+\-|/\\_]/g) || []).length
+    const total = body.replace(/\s/g, '').length || 1
+    const ratio = drawingChars / total
+    // 多行、且制图字符占比高 → 判定为 ASCII 字符画
+    if (ratio > 0.35) {
+      return '\n\n*（此处为示意图，已省略粗略的字符草图）*\n\n'
+    }
+    return whole
+  })
+
+  // 0b. 流式输出过程中可能存在「尚未闭合」的 SVG 代码块（``` svg 已开始但还没收到结尾，
+
+  //     或 <svg 已开始但还没收到 </svg>）。直接渲染会把一大段 SVG 源码暴露给用户，
+  //     这里把未闭合的部分替换为"正在绘制图形…"的占位提示，等收完后再正常渲染。
+  const openFence = s.search(/```\s*svg\b/i)
+  if (openFence !== -1) {
+    s = s.slice(0, openFence) + '\n\n*🖌️ 正在绘制图形…*\n\n'
+  } else {
+    const openSvg = s.search(/<svg\b/i)
+    if (openSvg !== -1) {
+      s = s.slice(0, openSvg) + '\n\n*🖌️ 正在绘制图形…*\n\n'
+    }
+  }
+
 
   // 1. 手动扫描提取 $$...$$ 块（支持跨行，内部换行压成空格）
-  let s = content
   let out = ''
   let p = 0
+
   while (p < s.length) {
     if (s[p] === '$' && s[p + 1] === '$') {
       const end = s.indexOf('$$', p + 2)
@@ -80,8 +177,20 @@ export function renderMessage(content: string): string {
     renderFormula(inlineBuf[parseInt(idx)], false)
   )
 
+  // 6. 还原 SVG 几何图（包裹在居中容器中，类似教科书插图）
+  html = html.replace(/\uFFFD\uFFFES\uFFFD(\d+)\uFFFD\uFFFES\uFFFD/g, (_m, idx) =>
+    `<div class="svg-figure">${svgBuf[parseInt(idx)] || ''}</div>`
+  )
+
+  // 7. 还原动态图占位（函数图 / 分子结构），真正绘制由 hydrateDynamicFigures 完成
+  html = html.replace(/\uFFFD\uFFFEF\uFFFD(\d+)\uFFFD\uFFFEF\uFFFD/g, (_m, idx) =>
+    figBuf[parseInt(idx)] || ''
+  )
+
   return html
 }
+
+
 
 /**
  * 仅渲染 LaTeX 公式（不含 Markdown），用于题目内容、选项等纯文本场景

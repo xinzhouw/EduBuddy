@@ -1,10 +1,72 @@
 # EduBuddy 活跃上下文
 
 ## 当前工作焦点
-**日期**：2026-06-01  
-**阶段**：V1.0 开发阶段 — Bug 修复：页面切换后显示空白问题
+**日期**：2026-06-04  
+**阶段**：V1.0 开发阶段 — 代码整理 + 全功能测试
 
 ## 最近完成的工作
+
+- **AI 问答支持"应用元信息"问题（功能/知识库/教材目录）**：
+  - **问题**：原 `SYSTEM_PROMPT` 限制 AI 只答学科题，且 RAG 仅检索教材正文向量库，导致"你有哪些功能""知识库有哪些科目教材""高一数学第一章内容"等问题被拒答或答不准。
+  - **新增** `backend/app/services/meta_service.py`：
+    - `APP_FEATURES` 应用功能清单 + `get_features_text()`
+    - `MetaService` 懒加载 `backend/data/curriculum/*.json`（跳过 `_` 前缀辅助文件），提供 `list_subjects()`/`get_knowledge_base_overview()`/`get_curriculum_detail(subject,grade)`
+    - `detect_meta_intent(question)` 关键词识别（功能类 / 知识库类）+ `build_meta_context()` 构建注入上下文（非元信息类返回空字符串）
+  - **修改** `ai_service.py` 的 `SYSTEM_PROMPT`：明确 AI 可回答"本应用功能/知识库/教材目录"问题，不再拒答
+  - **修改** `routers/ai.py` 的 `chat()`：新增 `build_meta_context()` 调用，与 `rag_context` 合并为 `combined_context` 注入；元信息优先
+  - **验证**：3 类样例问题均正确注入功能清单/教材总览/章节目录，普通学科题不受影响（上下文为空）；`py_compile` 语法校验通过
+
+- **代码整理（剔除冗余）+ 全功能测试**（详见 `docs/TEST_REPORT.md`）：
+  - **删除冗余文件**：`frontend/src/components/HelloWorld.vue` 及其 assets（hero.png/vue.svg/vite.svg）、`public/icons.svg`（脚手架残留）；`backend/app/services/image_search_service.py`（前端已改用 `utils/imageSearch.ts` 浏览器直连，后端服务无调用）；agents 旧版脚本 `download_pdfs.py`/`parse_local_pdfs.py`/`config.py`/`fetch_cdn.py`/`crawler.log`/`cookies.json`；空虚拟环境 `backend/.venv/`（保留有依赖的 `backend/venv/`）
+  - **删除死代码**：`ai.py` 的 `/api/ai/search-images` 端点、`wrong_book.py` 的占位 `/api/wrong-book/ocr` 端点、`api/ai.ts` 的 `searchImages()` 和空函数 `createChatStream()`
+  - **现代化重构**：`main.py` 弃用的 `@app.on_event("startup")` → `lifespan`；`requirements.txt` 移除未用的 `alembic`、移除有 bug 的 `passlib`
+  - **🔴 修复严重 Bug（认证全部 500）**：`bcrypt 5.0.0` 与 `passlib 1.7.4` 不兼容（detect_wrap_bug 抛 ValueError）。新增 `backend/app/security.py` 直接用 bcrypt 实现 `hash_password`/`verify_password`，`auth.py` 改用之，彻底弃用 passlib
+  - **🟡 修复 temperature 兼容性**：部分模型网关（Claude/Bedrock via litellm）不接受 temperature 参数返回 400。新增配置 `OPENAI_USE_TEMPERATURE`（默认 true），`ai_service._temp()` 辅助方法按配置决定是否携带，13 处调用全部改用 `**self._temp(x)`
+  - **测试结果**：认证 9 用例 ✅、业务 CRUD（笔记/卡片/错题本含艾宾浩斯算法/统计/计划）✅、AI 功能（问答SSE/出题/答题判分/笔记总结/计划生成/作业批改）✅、前端 `vue-tsc` + `npm run build` ✅ 全部通过
+
+
+
+- **新增「高中教材 RAG 知识库」完整流水线**（下载教材PDF → 构建向量库 → AI问答RAG增强）：
+  - **教材下载** `agents/textbook_crawler/download_all_hs.py`：
+    - 从国家中小学智慧教育平台 CDN 直链（`c1.ykt.cbern.com.cn`，**无需登录**）批量下载
+    - 覆盖高中 9 大主科（数学/物理/化学/生物/语文/英语/历史/地理/政治），共 **50 本**教材（约 814MB）
+    - 按学科分目录存放：`agents/textbook_crawler/cache/pdfs/high_school/{学科}/`
+    - 支持 `--subject` 单科下载、`--dry-run` 预览
+  - **知识库构建** `agents/textbook_crawler/build_knowledge_base.py`：
+    - PyMuPDF 提取 PDF 文本 → 500字符分块（50字符重叠，句子边界切割）→ ChromaDB 向量化存储
+    - 支持 3 种 embedding：`default`（ChromaDB自带ONNX all-MiniLM-L6-v2，轻量无需torch）/ `local`（多语言sentence-transformers）/ `openai`
+    - 同时从 PDF 内置目录生成 `backend/data/curriculum/{subject}.json` 章节知识点
+    - **成果**：14933 条向量记录，存于 `backend/data/knowledge_base/chroma/`（约58MB）
+  - **后端 RAG 服务** `backend/app/services/rag_service.py`（新建）：
+    - `RAGService` 单例，懒加载 ChromaDB（知识库/chromadb 不存在时优雅降级，不影响后端启动）
+    - 核心方法：`retrieve()`（向量检索+学科/年级过滤+相似度阈值0.3）、`build_context_prompt()`（生成注入prompt的教材上下文）、`get_stats()`
+    - **关键约定**：embedding 必须与构建时一致（均用默认 ONNX），否则检索错乱
+  - **AI 服务集成** `backend/app/services/ai_service.py`：`chat_stream()` 新增 `rag_context` 参数，注入到 System Prompt 末尾
+  - **AI 路由集成** `backend/app/routers/ai.py`：
+    - `POST /api/ai/chat` 自动调用 `rag_service.build_context_prompt()` 检索教材并注入
+    - 新增 `GET /api/ai/knowledge-base/stats`（知识库状态）、`GET /api/ai/knowledge-base/retrieve`（检索预览）
+  - **依赖**：`backend/requirements.txt` + `agents/textbook_crawler/requirements.txt` 添加 `chromadb>=0.5.0`、`sentence-transformers>=2.7.0`
+  - **.gitignore**：排除 PDF 缓存与 chroma 向量库（体积大）
+  - **已知限制**：数学必修第一册等少数 PDF 为扫描版，PyMuPDF 无法提取文本（构建时跳过）；默认 ONNX 是英文模型，中文检索精度有限，可升级 `--embedder local/openai`
+
+
+- **为"AI批改作业"页面新增语音朗读功能**（`frontend/src/views/homework/HomeworkGradingView.vue`）：
+  - 技术方案：使用浏览器原生 **Web Speech API（`SpeechSynthesis`）**，无需任何后端改动
+  - **新增响应式状态**：`ttsState`（`'idle' | 'playing' | 'paused'`）
+  - **新增核心函数**：
+    - `pickChineseVoice()`：从浏览器语音列表中优先选取 zh-CN > zh-TW > zh 语音
+    - `reportToPlainText(md)`：将批改报告从 Markdown/LaTeX 格式转为纯文本（去除 `$...$`、`##`、`**`、`` ` `` 等标记，LaTeX 公式替换为"数学公式"口播词）
+    - `startSpeech()`：停止旧朗读 → 文本转换 → 创建 `SpeechSynthesisUtterance` → 设置 zh-CN 语音 → 绑定 onstart/onpause/onresume/onend/onerror 回调 → 开始播放
+    - `togglePauseSpeech()`：播放中暂停 / 暂停中继续
+    - `stopSpeech()`：停止朗读并重置状态
+  - **模板改动**：批改报告完成后（`v-else-if="gradingReport"`），在报告内容上方新增"语音朗读工具栏"：
+    - idle 状态：`▶ 开始朗读` 按钮（靛蓝色）
+    - playing 状态：`⏸ 暂停` 按钮（琥珀色）+ `⏹ 停止` 按钮 + 4 格动态音频波形动画
+    - paused 状态：`▶ 继续` 按钮（绿色）+ `⏹ 停止` 按钮 + "⏸ 已暂停" 文字
+  - **CSS 动画**：`.tts-bar` + `@keyframes tts-wave`，四个高度不同延迟的竖条模拟音频波形
+  - **生命周期**：`onMounted` 中注册 `voiceschanged` 事件缓存中文语音；`onUnmounted` 中调用 `cancel()` 防止资源泄漏
+  - TypeScript 编译验证通过（`tsc --noEmit` exit 0）
+
 
 - **修复页面切换后显示空白问题**（`frontend/src/App.vue`）：
   - **根因**：`App.vue` 使用了 `<Transition name="fade" mode="out-in">` 包装 `<RouterView>`

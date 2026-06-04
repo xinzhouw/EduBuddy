@@ -6,17 +6,108 @@ from app.config import get_settings
 
 settings = get_settings()
 
-SYSTEM_PROMPT = """你是 EduBuddy，一名专业的中学学科辅导老师。
-你只回答与中学数学、物理、化学、生物、语文、英语、历史、地理、政治相关的学习问题。
-解题方法必须在中学教学大纲范围内。
-对于非学习相关的问题，礼貌拒绝并引导学生回到学习。
+# RAG 服务（懒加载，知识库不存在时自动降级）
+try:
+    from app.services.rag_service import rag_service as _rag_service
+except Exception:
+    _rag_service = None
+
+# 几何作图说明：要求 AI 用标准 SVG 矢量代码绘制几何图形，前端会渲染为清晰图形
+GEOMETRY_DRAWING_PROMPT = """
+**几何/示意图作图规则（最高优先级，必须严格遵守）：**
+当题目涉及任何需要配图的内容（三角形、圆、四边形、立体几何、函数图像、坐标系、向量、
+力学受力分析、滑轮/斜面/弹簧装置、电路图等），你必须用「标准 SVG 矢量代码」画出规范、
+精确、像教科书/试卷一样的专业插图。
+
+⛔ 绝对禁止：使用 ASCII 字符、+ - | / \\ 等符号拼出的"文本图"、用代码块写文字示意图、
+   或用「示意如下」之类配上文字符号画图。任何用纯文本/字符画出的图都不允许。
+✅ 唯一允许的画图方式：输出一段 ```svg 代码块。
+
+【SVG 质量与规范要求 —— 请像专业制图一样认真画】
+1. 画布要足够大、构图要舒展：viewBox 建议 0 0 400 320 或更大，元素之间留足间距，
+   不要把图形挤在角落，整体居中、四周留白均匀。
+2. 必须含 xmlns、viewBox、width、height（width/height 与 viewBox 比例一致，建议 width≈360）。
+3. **所有箭头（坐标轴、力、向量）必须用 <defs><marker> 定义统一的箭头**，再在 <line>/<path>
+   上用 marker-end 引用，禁止用两根斜线手画箭头。箭头大小适中。
+4. 线条：主体实线 stroke="#222" stroke-width="2"；辅助线/参考线用 stroke="#888" stroke-dasharray="5 4"。
+   不同类别的力/对象可用不同颜色（如重力红、拉力绿、支持力蓝），但保持克制专业。
+5. 文字标注 font-size="15" fill="#222"，字母/物理量斜体感可用 font-style="italic"；
+   **标注要放在对应元素的外侧、不压线、不互相重叠**，与图形保持 6~10px 间距。
+6. 几何精度：直角必须真的是 90° 并用小正方形标记；等腰/相似等关系要在坐标上体现；
+   圆用 <circle>/<ellipse>；曲线/弧用 <path>。坐标系画带箭头的 x、y 轴、原点 O 和轴标签。
+7. 物理受力图：物体用规整的矩形/圆表示，每个力从作用点出发画一条带箭头的有向线段，
+   箭头方向与力的真实方向一致，旁边标注力的符号（如 G、F、N、T、f）。
+8. 只允许使用 defs/marker/g/line/polyline/polygon/circle/ellipse/rect/path/text 等基础元素；
+   禁止 script、image、foreignObject、外部引用和任何 on* 事件属性。
+9. 每道题最多画 1~2 幅必要的图，宁可画得简洁准确，也不要堆砌。
+
+【示例 A：直角三角形 + 勾股定理】
+```svg
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 300" width="320" height="267">
+  <polygon points="80,240 280,240 80,90" fill="#eef4ff" stroke="#222" stroke-width="2"/>
+  <rect x="80" y="225" width="15" height="15" fill="none" stroke="#222" stroke-width="1.5"/>
+  <text x="62" y="80" font-size="16" fill="#222">A</text>
+  <text x="286" y="246" font-size="16" fill="#222">B</text>
+  <text x="60" y="256" font-size="16" fill="#222">C</text>
+  <text x="178" y="262" font-size="15" fill="#555">a</text>
+  <text x="55" y="170" font-size="15" fill="#555">b</text>
+  <text x="186" y="158" font-size="15" fill="#555">c</text>
+</svg>
+```
+
+【示例 B：定滑轮 / 受力分析（带 marker 箭头，物理专业画法）】
+```svg
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 380 320" width="340" height="286">
+  <defs>
+    <marker id="ah" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#222"/>
+    </marker>
+  </defs>
+  <!-- 天花板 -->
+  <line x1="40" y1="40" x2="340" y2="40" stroke="#222" stroke-width="3"/>
+  <path d="M40,40 l8,-10 M70,40 l8,-10 M100,40 l8,-10 M130,40 l8,-10 M160,40 l8,-10 M190,40 l8,-10 M220,40 l8,-10 M250,40 l8,-10 M280,40 l8,-10 M310,40 l8,-10" stroke="#888" stroke-width="1.5"/>
+  <!-- 滑轮 -->
+  <line x1="190" y1="40" x2="190" y2="90" stroke="#222" stroke-width="2"/>
+  <circle cx="190" cy="120" r="30" fill="#f7f7f7" stroke="#222" stroke-width="2"/>
+  <circle cx="190" cy="120" r="3" fill="#222"/>
+  <!-- 两侧绳与重物 -->
+  <line x1="160" y1="120" x2="160" y2="230" stroke="#222" stroke-width="2"/>
+  <line x1="220" y1="120" x2="220" y2="190" stroke="#222" stroke-width="2"/>
+  <rect x="135" y="230" width="50" height="40" fill="#eef4ff" stroke="#222" stroke-width="2"/>
+  <!-- 重力 G（红，向下） -->
+  <line x1="160" y1="270" x2="160" y2="300" stroke="#d33" stroke-width="2" marker-end="url(#ah)"/>
+  <text x="166" y="292" font-size="15" fill="#d33">G</text>
+  <!-- 拉力 F（绿，向下拉绳） -->
+  <line x1="220" y1="190" x2="220" y2="220" stroke="#2a9d4a" stroke-width="2" marker-end="url(#ah)"/>
+  <text x="226" y="212" font-size="15" fill="#2a9d4a">F</text>
+</svg>
+```
+"""
+
+
+
+
+SYSTEM_PROMPT = """你是 EduBuddy，一名专业的中学学科辅导老师，同时也是「EduBuddy 学习助手」应用本身的智能助理。
+
+
+你可以回答以下两类问题：
+1. **学科学习问题**：与中学数学、物理、化学、生物、语文、英语、历史、地理、政治相关的学习问题。解题方法必须在中学教学大纲范围内。
+2. **关于本应用的问题**：当用户询问"你有哪些功能 / 你能做什么"、"知识库里有哪些科目的教材"、"某年级某学科教材某一章的内容是什么"等关于 EduBuddy 应用功能或教材知识库的问题时，请基于系统提供的「关于 EduBuddy 应用自身的信息」如实、清晰地回答（可用列表整理），不要拒绝这类问题。
+
+对于与学习、与本应用都无关的问题，礼貌拒绝并引导用户回到学习。
+
 
 **输出格式要求（严格遵守）：**
 1. 使用 Markdown 格式输出，包括标题（##）、加粗（**...**）、列表（-）等。
 2. 所有数学公式必须使用 LaTeX 语法：
    - 行内公式用单美元符号包裹，例如：$x^2 + y^2 = r^2$
    - 独立公式块用双美元符号包裹，例如：$$\\frac{a+b}{2} \\geq \\sqrt{ab}$$
-3. 解题时使用以下结构：
+3. **图片展示（重要）**：当解释需要配合图片才能更直观时（例如：生物结构、物理装置、化学实验、地理地图、历史文物等），必须在回复中插入图片搜索标记，格式如下：
+   - `[[IMAGE:英文搜索关键词]]`
+   - 关键词必须是英文，简洁精准，例如：`[[IMAGE:DNA double helix structure]]`、`[[IMAGE:mitosis cell division]]`、`[[IMAGE:human heart anatomy]]`
+   - 图片标记可以放在解释段落之后，或专门的"📷 参考图片"章节中
+   - 对于纯数学计算题不需要图片；对于有明确结构、形态、过程的概念（生物、物理实验、地理、历史）应主动插入图片
+4. 解题时使用以下结构：
 
 ## 解题思路
 简要描述解题方向和核心知识点。
@@ -34,7 +125,32 @@ $$答案的LaTeX公式或文字说明$$
 - 知识点2
 
 ## 易错提醒
-提示学生容易犯的错误。"""
+提示学生容易犯的错误。""" + GEOMETRY_DRAWING_PROMPT + """
+
+**专业学科图表工具（在合适时优先使用，比 SVG 更精确美观）：**
+1. 化学方程式 / 化学式：用 LaTeX 的 mhchem 语法 `\\ce{...}` 写在 $...$ 内。
+   例如：$\\ce{2H2 + O2 -> 2H2O}$、$\\ce{H2SO4}$、$\\ce{CaCO3 ->[\\Delta] CaO + CO2 ^}$。
+   配平、状态符号、沉淀↓、气体↑、可逆 <=> 都用 mhchem 写，不要用普通文字拼。
+2. 化学分子结构式：用 ```smiles 代码块，里面只写该物质的 SMILES 字符串（前端会画出结构式）。
+   例如苯：
+   ```smiles
+   c1ccccc1
+   ```
+   例如乙醇：
+   ```smiles
+   CCO
+   ```
+3. 数学函数图像 / 函数草图：用 ```funcplot 代码块，里面写 JSON 配置（前端用专业图表库绘制）。
+   - 单条曲线：{"fn": "x^2", "xMin": -5, "xMax": 5, "title": "y = x²"}
+   - 多条曲线：{"fns": [{"fn": "sin(x)", "label": "sin x"}, {"fn": "cos(x)", "label": "cos x"}], "xMin": -6.28, "xMax": 6.28}
+   - 函数表达式里：用 x 作自变量；^ 表示乘方；支持 sin cos tan ln log sqrt abs exp pi 等；
+     不要写 "y="，只写右边表达式。
+   例如：
+   ```funcplot
+   {"fn": "x^2 - 2*x - 3", "xMin": -3, "xMax": 5, "title": "二次函数图像"}
+   ```
+   仅当需要展示函数形状/交点/单调性等图像信息时才用 funcplot；纯计算不需要。
+"""
 
 
 class AIService:
@@ -49,11 +165,18 @@ class AIService:
             self.client = None
         # 使用配置的模型名，默认 gpt-4o
         self.model = settings.openai_model or "gpt-4o"
+        # 部分模型网关（Claude/Bedrock 等）不接受 temperature 参数
+        self.use_temperature = settings.openai_use_temperature
 
     def _get_client(self) -> AsyncOpenAI:
         if not self.client:
             raise ValueError("OpenAI API Key 未配置，请在 .env 中设置 OPENAI_API_KEY")
         return self.client
+
+    def _temp(self, value: float) -> dict:
+        """按配置决定是否携带 temperature 参数（兼容不支持该参数的模型）"""
+        return {"temperature": value} if self.use_temperature else {}
+
 
     async def chat_stream(
         self,
@@ -61,10 +184,15 @@ class AIService:
         subject: str,
         grade: str,
         history: list = None,
+        rag_context: str = "",
     ) -> AsyncGenerator[str, None]:
-        """流式 AI 问答"""
+        """流式 AI 问答（支持 RAG 教材上下文注入）"""
         client = self._get_client()
-        messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+        # 若有 RAG 上下文，追加到 System Prompt 末尾
+        system_content = SYSTEM_PROMPT
+        if rag_context:
+            system_content = SYSTEM_PROMPT + rag_context
+        messages = [{"role": "system", "content": system_content}]
         if history:
             messages.extend(history)
         messages.append({
@@ -72,17 +200,12 @@ class AIService:
             "content": f"[学科：{subject}，年级：{grade}]\n{question}"
         })
 
-        stream = await client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            stream=True,
-            max_tokens=2000,
-            temperature=0.3,
-        )
-        async for chunk in stream:
-            delta = chunk.choices[0].delta.content
-            if delta:
-                yield delta
+        # 使用带「自动续写」的流式输出，避免长回答（含公式/SVG）被 max_tokens 截断
+        async for delta in self._stream_with_continuation(
+            messages, max_tokens=4000, temperature=0.3
+        ):
+            yield delta
+
 
     async def generate_quiz(
         self,
@@ -139,10 +262,56 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
                 {"role": "user", "content": prompt}
             ],
             response_format={"type": "json_object"},
-            temperature=0.5,
+            **self._temp(0.5),
         )
         data = json.loads(response.choices[0].message.content)
         return data.get("questions", [])
+
+    async def _stream_with_continuation(
+        self,
+        messages: list,
+        max_tokens: int = 4000,
+        temperature: float = 0.3,
+        max_rounds: int = 3,
+    ) -> AsyncGenerator[str, None]:
+        """
+        流式输出，并在因 max_tokens 截断（finish_reason == 'length'）时自动续写，
+        直到模型自然结束或达到 max_rounds 轮，避免讲解中途中断。
+        """
+        client = self._get_client()
+        # 拷贝一份消息列表，续写时会把已生成内容追加为 assistant 消息
+        msgs = list(messages)
+        rounds = 0
+        while rounds < max_rounds:
+            rounds += 1
+            finish_reason = None
+            round_text = []
+            stream = await client.chat.completions.create(
+                model=self.model,
+                messages=msgs,
+                stream=True,
+                max_tokens=max_tokens,
+                **self._temp(temperature),
+            )
+            async for chunk in stream:
+                if not chunk.choices:
+                    continue
+                choice = chunk.choices[0]
+                delta = choice.delta.content
+                if delta:
+                    round_text.append(delta)
+                    yield delta
+                if choice.finish_reason:
+                    finish_reason = choice.finish_reason
+            # 若不是因长度被截断，则正常结束
+            if finish_reason != "length":
+                break
+            # 因长度截断：把已生成内容作为上下文，要求模型从断点处无缝继续
+            generated = "".join(round_text)
+            msgs = list(messages) + [
+                {"role": "assistant", "content": generated},
+                {"role": "user", "content": "请从你上一段被截断的位置继续输出，不要重复已经写过的内容，直接接着写完剩下的部分。"},
+            ]
 
     async def explain_wrong_answer(
         self,
@@ -150,8 +319,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
         correct_answer: str,
         wrong_answer: Optional[str] = None,
     ) -> AsyncGenerator[str, None]:
-        """错题 AI 讲解（流式）"""
-        client = self._get_client()
+        """错题 AI 讲解（流式，自动续写防中断）"""
         prompt = f"""请详细讲解以下题目：
 
 题目：{question}
@@ -163,17 +331,11 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": prompt}
         ]
-        stream = await client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            stream=True,
-            max_tokens=1500,
-            temperature=0.3,
-        )
-        async for chunk in stream:
-            delta = chunk.choices[0].delta.content
-            if delta:
-                yield delta
+        async for delta in self._stream_with_continuation(
+            messages, max_tokens=4000, temperature=0.3
+        ):
+            yield delta
+
 
     async def summarize_note(self, content: str) -> dict:
         """笔记 AI 总结"""
@@ -194,7 +356,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
                 {"role": "user", "content": prompt}
             ],
             response_format={"type": "json_object"},
-            temperature=0.3,
+            **self._temp(0.3),
         )
         return json.loads(response.choices[0].message.content)
 
@@ -222,7 +384,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
                 {"role": "user", "content": prompt}
             ],
             response_format={"type": "json_object"},
-            temperature=0.4,
+            **self._temp(0.4),
         )
         data = json.loads(response.choices[0].message.content)
         return data.get("flashcards", [])
@@ -270,7 +432,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
                 {"role": "user", "content": prompt}
             ],
             response_format={"type": "json_object"},
-            temperature=0.4,
+            **self._temp(0.4),
         )
         data = json.loads(response.choices[0].message.content)
         return data.get("tasks", [])
@@ -295,7 +457,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
             ],
             stream=True,
             max_tokens=1500,
-            temperature=0.3,
+            **self._temp(0.3),
         )
         async for chunk in stream:
             delta = chunk.choices[0].delta.content
@@ -384,7 +546,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
             ],
             stream=True,
             max_tokens=6000,
-            temperature=0.2,
+            **self._temp(0.2),
         )
         async for chunk in stream:
             delta = chunk.choices[0].delta.content
@@ -426,7 +588,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
             ],
             stream=True,
             max_tokens=6000,
-            temperature=0.2,
+            **self._temp(0.2),
         )
         async for chunk in stream:
             delta = chunk.choices[0].delta.content
@@ -486,7 +648,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
                 }
             ],
             max_tokens=4000,
-            temperature=0.1,
+            **self._temp(0.1),
         )
         text = (response.choices[0].message.content or "").strip()
         # 根据文本长度和内容判断置信度
@@ -543,7 +705,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
             ],
             response_format={"type": "json_object"},
             max_tokens=2000,
-            temperature=0.2,
+            **self._temp(0.2),
         )
         return json.loads(response.choices[0].message.content)
 
@@ -581,7 +743,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
             ],
             response_format={"type": "json_object"},
             max_tokens=2000,
-            temperature=0.2,
+            **self._temp(0.2),
         )
         return json.loads(response.choices[0].message.content)
 
@@ -591,8 +753,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
         context: str,
         history: list = None,
     ) -> AsyncGenerator[str, None]:
-        """追问 AI（流式）"""
-        client = self._get_client()
+        """追问 AI（流式，自动续写防中断）"""
         messages = [{"role": "system", "content": SYSTEM_PROMPT}]
         if context:
             messages.append({"role": "assistant", "content": context})
@@ -600,17 +761,11 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
             messages.extend(history)
         messages.append({"role": "user", "content": question})
 
-        stream = await client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            stream=True,
-            max_tokens=1000,
-            temperature=0.3,
-        )
-        async for chunk in stream:
-            delta = chunk.choices[0].delta.content
-            if delta:
-                yield delta
+        async for delta in self._stream_with_continuation(
+            messages, max_tokens=3000, temperature=0.3
+        ):
+            yield delta
+
 
 
 ai_service = AIService()

@@ -38,7 +38,7 @@
               </span>
               <span class="text-xs text-gray-400">{{ item.review_count }}次复习</span>
             </div>
-            <p class="text-sm text-gray-700 line-clamp-2">{{ item.question }}</p>
+            <div class="text-sm text-gray-700 line-clamp-2 katex-preview" v-html="renderLatexOnly(item.question)"></div>
             <div class="flex flex-wrap gap-1 mt-2">
               <span v-for="tag in parseTags(item.tags)" :key="tag" class="px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded text-xs">{{ tag }}</span>
             </div>
@@ -75,6 +75,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { wrongBookApi } from '@/api/wrongBook'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { renderLatexOnly } from '@/utils/markdown'
 
 const router = useRouter()
 const items = ref<any[]>([])

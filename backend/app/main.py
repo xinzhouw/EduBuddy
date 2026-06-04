@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -10,11 +11,22 @@ from app.routers import homework
 
 settings = get_settings()
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 启动时：初始化数据库、确保上传目录存在
+    init_db()
+    os.makedirs(settings.upload_dir, exist_ok=True)
+    yield
+
+
 app = FastAPI(
     title="EduBuddy API",
     description="AI 驱动的中学生个性化学习助手",
     version="1.0.0",
+    lifespan=lifespan,
 )
+
 
 # CORS 配置
 app.add_middleware(
@@ -40,12 +52,6 @@ app.include_router(homework.router)
 # 挂载静态文件（上传文件）
 os.makedirs(settings.upload_dir, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=settings.upload_dir), name="uploads")
-
-
-@app.on_event("startup")
-async def startup():
-    init_db()
-    os.makedirs(settings.upload_dir, exist_ok=True)
 
 
 @app.get("/")

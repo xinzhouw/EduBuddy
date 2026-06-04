@@ -1,0 +1,37 @@
+[
+  {
+    "id": "6e764703-6e5e-4ea3-9462-34652c2678ef",
+    "title": "普通高中教科书·数学（A版）必修 第一册",
+    "grade": "高一",
+    "labels": "zxx 普通高中教科书 数学 必修 第一册 A版 2cbuPWM3oXGSBI80OFKOSa x_document",
+    "subject": "数学"
+  },
+  {
+    "id": "d296fc79-8d47-4b18-862c-6df49adc2ce0",
+    "title": "普通高中教科书·数学（A版）必修 第二册",
+    "grade": "高一",
+    "labels": "普通高中教科书 数学 必修 第二册 A版 2cbuPWM3oXGSBI80OFKOSa zxx x_document",
+    "subject": "数学"
+  },
+  {
+    "id": "d0fd2c1f-6b4f-43f0-8229-de0a53b197df",
+    "title": "普通高中教科书·数学（A版）选择性必修 第一册",
+    "grade": "高二",
+    "labels": "zxx 普通高中教科书 数学 选择性必修 第一册 A版 2cbuPWM3oXGSBI80OFKOSa x_document",
+    "subject": "数学"
+  },
+  {
+    "id": "99c1fb5b-d1e0-4238-90b9-a573ab84bf08",
+    "title": "普通高中教科书·数学（A版）选择性必修 第二册",
+    "grade": "高二",
+    "labels": "zxx 普通高中教科书 数学 选择性必修 第二册 A版 2cbuPWM3oXGSBI80OFKOSa x_document",
+    "subject": "数学"
+  },
+  {
+    "id": "ffaba6c3-497d-47b0-b91a-784f43625507",
+    "title": "普通高中教科书·数学（A版）选择性必修 第三册",
+    "grade": "高三",
+    "labels": "zxx 普通高中教科书 数学 选择性必修 第三册 A版 2cbuPWM3oXGSBI80OFKOSa x_document",
+    "subject": "数学"
+  }
+]

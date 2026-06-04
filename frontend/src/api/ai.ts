@@ -16,11 +16,3 @@ export const aiApi = {
   deleteSession: (sessionId: string) =>
     api.delete(`/ai/sessions/${sessionId}`),
 }
-
-export function createChatStream(
-  data: { session_id?: string; question: string; subject: string },
-  token: string
-): EventSource | null {
-  // 使用 fetch SSE
-  return null // handled directly in component
-}
