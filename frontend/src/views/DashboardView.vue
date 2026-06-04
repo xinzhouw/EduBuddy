@@ -175,8 +175,31 @@ const authStore = useAuthStore()
 const stats = ref<any>({ today_study_minutes: 0, wrong_book_count: 0, streak_days: 0 })
 const todayTasks = ref<any[]>([])
 
+// 服务器时间（由 /stats/overview 返回的 server_time 提供，已拆解好分量）。
+// 在未获取到之前回退到浏览器本地时间，获取后统一按服务器时间计算，
+// 直接使用后端给出的 hour/month/day/weekday，避免前端再次解析字符串受浏览器时区影响。
+interface ServerTime {
+  hour: number     // 0-23
+  month: number    // 1-12
+  day: number      // 1-31
+  weekday: number  // 0=周日 ... 6=周六
+}
+const serverTime = ref<ServerTime | null>(null)
+
+const timeParts = computed<ServerTime>(() => {
+  if (serverTime.value) return serverTime.value
+  // 回退：使用浏览器本地时间
+  const now = new Date()
+  return {
+    hour: now.getHours(),
+    month: now.getMonth() + 1,
+    day: now.getDate(),
+    weekday: now.getDay(),
+  }
+})
+
 const greeting = computed(() => {
-  const h = new Date().getHours()
+  const h = timeParts.value.hour
   if (h < 6) return '深夜了'
   if (h < 12) return '早上好'
   if (h < 14) return '中午好'
@@ -185,9 +208,9 @@ const greeting = computed(() => {
 })
 
 const dateStr = computed(() => {
-  const now = new Date()
+  const { month, day, weekday } = timeParts.value
   const days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
-  return `${now.getMonth() + 1}月${now.getDate()}日 ${days[now.getDay()]}`
+  return `${month}月${day}日 ${days[weekday]}`
 })
 
 const motivationText = computed(() => {
@@ -198,8 +221,9 @@ const motivationText = computed(() => {
     '专注当下，学习使人进步！',
     '好好学习，天天向上！',
   ]
-  return texts[new Date().getDate() % texts.length]
+  return texts[timeParts.value.day % texts.length]
 })
+
 
 const todayDone = computed(() => todayTasks.value.filter((t: any) => t.is_done).length)
 const todayTotal = computed(() => todayTasks.value.length)
@@ -231,7 +255,18 @@ onMounted(async () => {
   try {
     const res: any = await statsApi.getOverview()
     stats.value = res.data
+    // 优先使用后端返回的服务器时间来计算问候语 / 日期
+    const st = res.data?.server_time
+    if (st && typeof st.hour === 'number') {
+      serverTime.value = {
+        hour: st.hour,
+        month: st.month,
+        day: st.day,
+        weekday: st.weekday,
+      }
+    }
   } catch {}
+
   try {
     const res: any = await planApi.getToday()
     todayTasks.value = res.data || []

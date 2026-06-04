@@ -1,5 +1,6 @@
-from datetime import date
+from datetime import date, datetime
 from fastapi import APIRouter, Depends
+
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.dependencies import get_current_user
@@ -32,7 +33,24 @@ def get_overview(db: Session = Depends(get_db), current_user: User = Depends(get
         "average_accuracy": avg_accuracy,
         "wrong_book_count": wrong_count,
         "mastered_count": mastered_count,
+        # 服务器时间，供前端按服务器时区显示问候语 / 日期。
+        # 直接返回拆解好的字段，避免前端再次解析字符串时受浏览器时区影响。
+        "server_time": _build_server_time(),
     }}
+
+
+def _build_server_time() -> dict:
+    """返回服务器本地时间的各个分量，供前端直接使用，避免时区歧义。"""
+    now = datetime.now().astimezone()
+    return {
+        # 带时区偏移的 ISO 8601 字符串（例如 2026-06-04T16:13:00+08:00）
+        "iso": now.isoformat(),
+        "hour": now.hour,          # 0-23
+        "month": now.month,        # 1-12
+        "day": now.day,            # 1-31
+        "weekday": now.isoweekday() % 7,  # 0=周日, 1=周一 ... 6=周六（与 JS getDay 对齐）
+    }
+
 
 
 @router.get("/study-time")

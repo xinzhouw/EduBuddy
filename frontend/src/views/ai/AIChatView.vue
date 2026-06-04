@@ -57,7 +57,8 @@
               v-html="renderUserMessage(msg.content)">
             </div>
             <!-- AI 消息：Markdown + LaTeX 富文本渲染 + 图片 -->
-            <div v-else class="ai-message-content px-4 py-3 rounded-2xl rounded-tl-sm bg-gray-100 text-gray-800">
+            <div v-else :data-msg-key="msg.id || msg.tempId" class="ai-message-content px-4 py-3 rounded-2xl rounded-tl-sm bg-gray-100 text-gray-800">
+
               <div class="markdown-body" v-dyn-figures v-html="renderMessageWithImagePlaceholders(msg.content)"></div>
               <span v-if="msg.streaming" class="typing-cursor"></span>
               <!-- 图片展示区：已搜索完的图片 -->
@@ -103,9 +104,15 @@
             </div>
             <!-- AI 回复操作按钮 -->
             <div v-if="msg.role === 'assistant' && !msg.streaming && msg.id" class="flex gap-2 mt-1.5 ml-1">
+              <button @click="copyMessage(msg)" class="text-xs text-gray-400 hover:text-blue-500 transition-colors">
+                {{ copiedMsgId === (msg.id || msg.tempId) ? '✓ 已复制' : '📋 复制' }}
+              </button>
               <button @click="handleFeedback(msg, 'thumbs_up')" class="text-xs text-gray-400 hover:text-green-500 transition-colors">👍</button>
               <button @click="handleFeedback(msg, 'thumbs_down')" class="text-xs text-gray-400 hover:text-red-500 transition-colors">👎</button>
               <button @click="addToWrongBook(msg)" class="text-xs text-gray-400 hover:text-blue-500 transition-colors">➕ 错题本</button>
+              <button @click="exportPdf(msg)" :disabled="exportingMsgId !== null" class="text-xs text-gray-400 hover:text-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                {{ exportingMsgId === (msg.id || msg.tempId) ? '导出中...' : '📄 导出PDF' }}
+              </button>
             </div>
           </div>
           <!-- 用户头像 -->
@@ -160,6 +167,7 @@ import { aiApi } from '@/api/ai'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { renderMessage, renderLatexOnly } from '@/utils/markdown'
 import { searchEducationalImages } from '@/utils/imageSearch'
+
 
 // ===================== 类型定义 =====================
 interface ImageItem {
@@ -231,6 +239,8 @@ const sessions = ref<any[]>([])
 const currentSessionId = ref<string | null>(null)
 const isLoading = ref(false)
 const messagesEl = ref<HTMLElement>()
+const copiedMsgId = ref<number | null>(null)
+const exportingMsgId = ref<number | null>(null)
 
 // ===================== 工具函数 =====================
 async function scrollToBottom() {
@@ -360,38 +370,62 @@ async function sendMessage() {
 
     const reader = response.body!.getReader()
     const decoder = new TextDecoder()
+    // 缓冲区：累积尚未构成完整一行的数据，避免 SSE 事件被 TCP 分包截断
+    let buffer = ''
+
+    // 处理单条 SSE data 行
+    const handleLine = async (line: string) => {
+      if (!line.startsWith('data: ')) return
+      const payload = line.slice(6).trim()
+      if (!payload) return
+      let data: any
+      try {
+        data = JSON.parse(payload)
+      } catch {
+        // 不完整或非法 JSON，忽略（完整数据会在后续累积后重新解析）
+        return
+      }
+      if (data.type === 'content') {
+        aiMsg.value.content += data.delta
+        // 实时更新正在出现的图片关键词（流式输出时显示搜索占位）
+        aiMsg.value.pendingImageKeywords = extractImageKeywords(aiMsg.value.content)
+        await scrollToBottom()
+      } else if (data.type === 'done') {
+        aiMsg.value.streaming = false
+        aiMsg.value.pendingImageKeywords = []
+        if (data.message_id) aiMsg.value.id = data.message_id
+        if (data.session_id && !currentSessionId.value) {
+          currentSessionId.value = data.session_id
+          await loadSessions()
+        }
+        // AI 回复完成后，搜索图片（非阻塞）
+        fetchImagesForMessage(aiMsg.value)
+      }
+    }
 
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
 
-      const chunk = decoder.decode(value)
-      const lines = chunk.split('\n')
+      // stream: true 保证多字节 UTF-8 字符（如中文）跨 chunk 时不会被截断
+      buffer += decoder.decode(value, { stream: true })
 
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue
-        try {
-          const data = JSON.parse(line.slice(6))
-          if (data.type === 'content') {
-            aiMsg.value.content += data.delta
-            // 实时更新正在出现的图片关键词（流式输出时显示搜索占位）
-            aiMsg.value.pendingImageKeywords = extractImageKeywords(aiMsg.value.content)
-            await scrollToBottom()
-          } else if (data.type === 'done') {
-            aiMsg.value.streaming = false
-            aiMsg.value.pendingImageKeywords = []
-            if (data.message_id) aiMsg.value.id = data.message_id
-            if (data.session_id && !currentSessionId.value) {
-              currentSessionId.value = data.session_id
-              await loadSessions()
-            }
-            // AI 回复完成后，搜索图片（非阻塞）
-            fetchImagesForMessage(aiMsg.value)
-          }
-        } catch {}
+      // 仅处理已完整接收（以换行结尾）的行，剩余不完整部分保留在 buffer
+      let newlineIndex: number
+      while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
+        const line = buffer.slice(0, newlineIndex)
+        buffer = buffer.slice(newlineIndex + 1)
+        await handleLine(line)
       }
     }
+
+    // 处理流结束后缓冲区中残留的最后一行（可能没有结尾换行符）
+    buffer += decoder.decode()
+    if (buffer.trim()) {
+      await handleLine(buffer)
+    }
   } catch (e) {
+
     aiMsg.value.content = '抱歉，请求失败，请检查网络或 API 配置。'
     aiMsg.value.streaming = false
     aiMsg.value.pendingImageKeywords = []
@@ -400,8 +434,185 @@ async function sendMessage() {
   }
 }
 
+// ===================== 复制 =====================
+/** 复制 AI 回复内容（去除 [[IMAGE:...]] 标记后的原始 Markdown 文本） */
+async function copyMessage(msg: ChatMessage) {
+  const text = msg.content.replace(/\[\[IMAGE:[^\]]*\]\]/gi, '').trim()
+  if (!text) return
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text)
+    } else {
+      // 降级方案：非安全上下文（如 http）下使用 execCommand
+      const textarea = document.createElement('textarea')
+      textarea.value = text
+      textarea.style.position = 'fixed'
+      textarea.style.opacity = '0'
+      document.body.appendChild(textarea)
+      textarea.focus()
+      textarea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textarea)
+    }
+    copiedMsgId.value = (msg.id || msg.tempId) ?? null
+    ElMessage.success('已复制到剪贴板')
+    setTimeout(() => {
+      if (copiedMsgId.value === ((msg.id || msg.tempId) ?? null)) {
+        copiedMsgId.value = null
+      }
+    }, 2000)
+  } catch {
+    ElMessage.error('复制失败，请手动选择文本复制')
+  }
+}
+
+// ===================== 导出 PDF =====================
+/** HTML 转义，防止 XSS */
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+/**
+ * 将一条 AI 回答（含 Markdown、LaTeX 公式）导出为 PDF。
+ * 参照作业批改的「新窗口打印」方案：在新窗口中写入带打印样式的 HTML，
+ * 由浏览器原生打印对话框完成「另存为 PDF」，避免 html2canvas 的兼容性问题。
+ */
+async function exportPdf(msg: ChatMessage) {
+  if (exportingMsgId.value !== null) return
+  const key = (msg.id || msg.tempId) ?? null
+  if (key === null) return
+
+  // 去掉 [[IMAGE:...]] 标记后渲染 Markdown + LaTeX
+  const cleaned = msg.content.replace(/\[\[IMAGE:[^\]]*\]\]/gi, '').trim()
+  if (!cleaned) {
+    ElMessage.error('暂无可导出的内容')
+    return
+  }
+
+  exportingMsgId.value = key
+  try {
+    const reportHtml = renderMessage(cleaned)
+    const dateStr = new Date().toLocaleDateString('zh-CN')
+
+    const fullHtml = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>EduBuddy AI 回答</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #ffffff;
+    color: #1f2937;
+    font-family: "PingFang SC", "Microsoft YaHei", "SimSun", sans-serif;
+    font-size: 14px;
+    line-height: 1.8;
+  }
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    padding: 20mm 18mm;
+    margin: 0 auto;
+    background: white;
+  }
+  .header { margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid #e5e7eb; }
+  .header h1 { font-size: 22px; font-weight: 700; color: #111827; margin-bottom: 10px; }
+  .header-meta { display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; color: #6b7280; }
+  p { margin: 0.5em 0; color: #374151; }
+  strong, b { font-weight: 700; color: #111827; }
+  em, i { font-style: italic; }
+  h1 { font-size: 1.3em; font-weight: 700; margin: 1em 0 0.5em; color: #111827; }
+  h2 { font-size: 1.15em; font-weight: 700; margin: 0.9em 0 0.4em; color: #1d4ed8; border-bottom: 1px solid #e0e7ff; padding-bottom: 4px; }
+  h3 { font-size: 1.05em; font-weight: 700; margin: 0.8em 0 0.3em; color: #1f2937; }
+  h4, h5, h6 { font-size: 1em; font-weight: 700; margin: 0.7em 0 0.3em; color: #374151; }
+  ul, ol { padding-left: 1.8em; margin: 0.5em 0; }
+  li { margin: 0.3em 0; color: #374151; }
+  table { width: 100%; border-collapse: collapse; margin: 0.8em 0; font-size: 0.9em; page-break-inside: avoid; }
+  th { background: #f1f5f9; padding: 8px 12px; font-weight: 600; border: 1px solid #cbd5e1; text-align: left; color: #1f2937; }
+  td { padding: 6px 12px; border: 1px solid #cbd5e1; color: #374151; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  code { background: #f1f5f9; border-radius: 3px; padding: 0.1em 0.4em; font-family: "Courier New", monospace; font-size: 0.88em; color: #1e293b; }
+  pre { background: #1e293b; border-radius: 6px; padding: 1em; overflow: hidden; margin: 0.5em 0; page-break-inside: avoid; }
+  pre code { background: transparent; color: #e2e8f0; padding: 0; }
+  blockquote { border-left: 4px solid #3b82f6; padding: 0.5em 1em; margin: 0.5em 0; color: #4b5563; background: #eff6ff; border-radius: 0 6px 6px 0; }
+  hr { border: none; border-top: 1px solid #e5e7eb; margin: 1em 0; }
+  a { color: #2563eb; text-decoration: none; }
+  svg { max-width: 100%; height: auto; }
+  .footer { margin-top: 24px; padding-top: 10px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af; text-align: center; }
+  /* KaTeX 公式样式 */
+  .katex { font-size: 1em; }
+  .katex-display { margin: 0.6em 0; }
+  /* 打印样式 */
+  @media print {
+    body { padding: 0; }
+    .page { padding: 15mm 15mm; width: 100%; }
+    .no-print { display: none !important; }
+    pre, blockquote, table { page-break-inside: avoid; }
+    h2, h3 { page-break-after: avoid; }
+  }
+  @page {
+    size: A4;
+    margin: 0;
+  }
+</style>
+<!-- 引入 KaTeX 样式（从 CDN 加载，保证公式正确渲染） -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css" crossorigin="anonymous">
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <h1>EduBuddy AI 回答</h1>
+    <div class="header-meta">
+      <span>学科：${escapeHtml(selectedSubject.value)}</span>
+      <span>导出时间：${escapeHtml(dateStr)}</span>
+    </div>
+  </div>
+  <div class="report-body">${reportHtml}</div>
+  <div class="footer">由 EduBuddy AI 智能学习助手生成 · ${dateStr}</div>
+  <!-- 自动打印按钮区域 -->
+  <div class="no-print" style="position:fixed;bottom:20px;right:20px;display:flex;gap:10px;z-index:9999;">
+    <button onclick="window.print()" style="padding:10px 24px;background:#2563eb;color:white;border:none;border-radius:8px;font-size:14px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.2);">
+      🖨️ 打印 / 另存为 PDF
+    </button>
+    <button onclick="window.close()" style="padding:10px 16px;background:#6b7280;color:white;border:none;border-radius:8px;font-size:14px;cursor:pointer;">
+      ✕ 关闭
+    </button>
+  </div>
+</div>
+<script>
+  // 等待 KaTeX 和字体加载完成后自动弹出打印对话框
+  window.addEventListener('load', function() {
+    setTimeout(function() { window.print(); }, 800);
+  });
+<\/script>
+</body>
+</html>`
+
+    const printWindow = window.open('', '_blank', 'width=900,height=700')
+    if (!printWindow) {
+      throw new Error('无法打开新窗口，请检查浏览器是否阻止了弹出窗口')
+    }
+    printWindow.document.open()
+    printWindow.document.write(fullHtml)
+    printWindow.document.close()
+
+    ElMessage.success('已打开打印预览，请选择"另存为 PDF"保存文件')
+  } catch (err: any) {
+    ElMessage.error('导出失败：' + (err?.message || '未知错误'))
+  } finally {
+    exportingMsgId.value = null
+  }
+}
+
+
 // ===================== 反馈 & 错题本 =====================
 async function handleFeedback(msg: ChatMessage, rating: string) {
+
+
   try {
     await aiApi.feedback(msg.id!, { rating })
     ElMessage.success(rating === 'thumbs_up' ? '感谢你的反馈！' : '已记录，我们会改进')

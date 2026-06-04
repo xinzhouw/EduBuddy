@@ -59,10 +59,16 @@ def get_me(current_user: User = Depends(get_current_user)):
 
 @router.put("/me")
 def update_me(data: UserUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if data.nickname:
+    if data.nickname is not None:
         current_user.nickname = data.nickname
-    if data.grade:
+    if data.grade is not None:
         current_user.grade = data.grade
+    if data.phone is not None:
+        current_user.phone = data.phone
+    if data.gender is not None:
+        current_user.gender = data.gender
+    if data.age is not None:
+        current_user.age = data.age
     db.commit()
     db.refresh(current_user)
     return {"code": 200, "message": "更新成功", "data": UserOut.model_validate(current_user)}

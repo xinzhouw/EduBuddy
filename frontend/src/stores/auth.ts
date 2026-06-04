@@ -8,6 +8,9 @@ export interface User {
   email: string
   nickname: string
   grade: string
+  phone?: string | null
+  gender?: string | null
+  age?: number | null
   avatar_url: string | null
 }
 

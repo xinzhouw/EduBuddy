@@ -11,6 +11,9 @@ class User(Base):
     password = Column(String(255), nullable=False)
     nickname = Column(String(50), nullable=False)
     grade = Column(String(10), nullable=False)
+    phone = Column(String(20), nullable=True)        # 手机号码
+    gender = Column(String(10), nullable=True)        # 性别：male / female / other
+    age = Column(Integer, nullable=True)              # 年龄
     avatar_url = Column(String(500), nullable=True)
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, nullable=False, server_default=func.now())

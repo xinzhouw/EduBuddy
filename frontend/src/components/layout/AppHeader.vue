@@ -67,7 +67,9 @@ const pageTitles: Record<string, string> = {
   '/plan': '学习计划',
   '/docs': '文档资料',
   '/stats': '学习统计',
+  '/profile': '个人资料',
 }
+
 
 const pageTitle = computed(() => {
   const path = route.path

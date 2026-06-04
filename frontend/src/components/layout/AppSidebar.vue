@@ -27,17 +27,21 @@
       </RouterLink>
     </nav>
 
-    <!-- 底部用户信息 -->
+    <!-- 底部用户信息（点击进入个人资料） -->
     <div class="border-t border-slate-700/50 p-3">
-      <div class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-700/40 transition-colors group">
+      <RouterLink
+        to="/profile"
+        class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-700/40 transition-colors group no-underline"
+        :class="{ 'bg-slate-700/40': isActive('/profile') }"
+      >
         <div class="w-9 h-9 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md shrink-0">
           {{ authStore.user?.nickname?.[0]?.toUpperCase() || 'U' }}
         </div>
         <div class="flex-1 min-w-0">
           <p class="text-sm font-semibold text-slate-200 truncate">{{ authStore.user?.nickname || '同学' }}</p>
-          <p class="text-xs text-slate-400">{{ authStore.user?.grade || '学生' }}</p>
+          <p class="text-xs text-slate-400">{{ authStore.user?.grade || '学生' }} · 个人资料</p>
         </div>
-        <button @click="logout"
+        <button @click.prevent.stop="logout"
           class="text-slate-500 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
           title="退出登录">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -45,7 +49,7 @@
               d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
         </button>
-      </div>
+      </RouterLink>
     </div>
   </aside>
 </template>

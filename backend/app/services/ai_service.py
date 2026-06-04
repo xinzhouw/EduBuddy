@@ -99,9 +99,15 @@ SYSTEM_PROMPT = """你是 EduBuddy，一名专业的中学学科辅导老师，�
 
 **输出格式要求（严格遵守）：**
 1. 使用 Markdown 格式输出，包括标题（##）、加粗（**...**）、列表（-）等。
-2. 所有数学公式必须使用 LaTeX 语法：
-   - 行内公式用单美元符号包裹，例如：$x^2 + y^2 = r^2$
-   - 独立公式块用双美元符号包裹，例如：$$\\frac{a+b}{2} \\geq \\sqrt{ab}$$
+2. 所有数学公式必须使用 LaTeX 语法，并严格遵守以下书写规范（极其重要，违反会导致公式无法正确显示）：
+   - 行内公式用一对单美元符号包裹，例如：$x^2 + y^2 = r^2$
+   - 独立公式块用一对双美元符号包裹，例如：$$\\frac{a+b}{2} \\geq \\sqrt{ab}$$
+   - **一条完整公式必须写在一对完整的 $...$ 或 $$...$$ 之内，绝对不能在公式中途插入多余的 $ 或 $$ 把同一条公式拦腰截断**。
+     ✗ 错误示例（一条公式被多余的 $$ 断成两半）：`$$(n-2)\\sqrt5\\le a$$ a^2+2a $$`
+     ✓ 正确示例（整条公式在一对 $$ 内）：`$$(n-2)\\sqrt5 \\le a^2+2a$$`
+   - **$$ 与公式内容必须写在同一行，$$ 内部不要换行**，例如写成 `$$n \\le \\frac{a^2}{\\sqrt5}+2a+1$$`，不要把 `$$`、公式、`$$` 拆成三行。
+   - 每个 $ / $$ 都必须成对闭合，数量必须是偶数；公式结尾不要遗留孤立的反斜杠 `\\` 或多余的右花括号 `}`。
+   - 不要在中文句子中间用 $$ 块级公式；行文中的变量/短公式一律用行内 $...$。
 3. **图片展示（重要）**：当解释需要配合图片才能更直观时（例如：生物结构、物理装置、化学实验、地理地图、历史文物等），必须在回复中插入图片搜索标记，格式如下：
    - `[[IMAGE:英文搜索关键词]]`
    - 关键词必须是英文，简洁精准，例如：`[[IMAGE:DNA double helix structure]]`、`[[IMAGE:mitosis cell division]]`、`[[IMAGE:human heart anatomy]]`
@@ -286,32 +292,44 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
             rounds += 1
             finish_reason = None
             round_text = []
-            stream = await client.chat.completions.create(
-                model=self.model,
-                messages=msgs,
-                stream=True,
-                max_tokens=max_tokens,
-                **self._temp(temperature),
-            )
-            async for chunk in stream:
-                if not chunk.choices:
-                    continue
-                choice = chunk.choices[0]
-                delta = choice.delta.content
-                if delta:
-                    round_text.append(delta)
-                    yield delta
-                if choice.finish_reason:
-                    finish_reason = choice.finish_reason
-            # 若不是因长度被截断，则正常结束
-            if finish_reason != "length":
-                break
-            # 因长度截断：把已生成内容作为上下文，要求模型从断点处无缝继续
+            # 标记本轮 stream 是否因异常（网络中断、网关超时等）提前结束，
+            # 以便像 length 截断一样自动续写，避免回答中途丢失
+            stream_error = False
+            try:
+                stream = await client.chat.completions.create(
+                    model=self.model,
+                    messages=msgs,
+                    stream=True,
+                    max_tokens=max_tokens,
+                    **self._temp(temperature),
+                )
+                async for chunk in stream:
+                    if not chunk.choices:
+                        continue
+                    choice = chunk.choices[0]
+                    delta = choice.delta.content
+                    if delta:
+                        round_text.append(delta)
+                        yield delta
+                    if choice.finish_reason:
+                        finish_reason = choice.finish_reason
+            except Exception:
+                # 流式过程中途异常：保留已生成内容，标记为需要续写
+                stream_error = True
+
             generated = "".join(round_text)
+            # 正常结束（既不是长度截断，也没有异常）则停止
+            if finish_reason != "length" and not stream_error:
+                break
+            # 若本轮异常发生在尚未产出任何内容时，直接结束避免空转
+            if stream_error and not generated:
+                break
+            # 因长度截断或中途异常：把已生成内容作为上下文，要求模型从断点处无缝继续
             msgs = list(messages) + [
                 {"role": "assistant", "content": generated},
                 {"role": "user", "content": "请从你上一段被截断的位置继续输出，不要重复已经写过的内容，直接接着写完剩下的部分。"},
             ]
+
 
     async def explain_wrong_answer(
         self,

@@ -18,6 +18,9 @@ class UserLogin(BaseModel):
 class UserUpdate(BaseModel):
     nickname: Optional[str] = None
     grade: Optional[str] = None
+    phone: Optional[str] = None
+    gender: Optional[str] = None
+    age: Optional[int] = None
 
 
 class PasswordChange(BaseModel):
@@ -30,6 +33,9 @@ class UserOut(BaseModel):
     email: str
     nickname: str
     grade: str
+    phone: Optional[str] = None
+    gender: Optional[str] = None
+    age: Optional[int] = None
     avatar_url: Optional[str] = None
     created_at: datetime
 
