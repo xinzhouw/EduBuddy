@@ -8,6 +8,7 @@ from app.database import init_db
 from app.routers import auth, ai, notes, quiz, wrong_book, plan, documents, stats
 from app.routers.notes import flashcard_router
 from app.routers import homework
+from app.routers import tts
 
 settings = get_settings()
 
@@ -48,6 +49,7 @@ app.include_router(plan.router)
 app.include_router(documents.router)
 app.include_router(stats.router)
 app.include_router(homework.router)
+app.include_router(tts.router)
 
 # 挂载静态文件（上传文件）
 os.makedirs(settings.upload_dir, exist_ok=True)

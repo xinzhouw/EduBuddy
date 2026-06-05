@@ -1,8 +1,30 @@
 # EduBuddy 活跃上下文
 
 ## 当前工作焦点
-**日期**：2026-06-04  
-**阶段**：V1.0 开发阶段 — 代码整理 + 全功能测试
+**日期**：2026-06-05  
+**阶段**：V1.0 开发阶段 — 环境重建与文档完善
+
+## 最新完成的工作
+
+- **为"AI问答"页面（语文/英语学科）新增语音朗读功能**（`frontend/src/views/ai/AIChatView.vue`）：
+  - **触发条件**：仅当当前对话学科为"语文"或"英语"时，AI回复消息的操作按钮区域才显示语音朗读控件（`isTtsSubject` computed）
+  - **技术方案**：使用浏览器原生 **Web Speech API（`SpeechSynthesis`）**，无需任何后端改动
+  - **新增响应式状态**：
+    - `ttsState`（`'idle' | 'playing' | 'paused'`）：当前播放状态
+    - `ttsActiveMsgId`：当前正在朗读的消息 id
+  - **新增核心函数**：
+    - `pickVoice(lang)`：按学科选取语音 —— 语文优先 zh-CN > zh-TW > zh，英语优先 en-US > en-GB > en
+    - `msgToPlainText(content)`：将 AI 回复从 Markdown/LaTeX 转为适合朗读的纯文本（块级 `$$...$$` → "数学公式"，行内 `$...$` → "数学公式"，去除 `#` 标题符/加粗斜体/代码块/图片标记等）
+    - `startSpeech(msg)`：停止旧朗读 → 纯文本转换 → 创建 `SpeechSynthesisUtterance` → 按学科设置 lang/rate → 绑定 onstart/onpause/onresume/onend/onerror → 开始播放
+    - `togglePauseSpeech()`：playing 中暂停 / paused 中继续
+    - `stopSpeech()`：停止并重置状态
+  - **模板控件**（每条 AI 消息操作栏，`isTtsSubject` 为 true 时渲染）：
+    - idle 或非当前消息：`🔊 朗读` 按钮（灰色/靛蓝 hover）
+    - playing（当前消息）：4 格动态音频波形（`.tts-wave-bar`）+ `⏸ 暂停`（琥珀色）+ `⏹ 停止`
+    - paused（当前消息）：`▶ 继续`（绿色）+ `⏹ 停止` + "⏸ 已暂停" 文字
+  - **CSS 动画**：`.tts-wave-bar` + `@keyframes tts-wave`，4 根高度不同、延迟不同的靛蓝色竖条
+  - **生命周期**：`onMounted` 中调用 `getVoices()` 预热 + 注册 `voiceschanged` 事件；`onUnmounted` 中调用 `cancel()` 防止资源泄漏
+  - `vue-tsc --noEmit` 编译验证通过（exit code 0）
 
 ## 最近完成的工作
 
@@ -175,12 +197,28 @@
 
 ## 项目当前状态摘要
 
-项目已完成**架构设计和文件骨架搭建**，但各模块的**具体业务逻辑实现**程度未知，需要逐一核查。
+**✅ 环境已成功重建并运行（2026-06-05 验证）**
 
-已确认存在的文件（骨架/占位）：
-- 后端：所有路由文件、服务文件、ORM 模型、Schema 已创建
-- 前端：所有视图页面、API 封装、路由配置、auth store 已创建
-- 数据库文件：`backend/data/edubuddy.db` 已存在（说明后端曾启动过）
+### Docker 部署状态
+- **前端容器**（`edubuddy-frontend:latest`）：✅ 运行中，端口 `:80`，HTTP 200
+- **后端容器**（`edubuddy-backend:latest`）：✅ 运行中，端口 `:8001`，HTTP 200
+- **API 健康检查**：`GET /` → `{"message":"EduBuddy API is running","version":"1.0.0"}` ✅
+- **注册接口**：`POST /api/auth/register` 正常，返回用户信息 ✅
+- **登录接口**：`POST /api/auth/login` 正常，返回 JWT Token ✅
+
+### 环境配置
+- AI 服务：IBM watsonx.ai 兼容层（Claude claude-opus-4-8，`OPENAI_USE_TEMPERATURE=false`）
+- 数据库：SQLite，`backend/data/edubuddy.db`
+- Docker 镜像：后端 9.77GB（含 chromadb/sentence-transformers），前端 100MB
+
+### 注意事项
+- **企业代理环境**：系统配置了 `http_proxy=http://proxy.us.ibm.com:8080`，curl 访问 localhost 需加 `no_proxy="localhost,127.0.0.1"` 绕过代理；浏览器通常默认不走代理直接访问 localhost
+- **注册接口字段**：注册用 `nickname`（不是 `username`），字段为 `{email, password, nickname, grade}`
+
+### 已确认存在的文件
+- 后端：所有路由文件、服务文件、ORM 模型、Schema 已创建并运行
+- 前端：所有视图页面、API 封装、路由配置、auth store 已创建并构建
+- 数据库文件：`backend/data/edubuddy.db` 存在，表结构由 `init_db()` 在启动时自动创建
 
 ## 下一步建议
 

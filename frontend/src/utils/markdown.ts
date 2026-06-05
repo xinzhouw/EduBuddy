@@ -14,17 +14,48 @@ const md = new MarkdownIt({
 })
 
 /**
+ * 清洗 AI 生成的 LaTeX 公式，去除常见畸形：
+ * 1. 末尾孤立反斜杠（LaTeX 换行符 \\ 被截断）
+ * 2. 夹在空白间的孤立 \（如 `{2} \ $$` 中的 `\`）
+ * 3. 公式内残留的 $ 符号（AI 用多余 $/$$ 拦腰截断公式）
+ * 4. 不平衡的多余右花括号
+ */
+function cleanFormula(formula: string): string {
+  let f = formula
+  // 去除末尾孤立反斜杠（一个或多个 \，后面只有空白）
+  f = f.replace(/\\+\s*$/, '')
+  // 去除夹在空白之间的孤立单反斜杠（非命令，如 `{2} \ `）
+  f = f.replace(/(?<!\S)\\\s*(?=\s|$)/g, '')
+  // 公式内残留 $ → LaTeX 中等间隔 \;
+  f = f.replace(/\$/g, '\\;')
+  // 平衡花括号：删除多余的右花括号
+  let depth = 0
+  let result = ''
+  for (const ch of f) {
+    if (ch === '{') { depth++; result += ch }
+    else if (ch === '}') {
+      if (depth > 0) { depth--; result += ch }
+      // else: 多余的 }，丢弃
+    } else {
+      result += ch
+    }
+  }
+  return result.trim()
+}
+
+/**
  * 渲染单个 LaTeX 公式为 HTML
  */
 function renderFormula(formula: string, displayMode: boolean): string {
+  const cleaned = cleanFormula(formula)
   try {
-    return katex.renderToString(formula.trim(), {
+    return katex.renderToString(cleaned, {
       displayMode,
       throwOnError: false,
       strict: false,
     })
   } catch {
-    return `<code class="katex-error">${formula}</code>`
+    return `<code class="katex-error">${cleaned}</code>`
   }
 }
 
@@ -140,19 +171,44 @@ export function renderMessage(content: string): string {
 
 
   // 1. 手动扫描提取 $$...$$ 块（支持跨行，内部换行压成空格）
+  //    修复：使用"向后查找所有候选闭合 $$"并验证内容合理性，
+  //    避免 AI 在公式行末误插 $$ 导致后续所有公式配对错位。
   let out = ''
   let p = 0
 
+  // 判断一段文本是否"看起来像合法的公式内容"而非被错误截取的正文段落
+  function isLikelyFormula(inner: string): boolean {
+    // 超过 400 字符，极可能是错误配对（正常公式很少超过这个长度）
+    if (inner.length > 400) return false
+    // 包含 Markdown 块级结构特征，说明截到了正文
+    if (/\n#{1,6}\s/.test(inner)) return false
+    if (/\n---/.test(inner)) return false
+    if (/\n\*\*/.test(inner)) return false
+    // 包含超过 3 个换行，极可能是段落文字
+    if ((inner.match(/\n/g) || []).length > 3) return false
+    return true
+  }
+
   while (p < s.length) {
     if (s[p] === '$' && s[p + 1] === '$') {
-      const end = s.indexOf('$$', p + 2)
-      if (end !== -1) {
+      // 向后逐个寻找候选闭合 $$，取第一个"内容合理"的
+      let searchFrom = p + 2
+      let matched = false
+      while (searchFrom < s.length) {
+        const end = s.indexOf('$$', searchFrom)
+        if (end === -1) break
         const inner = s.slice(p + 2, end).replace(/\n/g, ' ').trim()
-        displayBuf.push(inner)
-        out += `${DISPLAY_TOKEN}${displayBuf.length - 1}${DISPLAY_TOKEN}`
-        p = end + 2
-        continue
+        if (isLikelyFormula(inner)) {
+          displayBuf.push(inner)
+          out += `${DISPLAY_TOKEN}${displayBuf.length - 1}${DISPLAY_TOKEN}`
+          p = end + 2
+          matched = true
+          break
+        }
+        // 当前候选不合理，跳过这个 $$ 继续往后找
+        searchFrom = end + 2
       }
+      if (matched) continue
     }
     out += s[p++]
   }

@@ -765,6 +765,48 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
         )
         return json.loads(response.choices[0].message.content)
 
+    async def ocr_image_for_reading(
+        self,
+        image_base64: str,
+        mime_type: str = "image/jpeg",
+    ) -> dict:
+        """使用 Vision API 从图片中识别文字，用于读书郎朗读（返回纯文本，不含LaTeX）"""
+        client = self._get_client()
+
+        prompt = """请仔细、完整地识别这张图片中的所有文字内容。
+
+要求：
+1. 按照图片中文字的顺序和段落结构，逐段输出所有文字
+2. 手写文字尽量准确识别
+3. 数学公式和符号用普通文字/汉字描述（例如：x的平方、根号2、分之、等于），不要输出LaTeX代码
+4. 保留原有的段落和换行结构
+5. 直接输出识别到的文字内容，不要添加任何解释或说明
+6. 如果图片中包含图表，用简要文字描述其内容
+7. 如果图片模糊无法识别，只输出：[图片模糊，无法识别]"""
+
+        response = await client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:{mime_type};base64,{image_base64}",
+                                "detail": "high",
+                            },
+                        },
+                        {"type": "text", "text": prompt},
+                    ],
+                }
+            ],
+            max_tokens=4000,
+            **self._temp(0.1),
+        )
+        text = (response.choices[0].message.content or "").strip()
+        return {"text": text}
+
     async def follow_up_stream(
         self,
         question: str,

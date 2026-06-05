@@ -71,6 +71,7 @@ const navItems: { path: string; icon: string; label: string; badge?: string | nu
   { path: '/wrong-book', icon: '❌', label: '错题本' },
   { path: '/plan', icon: '📅', label: '学习计划' },
   { path: '/docs', icon: '📄', label: '文档' },
+  { path: '/reading-buddy', icon: '📖', label: '读书郎' },
   { path: '/stats', icon: '📊', label: '学习统计' },
 ]
 

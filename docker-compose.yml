@@ -3,6 +3,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    image: edubuddy-backend:latest
     ports:
       - "8001:8000"
     volumes:
@@ -20,6 +21,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    image: edubuddy-frontend:latest
     ports:
       - "80:80"
     depends_on:

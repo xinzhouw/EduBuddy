@@ -18,6 +18,7 @@ const router = createRouter({
     { path: '/docs', component: () => import('@/views/docs/DocsView.vue') },
     { path: '/stats', component: () => import('@/views/stats/StatsView.vue') },
     { path: '/homework', component: () => import('@/views/homework/HomeworkGradingView.vue') },
+    { path: '/reading-buddy', component: () => import('@/views/readingBuddy/ReadingBuddyView.vue') },
     { path: '/profile', component: () => import('@/views/profile/ProfileView.vue') },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
