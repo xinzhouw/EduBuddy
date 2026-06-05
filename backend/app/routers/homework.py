@@ -203,6 +203,16 @@ async def grade_file_homework(
     if not is_image:
         extracted_text = extract_text(file_path, file_type)
 
+    # ── 图片型 PDF 降级：文字层为空时，用 Vision OCR 逐页识别 ──────────────────
+    if file_type == "pdf" and (not extracted_text or extracted_text.startswith("[")):
+        try:
+            with open(file_path, "rb") as _f:
+                _pdf_bytes = _f.read()
+            extracted_text = await _ocr_pdf_pages_for_grading(_pdf_bytes)
+        except Exception as _e:
+            # OCR 失败时保留空字符串，后续 generate() 中会给出提示
+            extracted_text = f"[扫描版PDF，OCR识别失败：{_e}]"
+
     # 确定内容类型标识
     content_type_label = "image" if is_image else file_type
 
@@ -436,3 +446,39 @@ def delete_grading(
     db.delete(record)
     db.commit()
     return {"code": 200, "message": "已删除"}
+
+
+async def _ocr_pdf_pages_for_grading(pdf_bytes: bytes) -> str:
+    """将扫描版 PDF 每页转换为图片，逐页调用 Vision OCR，拼接返回全文。
+
+    仅在 PDF 文字层为空（扫描/图片型PDF）时调用。
+    依赖：PyMuPDF（fitz），容器中已安装。
+    """
+    import fitz  # PyMuPDF
+
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    page_count = doc.page_count
+    all_texts: list[str] = []
+
+    for page_index in range(page_count):
+        page = doc[page_index]
+        # 渲染为 150 DPI 的 PNG（提高 OCR 精度）
+        mat = fitz.Matrix(150 / 72, 150 / 72)
+        pix = page.get_pixmap(matrix=mat, colorspace=fitz.csRGB)
+        img_bytes = pix.tobytes("png")
+        image_base64 = base64.b64encode(img_bytes).decode("utf-8")
+
+        try:
+            result = await ai_service.ocr_image_for_reading(
+                image_base64=image_base64,
+                mime_type="image/png",
+            )
+            page_text = result.get("text", "").strip()
+        except Exception as e:
+            page_text = f"[第 {page_index + 1} 页识别失败：{e}]"
+
+        if page_text:
+            all_texts.append(page_text)
+
+    doc.close()
+    return "\n\n".join(all_texts)

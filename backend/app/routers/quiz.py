@@ -106,6 +106,14 @@ async def extract_topic_from_file(
             extracted = extract_text(tmp_path, file_kind)
             import os
             os.unlink(tmp_path)
+
+            # ── 图片型 PDF 降级：文字层为空时，用 Vision OCR 逐页识别 ──────────
+            if file_kind == "pdf" and (not extracted or extracted.startswith("[")):
+                try:
+                    extracted = await _ocr_pdf_pages_for_quiz(content)
+                except Exception as _ocr_e:
+                    extracted = f"[扫描版PDF，OCR识别失败：{_ocr_e}]"
+
             if not extracted or extracted.startswith("["):
                 raise HTTPException(status_code=422, detail=f"文件内容提取失败：{extracted}")
             result = await ai_service.extract_quiz_topic_from_pdf(extracted)
@@ -314,3 +322,39 @@ def recommended_difficulty(
         "reason": reason,
         "accuracy_history": round(accuracy, 2),
     }}
+
+
+async def _ocr_pdf_pages_for_quiz(pdf_bytes: bytes) -> str:
+    """将扫描版 PDF 每页转换为图片，逐页调用 Vision OCR，拼接返回全文。
+
+    仅在 PDF 文字层为空（扫描/图片型PDF）时调用。
+    依赖：PyMuPDF（fitz），容器中已安装。
+    """
+    import fitz  # PyMuPDF
+
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    page_count = doc.page_count
+    all_texts: list[str] = []
+
+    for page_index in range(page_count):
+        page = doc[page_index]
+        # 渲染为 150 DPI 的 PNG（提高 OCR 精度）
+        mat = fitz.Matrix(150 / 72, 150 / 72)
+        pix = page.get_pixmap(matrix=mat, colorspace=fitz.csRGB)
+        img_bytes = pix.tobytes("png")
+        image_base64 = base64.b64encode(img_bytes).decode("utf-8")
+
+        try:
+            result = await ai_service.ocr_image_for_reading(
+                image_base64=image_base64,
+                mime_type="image/png",
+            )
+            page_text = result.get("text", "").strip()
+        except Exception as e:
+            page_text = f"[第 {page_index + 1} 页识别失败：{e}]"
+
+        if page_text:
+            all_texts.append(page_text)
+
+    doc.close()
+    return "\n\n".join(all_texts)
