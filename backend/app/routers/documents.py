@@ -42,16 +42,33 @@ async def upload_document(
 
     # 提取文本
     try:
-        text = extract_text(file_info["file_path"], file_info["file_type"])
-
-        # ── 图片型 PDF 降级：文字层为空时，用 Vision OCR 逐页识别 ──────────────
-        if file_info["file_type"] == "pdf" and (not text or text.startswith("[")):
+        if file_info["file_type"] in ("jpg", "png"):
+            # 图片文件：直接使用 Vision OCR
             try:
                 with open(file_info["file_path"], "rb") as _f:
-                    _pdf_bytes = _f.read()
-                text = await _ocr_pdf_pages(_pdf_bytes)
+                    _img_bytes = _f.read()
+                mime_type = "image/jpeg" if file_info["file_type"] == "jpg" else "image/png"
+                image_base64 = base64.b64encode(_img_bytes).decode("utf-8")
+                result = await ai_service.ocr_image_for_reading(
+                    image_base64=image_base64,
+                    mime_type=mime_type,
+                )
+                text = result.get("text", "").strip()
+                if not text:
+                    text = "[图片内容为空或无法识别]"
             except Exception as _e:
-                text = f"[扫描版PDF，OCR识别失败：{_e}]"
+                text = f"[图片OCR识别失败：{_e}]"
+        else:
+            text = extract_text(file_info["file_path"], file_info["file_type"])
+
+            # ── 图片型 PDF 降级：文字层为空时，用 Vision OCR 逐页识别 ──────────────
+            if file_info["file_type"] == "pdf" and (not text or text.startswith("[")):
+                try:
+                    with open(file_info["file_path"], "rb") as _f:
+                        _pdf_bytes = _f.read()
+                    text = await _ocr_pdf_pages(_pdf_bytes)
+                except Exception as _e:
+                    text = f"[扫描版PDF，OCR识别失败：{_e}]"
 
         doc.content_text = text[:50000] if text else ""
         doc.status = "done"

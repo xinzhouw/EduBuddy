@@ -751,11 +751,22 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
                     ],
                 }
             ],
-            response_format={"type": "json_object"},
             max_tokens=2000,
             **self._temp(0.2),
         )
-        return json.loads(response.choices[0].message.content)
+        raw = (response.choices[0].message.content or "").strip()
+        # 兼容模型在 JSON 外包裹 markdown 代码块的情况
+        if raw.startswith("```"):
+            raw = re.sub(r"^```[a-z]*\n?", "", raw)
+            raw = re.sub(r"\n?```$", "", raw)
+            raw = raw.strip()
+        match = re.search(r'\{[\s\S]*\}', raw)
+        if match:
+            raw = match.group(0)
+        try:
+            return json.loads(raw)
+        except Exception:
+            return {}
 
     async def extract_quiz_topic_from_pdf(
         self,
@@ -786,14 +797,25 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
         response = await client.chat.completions.create(
             model=self.model,
             messages=[
-                {"role": "system", "content": "你是一名专业的中学学科教师，擅长识别题目类型和知识点。"},
+                {"role": "system", "content": "你是一名专业的中学学科教师，擅长识别题目类型和知识点。只输出合法JSON，不要加任何说明文字，不要用代码块包裹。"},
                 {"role": "user", "content": prompt},
             ],
-            response_format={"type": "json_object"},
             max_tokens=2000,
             **self._temp(0.2),
         )
-        return json.loads(response.choices[0].message.content)
+        raw = (response.choices[0].message.content or "").strip()
+        # 兼容模型在 JSON 外包裹 markdown 代码块的情况
+        if raw.startswith("```"):
+            raw = re.sub(r"^```[a-z]*\n?", "", raw)
+            raw = re.sub(r"\n?```$", "", raw)
+            raw = raw.strip()
+        match = re.search(r'\{[\s\S]*\}', raw)
+        if match:
+            raw = match.group(0)
+        try:
+            return json.loads(raw)
+        except Exception:
+            return {}
 
     async def ocr_image_for_reading(
         self,

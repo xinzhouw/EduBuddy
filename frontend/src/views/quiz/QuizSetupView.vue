@@ -18,7 +18,7 @@
               ref="fileInputRef"
               type="file"
               class="hidden"
-              accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.docx"
               @change="onFileChange"
             />
             <span class="px-4 py-2 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 transition-colors">
@@ -48,7 +48,7 @@
           <!-- 识别到的文字 -->
           <div v-if="scanResult.recognized_text" class="bg-white border border-gray-200 rounded-lg p-3 max-h-36 overflow-y-auto">
             <p class="text-xs text-gray-400 mb-1">识别到的题目内容：</p>
-            <p class="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{{ scanResult.recognized_text }}</p>
+            <div class="text-sm text-gray-700 leading-relaxed latex-content" v-html="renderRecognizedText(scanResult.recognized_text)"></div>
           </div>
 
           <div class="grid grid-cols-2 gap-3 text-sm">
@@ -131,6 +131,7 @@ import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { quizApi } from '@/api/quiz'
 import { ElMessage } from 'element-plus'
+import { renderRecognizedText } from '@/utils/markdown'
 
 const router = useRouter()
 const loading = ref(false)
@@ -160,13 +161,30 @@ const scanResult = ref<{
   question_count: number
 } | null>(null)
 
+// 按文件扩展名推断 MIME type（用于拖拽上传时 file.type 为空的情况）
+function inferMimeType(file: File): string {
+  if (file.type) return file.type
+  const ext = file.name.split('.').pop()?.toLowerCase() || ''
+  const extMap: Record<string, string> = {
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    gif: 'image/gif',
+    webp: 'image/webp',
+    pdf: 'application/pdf',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  }
+  return extMap[ext] || ''
+}
+
 async function handleFile(file: File) {
   const allowed = [
     'image/jpeg', 'image/png', 'image/gif', 'image/webp',
     'application/pdf',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   ]
-  if (!allowed.includes(file.type)) {
+  const mimeType = inferMimeType(file)
+  if (!allowed.includes(mimeType)) {
     ElMessage.warning('不支持的文件类型，请上传 JPG、PNG、PDF 或 Word 文件')
     return
   }
@@ -179,10 +197,10 @@ async function handleFile(file: File) {
   scanResult.value = null
   try {
     const res: any = await quizApi.extractTopicFromFile(file)
-    if (res?.data?.code === 200 && res.data.data) {
-      scanResult.value = res.data.data
+    if (res?.code === 200 && res.data) {
+      scanResult.value = res.data
       // 自动填入表单
-      applyToFormFromResult(res.data.data)
+      applyToFormFromResult(res.data)
       ElMessage.success('题目识别成功，已自动填写学科和知识点')
     } else {
       ElMessage.error('识别失败，请重试')

@@ -2,9 +2,18 @@
 
 ## 当前工作焦点
 **日期**：2026-06-10  
-**阶段**：V1.0 开发阶段 — Bug 修复
+**阶段**：V1.0 开发阶段 — 功能增强
 
 ## 最新完成的工作（本次）
+
+- **"文档"功能增强**（`frontend/src/views/docs/DocsView.vue`）：
+  - **新增"查看内容"按钮**：上传文件后（`status === 'done'`），每个文档卡片显示"查看内容"/"收起内容"切换按钮，点击后展开/收起识别出的文件内容（`content_text`）；使用 `expandedContent` 响应式对象（`Record<number, boolean>`）追踪各文档展开状态。
+  - **新增识别内容展示区**：展开时在文档卡片下方显示灰色背景区域，展示 `📝 文件内容识别结果` + `<pre>` 格式化文本（`whitespace-pre-wrap`、`max-h-64 overflow-y-auto`，最多显示 256px 可滚动）。
+  - **新增"复制内容"按钮**：在内容展示区右上角；点击后调用 `navigator.clipboard.writeText()`（含降级方案 `document.execCommand('copy')`）将识别文本写入系统剪贴板；复制成功后按钮变为 `✅ 已复制`（Element Plus `success` 类型）并持续 2 秒，同时弹出 ElMessage 提示。`copiedId` 状态避免多文档间相互干扰。
+  - **上传后自动展开**：`handleUpload` 上传成功后若后端立即返回 `content_text`，自动设 `expandedContent[id] = true`；若 `content_text` 为空（后端正在处理），则 2 秒后重新调用 `docsApi.get()` 拉取最新状态，处理完成后自动展开。
+  - **删除联动清理**：`deleteDoc` 时一并清除 `expandedContent[id]` 和 `analysisResults[id]`，避免状态残留。
+  - **验证**：`vue-tsc --noEmit` exit code 0；`npm run build` 成功（2.08s）；`docker cp` 热部署到 `edubuddy-frontend-1` 容器。
+
 
 - **修复学习计划"练习题"内容 LaTeX 未渲染问题**（`frontend/src/views/plan/StudyPlanView.vue`）：
   - **根因**：`StudyPlanView.vue` 练习题面板（`activePanel === 'quiz'`）中，题目内容 `q.question` 和选项 `opt` 使用了 `{{ }}` 纯文本插值，`$...$` LaTeX 语法完全不经过渲染函数处理，直接显示原始文本（如 `$f(x)=\sqrt{x-2}+\dfrac{1}{x-3}$`）。

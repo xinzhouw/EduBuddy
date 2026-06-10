@@ -42,10 +42,35 @@
               <span :class="statusClass(doc.status)">{{ statusLabel(doc.status) }}</span>
             </div>
           </div>
-          <div class="flex gap-1 ml-2">
+          <div class="flex gap-1 ml-2 flex-wrap justify-end">
+            <el-button
+              size="small"
+              @click="toggleContentText(doc)"
+              :disabled="doc.status !== 'done' || !doc.content_text"
+              plain
+            >
+              {{ expandedContent[doc.id] ? '收起内容' : '查看内容' }}
+            </el-button>
             <el-button size="small" @click="analyzeDoc(doc, 'extract_key_points')" :disabled="doc.status !== 'done'" plain>提取知识点</el-button>
             <el-button size="small" type="danger" plain @click="deleteDoc(doc.id)">删除</el-button>
           </div>
+        </div>
+
+        <!-- 识别到的文件内容 -->
+        <div v-if="expandedContent[doc.id] && doc.content_text" class="mt-3 bg-gray-50 border border-gray-200 rounded-lg p-3">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-medium text-gray-500">📝 文件内容识别结果</span>
+            <el-button
+              size="small"
+              :type="copiedId === doc.id ? 'success' : 'default'"
+              plain
+              @click="copyContent(doc)"
+            >
+              <span v-if="copiedId === doc.id">✅ 已复制</span>
+              <span v-else>📋 复制内容</span>
+            </el-button>
+          </div>
+          <pre class="text-sm text-gray-700 whitespace-pre-wrap break-words max-h-64 overflow-y-auto leading-relaxed">{{ doc.content_text }}</pre>
         </div>
 
         <!-- AI分析结果 -->
@@ -73,11 +98,44 @@ const docs = ref<any[]>([])
 const loading = ref(false)
 const analyzing = ref<Record<number, boolean>>({})
 const analysisResults = ref<Record<number, string>>({})
+const expandedContent = ref<Record<number, boolean>>({})
+const copiedId = ref<number | null>(null)
 
 function fileIcon(type: string) { return { pdf: '📕', docx: '📘', jpg: '🖼️', png: '🖼️' }[type] || '📄' }
 function formatSize(b: number) { return b > 1048576 ? `${(b / 1048576).toFixed(1)}MB` : `${(b / 1024).toFixed(0)}KB` }
 function statusLabel(s: string) { return { pending: '待处理', processing: '解析中', done: '已完成', error: '解析失败' }[s] || s }
 function statusClass(s: string) { return { done: 'text-green-500', error: 'text-red-500', processing: 'text-amber-500' }[s] || 'text-gray-400' }
+
+function toggleContentText(doc: any) {
+  expandedContent.value[doc.id] = !expandedContent.value[doc.id]
+}
+
+async function copyContent(doc: any) {
+  if (!doc.content_text) return
+  try {
+    await navigator.clipboard.writeText(doc.content_text)
+    copiedId.value = doc.id
+    ElMessage.success('内容已复制到剪贴板')
+    setTimeout(() => {
+      if (copiedId.value === doc.id) copiedId.value = null
+    }, 2000)
+  } catch {
+    // 降级方案：使用 document.execCommand
+    const textarea = document.createElement('textarea')
+    textarea.value = doc.content_text
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textarea)
+    copiedId.value = doc.id
+    ElMessage.success('内容已复制到剪贴板')
+    setTimeout(() => {
+      if (copiedId.value === doc.id) copiedId.value = null
+    }, 2000)
+  }
+}
 
 function beforeUpload(file: File) {
   const allowed = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/png']
@@ -90,8 +148,28 @@ async function handleUpload({ file }: any) {
   const fd = new FormData()
   fd.append('file', file)
   const res: any = await docsApi.upload(fd)
-  ElMessage.success('上传成功')
-  docs.value.unshift(res.data)
+  const newDoc = res.data
+  ElMessage.success('上传成功，正在识别文件内容…')
+  docs.value.unshift(newDoc)
+  // 上传后自动展开内容
+  if (newDoc.content_text) {
+    expandedContent.value[newDoc.id] = true
+  } else {
+    // 等待一段时间后重新获取，以便后端处理完毕
+    setTimeout(async () => {
+      try {
+        const detail: any = await docsApi.get(newDoc.id)
+        const updated = detail.data
+        const idx = docs.value.findIndex(d => d.id === newDoc.id)
+        if (idx !== -1) {
+          docs.value[idx] = updated
+          if (updated.content_text) {
+            expandedContent.value[updated.id] = true
+          }
+        }
+      } catch {}
+    }, 2000)
+  }
 }
 
 async function analyzeDoc(doc: any, task: string) {
@@ -126,6 +204,8 @@ async function analyzeDoc(doc: any, task: string) {
 async function deleteDoc(id: number) {
   await docsApi.delete(id)
   docs.value = docs.value.filter(d => d.id !== id)
+  delete expandedContent.value[id]
+  delete analysisResults.value[id]
   ElMessage.success('已删除')
 }
 

@@ -28,6 +28,38 @@ EXTRACT_SUPPORTED_TYPES = {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
 }
 
+# MIME → 标准 mime_type 字符串（用于 Vision API）
+MIME_NORMALIZE = {
+    "image/jpeg": "image/jpeg",
+    "image/jpg": "image/jpeg",
+    "image/png": "image/png",
+    "image/gif": "image/gif",
+    "image/webp": "image/webp",
+}
+
+# 文件扩展名 → MIME type（用于 content_type 为空/不标准时的 fallback）
+EXT_TO_MIME = {
+    "jpg": "image/jpeg",
+    "jpeg": "image/jpeg",
+    "png": "image/png",
+    "gif": "image/gif",
+    "webp": "image/webp",
+    "pdf": "application/pdf",
+    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
+
+
+def _resolve_content_type(file: "UploadFile") -> str:
+    """解析文件的 MIME type：优先使用 content_type，为空时按文件名扩展名推断。"""
+    ct = (file.content_type or "").strip().lower()
+    if ct and ct != "application/octet-stream":
+        return ct
+    # fallback：按文件名扩展名推断
+    if file.filename:
+        ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+        return EXT_TO_MIME.get(ext, ct)
+    return ct
+
 
 @router.post("/extract-answer")
 async def extract_answer_from_image(
@@ -75,7 +107,7 @@ async def extract_topic_from_file(
     支持格式：JPG、PNG、GIF、WebP（图片通过 Vision API 识别）、PDF、DOCX（文字提取后 AI 分析）
     返回：subject（学科）、topic（知识点）、recognized_text（识别文字）、question_count（题目数）
     """
-    content_type = file.content_type or ""
+    content_type = _resolve_content_type(file)
     file_kind = EXTRACT_SUPPORTED_TYPES.get(content_type)
     if not file_kind:
         raise HTTPException(
@@ -94,28 +126,37 @@ async def extract_topic_from_file(
             # 图片：用 Vision API 直接识别
             image_b64 = base64.b64encode(content).decode("utf-8")
             # 标准化 mime type
-            mime = content_type if content_type.startswith("image/") else "image/jpeg"
+            mime = MIME_NORMALIZE.get(content_type, "image/jpeg")
             result = await ai_service.extract_quiz_topic_from_image(image_b64, mime)
         else:
             # PDF / DOCX：先保存到临时文件再提取文字
             import tempfile
+            import os
             suffix = ".pdf" if file_kind == "pdf" else ".docx"
             with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
                 tmp.write(content)
                 tmp_path = tmp.name
-            extracted = extract_text(tmp_path, file_kind)
-            import os
-            os.unlink(tmp_path)
+            try:
+                extracted = extract_text(tmp_path, file_kind)
+            finally:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
 
-            # ── 图片型 PDF 降级：文字层为空时，用 Vision OCR 逐页识别 ──────────
+            # ── 图片型 PDF 降级：文字层为空或提取失败时，用 Vision OCR 逐页识别 ──
             if file_kind == "pdf" and (not extracted or extracted.startswith("[")):
                 try:
                     extracted = await _ocr_pdf_pages_for_quiz(content)
                 except Exception as _ocr_e:
-                    extracted = f"[扫描版PDF，OCR识别失败：{_ocr_e}]"
+                    raise HTTPException(status_code=422, detail=f"扫描版PDF识别失败：{_ocr_e}")
 
+            # OCR 结果也失败时给出明确错误
             if not extracted or extracted.startswith("["):
-                raise HTTPException(status_code=422, detail=f"文件内容提取失败：{extracted}")
+                raise HTTPException(
+                    status_code=422,
+                    detail="文件内容提取失败，请确认文件包含可读文字，或改用图片格式上传"
+                )
             result = await ai_service.extract_quiz_topic_from_pdf(extracted)
 
         return {"code": 200, "data": result}
