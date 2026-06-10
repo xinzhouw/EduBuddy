@@ -513,17 +513,16 @@ async def submit_task_quiz(
     subject = task.subject
     topic = task.topic
 
-    # ── 方案A：后端程序化计算客观题得分，不依赖 AI 从报告文本提取 ──
-    # 每题满分 = 100 / 题目总数（均分），简答题同样按此满分参与计算
+    # ── 后端程序化计算客观题得分，并告知 AI 每题满分以便其评判简答题 ──
     import logging as _logging
     _log = _logging.getLogger("submit_quiz")
     total_q = len(questions) if questions else 1
     per_score = 100.0 / total_q
     _log.warning(f"[submit-quiz] task_id={task_id} total_q={total_q} per_score={per_score} student_answers={student_answers}")
 
-    # 统计各类型题目数量，用于后续按比例分配简答题分数
+    # 程序化批改客观题，记录简答题id
     short_ids = []      # 简答题 id（str），需要 AI 给分
-    auto_score = 0.0    # 客观题（选择/填空）程序化得分
+    obj_scores: dict[str, float] = {}  # 客观题程序化得分 {qid: score}
 
     for q in questions:
         qid = str(q.get("id", ""))
@@ -533,17 +532,14 @@ async def submit_task_quiz(
         _log.warning(f"[submit-quiz] qid={qid} qtype={qtype} correct={correct!r} student={student!r}")
 
         if qtype in ("choice", "fill"):
-            # 选择题大小写不敏感；填空题直接比对
-            if student.upper() == correct.upper():
-                auto_score += per_score
-                _log.warning(f"[submit-quiz] qid={qid} ✅ correct, auto_score now={auto_score}")
-            else:
-                _log.warning(f"[submit-quiz] qid={qid} ❌ wrong")
+            got = per_score if student.upper() == correct.upper() else 0.0
+            obj_scores[qid] = got
+            _log.warning(f"[submit-quiz] qid={qid} obj got={got}")
         else:
-            # 简答题等主观题，交给 AI 评判，先记录 id
             short_ids.append(qid)
             _log.warning(f"[submit-quiz] qid={qid} is short/subjective")
 
+    auto_score = sum(obj_scores.values())
     _log.warning(f"[submit-quiz] auto_score={auto_score} short_ids={short_ids}")
 
     # 保存提交的答案
@@ -558,6 +554,8 @@ async def submit_task_quiz(
                 topic=topic,
                 questions=questions,
                 student_answers=student_answers,
+                per_score=per_score,
+                obj_scores=obj_scores,
             ):
                 full_eval.append(delta)
                 yield f"data: {json.dumps({'delta': delta}, ensure_ascii=False)}\n\n"
@@ -567,27 +565,27 @@ async def submit_task_quiz(
 
         eval_str = "".join(full_eval)
 
-        # 计算最终分数
+        # 计算最终分数：客观题用程序化得分 + 简答题从 AI 表格逐题提取
         if not short_ids:
-            # 全部客观题：直接用程序化得分，四舍五入到整数
+            # 全部客观题：直接用程序化得分
             score = round(auto_score)
         else:
-            # 含简答题：优先从 AI 报告中提取综合得分（AI 能正确评判部分分）
-            # 尝试匹配 "综合得分：xx / 100 分" 或 "xx / 100 分"
-            ai_score = None
-            m = re.search(r'综合得分[：:]\s*\**\s*(\d+(?:\.\d+)?)\s*/\s*100', eval_str)
-            if m:
-                ai_score = float(m.group(1))
-            else:
-                m = re.search(r'(\d+(?:\.\d+)?)\s*/\s*100\s*分', eval_str)
+            # 从 AI 报告的逐题表格中提取各简答题得分
+            # 表格格式：| 题号 | 题型 | 得分 | 满分 | 评价 |
+            # 例：| 3 | 简答题 | 12 | 20 | ...
+            short_score = 0.0
+            for qid in short_ids:
+                # 匹配表格中该题的得分列（第3列）
+                pattern = rf'\|\s*{re.escape(qid)}\s*\|[^|]+\|\s*(\d+(?:\.\d+)?)\s*\|'
+                m = re.search(pattern, eval_str)
                 if m:
-                    ai_score = float(m.group(1))
-            if ai_score is not None:
-                score = round(ai_score)
-            else:
-                # AI 报告中找不到综合分，退回到：客观题程序化得分 + 简答题 50% 估算
-                short_score = sum(per_score * 0.5 for _ in short_ids)
-                score = round(auto_score + short_score)
+                    short_score += float(m.group(1))
+                    _log.warning(f"[submit-quiz] qid={qid} short AI got={m.group(1)}")
+                else:
+                    # 找不到时给 50% 估算
+                    short_score += per_score * 0.5
+                    _log.warning(f"[submit-quiz] qid={qid} short fallback 50%")
+            score = round(auto_score + short_score)
 
         score = max(0, min(100, score))
 

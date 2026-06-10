@@ -18,7 +18,7 @@
         </div>
         <div class="bg-gray-50 rounded-lg p-4 mb-3">
           <p class="text-sm font-medium text-gray-500 mb-1">📝 题目</p>
-          <div class="text-gray-800 markdown-body" v-html="renderLatexOnly(item.question)"></div>
+          <div class="text-gray-800 markdown-body" v-html="renderQuestionWithOptions(item.question)"></div>
         </div>
         <div v-if="item.user_wrong_answer" class="text-sm text-red-500 mb-2">
           ❌ 我的答案：<span v-html="renderLatexOnly(item.user_wrong_answer)"></span>
@@ -80,6 +80,18 @@ import { useAuthStore } from '@/stores/auth'
 import { wrongBookApi } from '@/api/wrongBook'
 import { ElMessage } from 'element-plus'
 import { renderMessage, renderLatexOnly } from '@/utils/markdown'
+
+/**
+ * 渲染题目内容：将 \n 分隔的选项转换为 <br> 换行后再渲染 LaTeX
+ * 兼容旧数据（纯题干，无换行）和新数据（题干+选项，\n 分隔）
+ */
+function renderQuestionWithOptions(text: string): string {
+  if (!text) return ''
+  // 先渲染 LaTeX 公式
+  const rendered = renderLatexOnly(text)
+  // 再将 \n 转为 <br>（renderLatexOnly 不处理换行）
+  return rendered.replace(/\n/g, '<br>')
+}
 
 const route = useRoute()
 const router = useRouter()

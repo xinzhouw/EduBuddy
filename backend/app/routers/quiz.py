@@ -262,9 +262,19 @@ async def submit_quiz(
 
         # 错题自动录入
         if not is_correct:
+            # 将选项拼接到题干，保证错题本显示完整题目内容
+            full_question = question.content
+            if question.options:
+                try:
+                    opts = json.loads(question.options)
+                    if isinstance(opts, list) and opts:
+                        full_question = question.content + "\n" + "\n".join(opts)
+                except Exception:
+                    pass
+
             item = WrongItem(
                 user_id=current_user.id,
-                question=question.content,
+                question=full_question,
                 correct_answer=question.correct_answer,
                 user_wrong_answer=ans.answer,
                 subject=question.subject,

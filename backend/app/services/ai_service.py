@@ -1173,9 +1173,18 @@ type 字段只能是 "choice"（单选）、"fill"（填空）、"short"（简�
         topic: str,
         questions: list,
         student_answers: dict,
+        per_score: float = None,
+        obj_scores: dict = None,
     ) -> AsyncGenerator[str, None]:
         """AI 评判学生的练习题答案（流式），输出结构化 Markdown 评判报告"""
-        # 构建题目和答案对照表
+        total_q = len(questions) if questions else 1
+        # 若调用方未传入 per_score，则自动计算
+        if per_score is None:
+            per_score = 100.0 / total_q
+        if obj_scores is None:
+            obj_scores = {}
+
+        # 构建题目和答案对照表，客观题注明已知得分，简答题注明满分供 AI 按要点评分
         qa_lines = []
         for q in questions:
             qid = str(q.get("id", ""))
@@ -1184,22 +1193,47 @@ type 字段只能是 "choice"（单选）、"fill"（填空）、"short"（简�
             correct = q.get("answer", "")
             student_ans = student_answers.get(qid, "（未作答）")
             type_label = {"choice": "选择题", "fill": "填空题", "short": "简答题"}.get(qtype, "题目")
+            score_hint = ""
+            if qtype in ("choice", "fill"):
+                got = obj_scores.get(qid, 0.0)
+                score_hint = f"\n程序化判分：{got:.0f} / {per_score:.0f} 分（已由系统确认，请在表格中如实填写此分数）"
+            else:
+                score_hint = f"\n满分：{per_score:.0f} 分（请按要点给分，不得超过此满分）"
             qa_lines.append(
                 f"【第{qid}题 {type_label}】\n"
                 f"题目：{qtext}\n"
                 f"参考答案：{correct}\n"
                 f"学生答案：{student_ans}\n"
                 f"解析提示：{q.get('explanation', '')}"
+                f"{score_hint}"
             )
 
         qa_text = "\n\n".join(qa_lines)
 
+        # 生成表格示例行（帮助 AI 理解格式）
+        example_rows = ""
+        for q in questions:
+            qid = str(q.get("id", ""))
+            qtype = q.get("type", "")
+            type_label = {"choice": "选择题", "fill": "填空题", "short": "简答题"}.get(qtype, "题目")
+            if qtype in ("choice", "fill"):
+                got = obj_scores.get(qid, 0.0)
+                example_rows += f"| {qid} | {type_label} | {got:.0f} | {per_score:.0f} | 正确/错误 |\n"
+            else:
+                example_rows += f"| {qid} | {type_label} | （你给的分，≤{per_score:.0f}） | {per_score:.0f} | 部分正确/错误 |\n"
+
         system_prompt = f"""你是一位专业的{subject}学科教师，正在批改学生的练习题（知识点：{topic}）。
 请仔细对比学生答案与参考答案，给出详细评判报告。
 
+**评分规则（必须严格遵守）：**
+- 本次共 {total_q} 道题，每题满分 {per_score:.0f} 分，总满分 100 分
+- 选择题/填空题：系统已程序化判分，请在表格中原样填写"程序化判分"中的数字，不得修改
+- 简答题：按要点给分，给分不得超过该题满分 {per_score:.0f} 分
+- 综合得分 = 所有题目得分之和，必须与表格数字完全一致，不得自行重新计算
+
 **数学公式格式要求：** 行内 $...$，块级 $$...$$，$$ 与内容同行不换行。
 
-**输出格式（严格遵守 Markdown）：**
+**输出格式（严格遵守 Markdown，综合得分必须等于表格各题得分之和）：**
 
 ## 📊 总体得分
 
@@ -1207,8 +1241,7 @@ type 字段只能是 "choice"（单选）、"fill"（填空）、"short"（简�
 
 | 题号 | 题型 | 得分 | 满分 | 评价 |
 |------|------|------|------|------|
-| 1 | 选择题 | xx | xx | 正确/错误/部分正确 |
-
+{example_rows}
 ---
 
 ## 📝 逐题解析
@@ -1229,7 +1262,7 @@ type 字段只能是 "choice"（单选）、"fill"（填空）、"short"（简�
 
 ---
 
-注意：简答题按要点给分，语气鼓励，评判客观。"""
+注意：综合得分必须严格等于表格各题得分之和，简答题语气鼓励，评判客观。"""
 
         user_message = {
             "role": "user",

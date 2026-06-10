@@ -6,6 +6,36 @@
 
 ## 最新完成的工作（本次）
 
+- **修复"错题本"题目只显示题干、缺少选项的问题**：
+  - **根因**：`backend/app/routers/quiz.py` 的 `submit_quiz` 接口在答错时自动录入错题，只将 `question.content`（纯题干）存入 `WrongItem.question`，**完全没有把选项（`question.options`）一并保存**，导致错题详情页只能显示题干，用户看不到选项 A/B/C/D。
+  - **修复 `quiz.py`**：在错题自动录入逻辑中，先尝试解析 `question.options`（JSON 字符串），若选项存在则用 `\n` 拼接到题干后：
+    ```python
+    full_question = question.content
+    if question.options:
+        opts = json.loads(question.options)
+        if isinstance(opts, list) and opts:
+            full_question = question.content + "\n" + "\n".join(opts)
+    item = WrongItem(question=full_question, ...)
+    ```
+  - **修复 `WrongDetailView.vue`**：新增 `renderQuestionWithOptions(text)` 函数——先调用 `renderLatexOnly()` 渲染公式，再将 `\n` 转为 `<br>` 换行，保证选项分行显示；兼容旧数据（无换行）。
+  - **影响范围**：仅新录入的错题会包含完整选项；已存在的旧错题数据不受影响（无选项换行，显示效果与之前相同）。
+  - **验证**：`vue-tsc --noEmit` exit code 0；`npm run build` 成功（2.34s）；`docker cp` 热部署前端 + 后端到运行中的容器，`docker restart edubuddy-backend-1` 完成。
+
+
+- **修复学习计划"练习题"得分计算错误**（`backend/app/routers/plan.py` + `backend/app/services/ai_service.py`）：
+  - **根因**：`submit_task_quiz` 在含简答题时，完全依赖 AI 报告中的"综合得分：xx / 100 分"字段作为最终得分。AI 自己计算综合分时可能算错（如截图：1道选择题对了应得20分，但AI写综合得分35分）。
+  - **修复 `plan.py`**：
+    1. 客观题（choice/fill）仍由后端程序化比对，得分存入 `obj_scores: dict[str, float]`
+    2. 将 `per_score` 和 `obj_scores` 作为参数传给 `ai_service.evaluate_task_quiz()`
+    3. **计分逻辑改为**：全客观题→直接用程序化得分；含简答题→从 AI 报告**逐题表格**中用正则 `|\s*qid\s*|...\|\s*(\d+)\s*\|` 提取每道简答题的得分，加上客观题程序化得分，取总和；找不到时按50%估算（降级保底）
+  - **修复 `ai_service.py`**：
+    1. `evaluate_task_quiz()` 新增 `per_score` 和 `obj_scores` 参数
+    2. 在发给 AI 的题目信息中，**客观题明确注明"程序化判分：N / M 分，请原样填写"**，简答题注明满分
+    3. System prompt 中明确规则：选择/填空题得分必须原样抄写程序化结果，不得修改；综合得分必须等于表格各题得分之和
+    4. 在 system prompt 中预生成示例表格行（含正确满分和已知程序化得分），降低 AI 写错的概率
+  - **验证**：`py_compile` 通过；`docker cp` + `docker restart` 热部署到 `edubuddy-backend-1`
+
+
 - **"文档"功能增强**（`frontend/src/views/docs/DocsView.vue`）：
   - **新增"查看内容"按钮**：上传文件后（`status === 'done'`），每个文档卡片显示"查看内容"/"收起内容"切换按钮，点击后展开/收起识别出的文件内容（`content_text`）；使用 `expandedContent` 响应式对象（`Record<number, boolean>`）追踪各文档展开状态。
   - **新增识别内容展示区**：展开时在文档卡片下方显示灰色背景区域，展示 `📝 文件内容识别结果` + `<pre>` 格式化文本（`whitespace-pre-wrap`、`max-h-64 overflow-y-auto`，最多显示 256px 可滚动）。
