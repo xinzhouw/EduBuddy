@@ -85,3 +85,54 @@ def change_password(data: PasswordChange, db: Session = Depends(get_db), current
     current_user.password = hash_password(data.new_password)
     db.commit()
     return {"code": 200, "message": "密码修改成功"}
+
+
+@router.delete("/me")
+def delete_me(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """删除当前用户账号及其所有关联数据（不可恢复）。
+
+    SQLite 默认不强制外键约束（PRAGMA foreign_keys=OFF），因此这里
+    显式按表清除该用户的所有关联数据，确保彻底删除、不留孤儿记录。
+    """
+    from app.models.note import Note, Flashcard, ChatSession, ChatMessage
+    from app.models.quiz import QuizSession, Question, QuizAnswer
+    from app.models.wrong_item import WrongItem, WrongReview
+    from app.models.study_plan import StudyPlan, PlanTask, Pomodoro
+    from app.models.document import Document, StudyLog
+    from app.models.homework import HomeworkGrading
+    from app.models.advice import DailyAdvice, AdviceAction
+    from app.models.relation import UserRelation, BindCode, ClassGroup
+
+    uid = current_user.id
+
+    # 1. 收集父记录 id（部分子表只关联父表 id，没有 user_id 字段）
+    quiz_session_ids = [s.id for s in db.query(QuizSession.id).filter(QuizSession.user_id == uid)]
+
+    # 2. Question 表只有 session_id（无 user_id），需用 quiz_session_id 删除
+    if quiz_session_ids:
+        db.query(Question).filter(Question.session_id.in_(quiz_session_ids)).delete(synchronize_session=False)
+
+    # 3. 删除所有带 user_id 的表（顺序：先子表后父表，避免外键约束启用时报错）
+    for model in (
+        QuizAnswer, WrongReview, ChatMessage, AdviceAction,
+        PlanTask, Pomodoro, StudyLog,
+        QuizSession, ChatSession, WrongItem, Flashcard, Note,
+        StudyPlan, Document, HomeworkGrading, DailyAdvice,
+    ):
+        db.query(model).filter(model.user_id == uid).delete(synchronize_session=False)
+
+    # 4. 关联关系表（字段命名不统一：BindCode.student_id / ClassGroup.teacher_id /
+    #    UserRelation.observer_id|student_id）
+    db.query(BindCode).filter(BindCode.student_id == uid).delete(synchronize_session=False)
+    db.query(UserRelation).filter(
+        (UserRelation.observer_id == uid) | (UserRelation.student_id == uid)
+    ).delete(synchronize_session=False)
+    db.query(ClassGroup).filter(ClassGroup.teacher_id == uid).delete(synchronize_session=False)
+
+
+    # 5. 删除用户本身
+    db.query(User).filter(User.id == uid).delete(synchronize_session=False)
+    db.commit()
+    return {"code": 200, "message": "账号已成功删除"}
+
+

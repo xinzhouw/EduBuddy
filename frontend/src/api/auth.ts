@@ -14,4 +14,6 @@ export const authApi = {
 
   changePassword: (data: { old_password: string; new_password: string }) =>
     api.put('/auth/password', data),
+
+  deleteMe: () => api.delete('/auth/me'),
 }

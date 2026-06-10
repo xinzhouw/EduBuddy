@@ -88,6 +88,61 @@
       </div>
     </div>
 
+    <!-- 删除账号 -->
+    <div class="card border border-red-100">
+      <div class="flex items-center gap-2 mb-4">
+        <span class="w-1 h-5 bg-gradient-to-b from-red-500 to-rose-500 rounded-full inline-block"></span>
+        <h3 class="font-bold text-gray-800">危险操作</h3>
+      </div>
+      <div class="bg-red-50 rounded-xl p-4 border border-red-100">
+        <p class="text-sm font-semibold text-red-700 mb-1">⚠️ 删除账号</p>
+        <p class="text-xs text-red-500 mb-4">
+          此操作将永久删除你的账号及所有关联数据（笔记、错题、练习记录、学习计划、文档、对话记录等），且<strong>无法恢复</strong>。
+        </p>
+        <el-button type="danger" plain @click="showDeleteDialog = true">删除我的账号</el-button>
+      </div>
+    </div>
+
+    <!-- 确认删除对话框 -->
+    <el-dialog
+      v-model="showDeleteDialog"
+      title="⚠️ 确认删除账号"
+      width="420px"
+      :close-on-click-modal="false"
+    >
+      <div class="space-y-3">
+        <p class="text-sm text-gray-600">删除后，以下数据将被<strong class="text-red-600">永久清除</strong>，无法找回：</p>
+        <ul class="text-xs text-gray-500 list-disc list-inside space-y-1 bg-gray-50 rounded-lg p-3">
+          <li>账号信息（邮箱、昵称、年级等）</li>
+          <li>所有笔记与闪卡</li>
+          <li>错题本记录</li>
+          <li>练习题与答题历史</li>
+          <li>学习计划</li>
+          <li>上传的文档</li>
+          <li>AI 对话记录</li>
+          <li>作业批改历史</li>
+          <li>所有关联关系（教师/家长绑定）</li>
+        </ul>
+        <p class="text-sm text-gray-700">请在下方输入你的邮箱 <strong class="text-red-600">{{ authStore.user?.email }}</strong> 以确认删除：</p>
+        <el-input
+          v-model="deleteConfirmEmail"
+          placeholder="输入你的邮箱地址"
+          clearable
+        />
+      </div>
+      <template #footer>
+        <div class="flex gap-3 justify-end">
+          <el-button @click="showDeleteDialog = false">取消</el-button>
+          <el-button
+            type="danger"
+            :loading="deleting"
+            :disabled="deleteConfirmEmail !== authStore.user?.email"
+            @click="deleteAccount"
+          >确认删除</el-button>
+        </div>
+      </template>
+    </el-dialog>
+
     <!-- 关联关系管理（学生：绑定码 + 查看关联者；教师/家长：绑定学生 + 创建班级） -->
     <div class="card">
       <div class="flex items-center gap-2 mb-5">
@@ -291,13 +346,40 @@
 
 <script setup lang="ts">
 import { reactive, ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { authApi } from '@/api/auth'
 import { relationsApi } from '@/api/relations'
 import { ElMessage } from 'element-plus'
 
+const router = useRouter()
 const authStore = useAuthStore()
 const grades = ['初一', '初二', '初三', '高一', '高二', '高三']
+
+// ── 删除账号 ──────────────────────────────────────────────────────────────────
+const showDeleteDialog = ref(false)
+const deleteConfirmEmail = ref('')
+const deleting = ref(false)
+
+async function deleteAccount() {
+  if (deleteConfirmEmail.value !== authStore.user?.email) {
+    ElMessage.warning('邮箱输入不匹配')
+    return
+  }
+  deleting.value = true
+  try {
+    await authApi.deleteMe()
+    ElMessage.success('账号已删除')
+    showDeleteDialog.value = false
+    authStore.logout()
+    router.push('/login')
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '删除失败，请稍后重试')
+  } finally {
+    deleting.value = false
+  }
+}
+
 
 // ── 基本资料 ──────────────────────────────────────────────────────────────────
 const form = reactive({
