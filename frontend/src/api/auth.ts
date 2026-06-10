@@ -1,7 +1,7 @@
 import api from './index'
 
 export const authApi = {
-  register: (data: { email: string; password: string; nickname: string; grade: string }) =>
+  register: (data: { email: string; password: string; nickname: string; grade: string; role?: string }) =>
     api.post('/auth/register', data),
 
   login: (data: { email: string; password: string }) =>

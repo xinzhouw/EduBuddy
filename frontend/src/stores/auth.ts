@@ -31,7 +31,7 @@ export const useAuthStore = defineStore('auth', () => {
     ElMessage.success('登录成功')
   }
 
-  async function register(data: { email: string; password: string; nickname: string; grade: string }) {
+  async function register(data: { email: string; password: string; nickname: string; grade: string; role?: string }) {
     await authApi.register(data)
     ElMessage.success('注册成功，请登录')
   }

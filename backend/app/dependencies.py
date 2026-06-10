@@ -32,3 +32,24 @@ def get_current_user(
     if user is None:
         raise credentials_exception
     return user
+
+
+def require_roles(*allowed_roles: str):
+    """生成一个依赖，限定只有指定角色的用户才能访问该接口。
+
+    用法示例：
+        @router.get("/xxx")
+        def handler(user: User = Depends(require_roles("teacher", "parent"))):
+            ...
+    """
+
+    def dependency(current_user: User = Depends(get_current_user)) -> User:
+        if current_user.role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"权限不足：需要 {' / '.join(allowed_roles)} 角色",
+            )
+        return current_user
+
+    return dependency
+
