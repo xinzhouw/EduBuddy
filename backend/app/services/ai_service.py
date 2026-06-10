@@ -416,10 +416,23 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
         start_date: str,
     ) -> list:
         """生成学习计划，返回按天任务列表"""
+        import math
+        from datetime import date as _date
         client = self._get_client()
-        prompt = f"""请制定一个从{start_date}到{exam_date}的学习计划。
 
-备考学科：{', '.join(subjects)}
+        # 计算计划天数，限制每天任务条数，避免输出过长被截断
+        try:
+            total_days = (_date.fromisoformat(exam_date) - _date.fromisoformat(start_date)).days + 1
+        except Exception:
+            total_days = 30
+        # 每天最多安排的任务数 = 可学习时长 / 每个任务0.75小时，但不超过4条
+        tasks_per_day = min(4, max(1, math.floor(daily_hours / 0.75)))
+        # 当学科数量多时，建议每天安排2~3个学科交替
+        subjects_count = len(subjects)
+
+        prompt = f"""请制定一个从{start_date}到{exam_date}（共{total_days}天）的学习计划。
+
+备考学科（共{subjects_count}科）：{', '.join(subjects)}
 每天可学习时长：{daily_hours}小时
 薄弱学科（需要重点加强）：{', '.join(weak_subjects) if weak_subjects else '无'}
 
@@ -428,7 +441,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
   "tasks": [
     {{
       "date": "YYYY-MM-DD",
-      "subject": "学科",
+      "subject": "学科名称（必须从备考学科列表中选取，所有{subjects_count}个学科都要覆盖到）",
       "topic": "具体知识点",
       "task_type": "study/practice/review",
       "duration_minutes": 60
@@ -436,23 +449,40 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
   ]
 }}
 
-要求：
-1. 合理分配各学科学习时间
-2. 薄弱学科多安排练习和复习
-3. 考试前一周安排综合复习
-4. 每天总时长不超过设定时长
-5. 循序渐进，先基础后提高"""
+严格要求：
+1. **所有{subjects_count}个学科（{', '.join(subjects)}）都必须出现在计划中，不能遗漏任何一科**
+2. 每天安排 {tasks_per_day} 个任务，每个任务 {int(daily_hours * 60 / tasks_per_day)} 分钟左右
+3. 轮换安排各学科，确保每个学科在计划期间都有充分的覆盖
+4. 薄弱学科多安排练习和复习（task_type 用 practice 或 review）
+5. 考试前一周安排综合复习（task_type 用 review）
+6. 每天总时长不超过 {int(daily_hours * 60)} 分钟
+7. 循序渐进，先基础（study）后提高（practice），再复习（review）
+8. 只输出 JSON，不要附加任何说明文字"""
 
         response = await client.chat.completions.create(
             model=self.model,
             messages=[
-                {"role": "system", "content": "你是一名专业的学习规划师，擅长制定备考计划。"},
+                {"role": "system", "content": "你是一名专业的学习规划师，擅长制定备考计划。请严格按照用户要求，确保所有学科都被覆盖到计划中。只输出合法JSON，不要加任何说明文字，不要用代码块包裹。"},
                 {"role": "user", "content": prompt}
             ],
-            response_format={"type": "json_object"},
+            max_tokens=8000,
             **self._temp(0.4),
         )
-        data = json.loads(response.choices[0].message.content)
+        raw = response.choices[0].message.content or ""
+        # 兼容模型在 JSON 外包裹 markdown 代码块的情况
+        raw = raw.strip()
+        if raw.startswith("```"):
+            raw = re.sub(r"^```[a-z]*\n?", "", raw)
+            raw = re.sub(r"\n?```$", "", raw)
+            raw = raw.strip()
+        # 尝试提取第一个完整 JSON 对象（处理模型输出多余前缀的情况）
+        match = re.search(r'\{[\s\S]*\}', raw)
+        if match:
+            raw = match.group(0)
+        try:
+            data = json.loads(raw)
+        except Exception:
+            data = {}
         return data.get("tasks", [])
 
     async def analyze_document(
@@ -806,6 +836,399 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
         )
         text = (response.choices[0].message.content or "").strip()
         return {"text": text}
+
+    async def generate_daily_advice(self, context: dict) -> list:
+        """根据学生学习数据生成每日个性化建议，返回建议列表（3~5条）"""
+        client = self._get_client()
+
+        student_info = context.get("student_info", {})
+        recent_stats = context.get("recent_stats", {})
+        due_reviews = context.get("due_reviews", [])
+        prev_outcomes = context.get("previous_advice_outcomes", [])
+
+        prompt = f"""你是一位专业的学习顾问，需要根据学生的学习数据生成今日个性化学习建议。
+
+## 学生信息
+- 昵称：{student_info.get('nickname', '同学')}
+- 年级：{student_info.get('grade', '未知')}
+
+## 最近学习状况
+- 连续打卡天数：{recent_stats.get('streak_days', 0)} 天
+- 今日计划完成率：{int(recent_stats.get('today_plan_completion', 0) * 100)}%
+- 近3天正确率趋势：{recent_stats.get('recent_accuracy_trend', [])}
+- 薄弱学科：{recent_stats.get('weak_subjects', [])}
+
+## 今日到期复习项
+{json.dumps(due_reviews, ensure_ascii=False, indent=2) if due_reviews else '无'}
+
+## 昨日建议执行情况
+{json.dumps(prev_outcomes, ensure_ascii=False, indent=2) if prev_outcomes else '无历史记录'}
+
+请生成 3~5 条今日学习建议。每条建议必须：
+1. 有明确的类型（review_reminder/practice_suggestion/plan_adjustment/achievement/general）
+2. 引用具体的教育心理学理论作为依据
+3. 措辞积极正向，具体可行
+
+请以 JSON 格式返回：
+{{
+  "advices": [
+    {{
+      "id": "adv-001",
+      "type": "review_reminder",
+      "priority": 1,
+      "icon": "📚",
+      "title": "建议标题（10字以内）",
+      "content": "具体建议内容（50字以内）",
+      "action": {{
+        "label": "去复习",
+        "route": "/wrong-book",
+        "params": {{"subject": "数学"}}
+      }},
+      "theory_basis": "艾宾浩斯遗忘曲线：该知识点距上次学习已7天，正处于遗忘临界期，此时复习效率最高。"
+    }}
+  ]
+}}
+
+建议类型说明：
+- review_reminder：有到达复习节点的错题（用艾宾浩斯遗忘曲线理论）
+- practice_suggestion：学习时长充足但正确率低（用测试效应理论）
+- plan_adjustment：计划完成率持续偏低（用认知负荷理论）
+- achievement：连续打卡或正确率提升等正向事件（用自我效能感理论）
+- general：通用学习建议（用间隔效应理论）
+
+注意：action 字段可为 null（对于 achievement 类型）"""
+
+        response = await client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": "你是一位专业的教育心理学顾问，精通艾宾浩斯遗忘曲线、间隔效应、测试效应、认知负荷理论和自我效能感理论。"},
+                {"role": "user", "content": prompt}
+            ],
+            response_format={"type": "json_object"},
+            max_tokens=2000,
+            **self._temp(0.5),
+        )
+        data = json.loads(response.choices[0].message.content)
+        return data.get("advices", [])
+
+    async def generate_study_report(
+        self,
+        student_info: dict,
+        stats_30d: dict,
+    ) -> AsyncGenerator[str, None]:
+        """生成30天学习分析报告（流式输出）"""
+        client = self._get_client()
+
+        prompt = f"""请为以下学生生成一份详细的学习分析报告（约500~800字）。
+
+## 学生信息
+- 昵称：{student_info.get('nickname', '同学')}
+- 年级：{student_info.get('grade', '未知')}
+
+## 近30天学习数据
+- 总学习天数：{stats_30d.get('total_study_days', 0)} 天
+- 总学习时长：{stats_30d.get('total_study_minutes', 0)} 分钟
+- 总答题数：{stats_30d.get('total_questions', 0)} 道
+- 平均正确率：{int(stats_30d.get('average_accuracy', 0) * 100)}%
+- 各学科正确率：{json.dumps(stats_30d.get('accuracy_by_subject', []), ensure_ascii=False)}
+- 各学科学习时长（分钟）：{json.dumps(stats_30d.get('time_by_subject', []), ensure_ascii=False)}
+- 错题总数：{stats_30d.get('wrong_book_count', 0)} 道
+- 已掌握错题：{stats_30d.get('mastered_count', 0)} 道
+- 连续打卡天数：{stats_30d.get('streak_days', 0)} 天
+- 番茄钟完成数：{stats_30d.get('pomodoro_count', 0)} 个
+
+请按以下结构输出 Markdown 格式报告：
+
+## 📊 总体评价
+（基于数据的整体评估，含量化亮点）
+
+## 🌟 优势学科
+（正确率和时长双高的学科，结合布鲁姆教育目标分类说明掌握层次）
+
+## ⚠️ 薄弱环节
+（错题集中的知识点分析，结合艾宾浩斯遗忘曲线和测试效应给出改善建议）
+
+## 🔍 学习行为洞察
+（专注度、学习时段分布、间隔效应应用情况分析）
+
+## 🎯 未来7天行动建议
+（3条具体、可执行的学习建议，每条引用教育心理学理论依据）"""
+
+        stream = await client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": "你是一位专业的教育数据分析师，精通教育心理学理论，擅长用数据洞察学生学习规律并给出有说服力的改进建议。"},
+                {"role": "user", "content": prompt}
+            ],
+            stream=True,
+            max_tokens=2000,
+            **self._temp(0.4),
+        )
+        async for chunk in stream:
+            delta = chunk.choices[0].delta.content
+            if delta:
+                yield delta
+
+    async def generate_task_content(
+        self,
+        subject: str,
+        topic: str,
+        task_type: str,
+        duration_minutes: int,
+        grade: str = "高中",
+    ) -> AsyncGenerator[str, None]:
+        """为学习计划任务 AI 生成学习内容（流式），Markdown 格式"""
+        type_names = {"study": "学习", "practice": "练习", "review": "复习"}
+        type_label = type_names.get(task_type, "学习")
+
+        prompt = f"""请为{grade}学生生成一份关于「{subject} - {topic}」的{type_label}内容，预计用时 {duration_minutes} 分钟。
+
+要求：
+1. 内容结构清晰，使用 Markdown 格式（标题、列表、加粗等）
+2. 根据任务类型调整侧重点：
+   - study（学习）：系统讲解知识点，包含定义、原理、例题讲解
+   - practice（练习）：提供 3~5 道有代表性的练习题，含详细解析
+   - review（复习）：知识点梳理回顾 + 易错点总结 + 巩固练习
+3. 数学公式使用 LaTeX（行内 $...$，块级 $$...$$）
+4. 内容难度符合{grade}水平，时长控制在 {duration_minutes} 分钟内可以完成
+5. 最后附上「✅ 学习检验」板块：提出 1~2 个思考问题，供学生自测是否掌握"""
+
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": prompt},
+        ]
+        async for delta in self._stream_with_continuation(
+            messages, max_tokens=3000, temperature=0.4
+        ):
+            yield delta
+
+    async def evaluate_submission(
+        self,
+        subject: str,
+        topic: str,
+        task_type: str,
+        submission_text: str = "",
+        image_base64: str = "",
+        mime_type: str = "image/jpeg",
+    ) -> AsyncGenerator[str, None]:
+        """AI 评判用户提交的学习成果（流式），输出结构化 Markdown 评判报告"""
+        type_names = {"study": "学习笔记", "practice": "练习作答", "review": "复习成果"}
+        type_label = type_names.get(task_type, "学习成果")
+
+        system_prompt = f"""你是一位专业的{subject}学科教师，正在评判学生提交的{type_label}（知识点：{topic}）。
+请对提交的内容进行认真、专业的评判，严格按照以下 Markdown 格式输出评判报告。
+
+**数学公式格式要求：** 行内 $...$，块级 $$...$$，$$ 与内容同行不换行。
+
+## 📊 评判结果
+
+**综合得分：xx / 100 分**（掌握程度评定）
+
+| 评判维度 | 得分 | 满分 | 说明 |
+|---------|------|------|------|
+| 知识点覆盖 | xx | 40 | ... |
+| 理解准确性 | xx | 40 | ... |
+| 表达清晰度 | xx | 20 | ... |
+
+---
+
+## ✅ 掌握良好
+（列出学生正确理解并表达的知识点）
+
+---
+
+## ❌ 需要改进
+（指出理解偏差或遗漏的知识点，给出正确说明）
+
+---
+
+## 💡 学习建议
+（基于此次提交，给出针对性的下一步学习建议）
+
+---
+
+注意：语气要鼓励，评判要客观，得分要真实反映掌握程度。"""
+
+        if image_base64:
+            user_message: dict = {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:{mime_type};base64,{image_base64}",
+                            "detail": "high",
+                        },
+                    },
+                    {
+                        "type": "text",
+                        "text": f"请评判图片中的{subject}学习成果（知识点：{topic}）。" + (f"\n\n学生还附带了文字说明：\n{submission_text}" if submission_text else ""),
+                    },
+                ],
+            }
+        else:
+            user_message = {
+                "role": "user",
+                "content": f"请评判以下{subject}{type_label}（知识点：{topic}）：\n\n{submission_text}",
+            }
+
+        client = self._get_client()
+        stream = await client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                user_message,
+            ],
+            stream=True,
+            max_tokens=3000,
+            **self._temp(0.2),
+        )
+        async for chunk in stream:
+            delta = chunk.choices[0].delta.content
+            if delta:
+                yield delta
+
+    async def generate_task_quiz(
+        self,
+        subject: str,
+        topic: str,
+        task_type: str,
+        grade: str = "高中",
+        count: int = 5,
+    ) -> AsyncGenerator[str, None]:
+        """为学习计划任务 AI 生成练习题（流式），输出 JSON 数组格式"""
+        type_names = {"study": "学习", "practice": "练习", "review": "复习"}
+        type_label = type_names.get(task_type, "练习")
+
+        prompt = f"""请为{grade}学生生成 {count} 道关于「{subject} - {topic}」的{type_label}练习题。
+
+要求：
+1. 题型多样：包含选择题（单选）、填空题、简答题，选择题占 60%
+2. 难度适中，符合{grade}水平
+3. 数学公式使用 LaTeX（行内 $...$，块级 $$...$$）
+4. **必须严格按照以下 JSON 格式输出，不要有任何其他文字，不要有 Markdown 代码块包裹**：
+
+[
+  {{
+    "id": 1,
+    "type": "choice",
+    "question": "题目内容",
+    "options": ["A. 选项一", "B. 选项二", "C. 选项三", "D. 选项四"],
+    "answer": "A",
+    "explanation": "解析内容"
+  }},
+  {{
+    "id": 2,
+    "type": "fill",
+    "question": "题目内容，答案填在___处",
+    "answer": "正确答案",
+    "explanation": "解析内容"
+  }},
+  {{
+    "id": 3,
+    "type": "short",
+    "question": "简答题题目",
+    "answer": "参考答案",
+    "explanation": "评分要点"
+  }}
+]
+
+type 字段只能是 "choice"（单选）、"fill"（填空）、"short"（简答）之一。
+只输出 JSON 数组，不要任何额外说明。"""
+
+        messages = [
+            {"role": "system", "content": "你是一位专业的中学学科教师，擅长出题。请严格按照用户要求的 JSON 格式输出练习题，不要有任何额外文字。"},
+            {"role": "user", "content": prompt},
+        ]
+        async for delta in self._stream_with_continuation(
+            messages, max_tokens=3000, temperature=0.5
+        ):
+            yield delta
+
+    async def evaluate_task_quiz(
+        self,
+        subject: str,
+        topic: str,
+        questions: list,
+        student_answers: dict,
+    ) -> AsyncGenerator[str, None]:
+        """AI 评判学生的练习题答案（流式），输出结构化 Markdown 评判报告"""
+        # 构建题目和答案对照表
+        qa_lines = []
+        for q in questions:
+            qid = str(q.get("id", ""))
+            qtype = q.get("type", "")
+            qtext = q.get("question", "")
+            correct = q.get("answer", "")
+            student_ans = student_answers.get(qid, "（未作答）")
+            type_label = {"choice": "选择题", "fill": "填空题", "short": "简答题"}.get(qtype, "题目")
+            qa_lines.append(
+                f"【第{qid}题 {type_label}】\n"
+                f"题目：{qtext}\n"
+                f"参考答案：{correct}\n"
+                f"学生答案：{student_ans}\n"
+                f"解析提示：{q.get('explanation', '')}"
+            )
+
+        qa_text = "\n\n".join(qa_lines)
+
+        system_prompt = f"""你是一位专业的{subject}学科教师，正在批改学生的练习题（知识点：{topic}）。
+请仔细对比学生答案与参考答案，给出详细评判报告。
+
+**数学公式格式要求：** 行内 $...$，块级 $$...$$，$$ 与内容同行不换行。
+
+**输出格式（严格遵守 Markdown）：**
+
+## 📊 总体得分
+
+**综合得分：xx / 100 分**
+
+| 题号 | 题型 | 得分 | 满分 | 评价 |
+|------|------|------|------|------|
+| 1 | 选择题 | xx | xx | 正确/错误/部分正确 |
+
+---
+
+## 📝 逐题解析
+
+### 第1题
+- **学生答案**：...
+- **参考答案**：...
+- **是否正确**：✅ 正确 / ❌ 错误
+- **解析**：...
+
+（对每道题重复上述结构）
+
+---
+
+## 💡 总结建议
+
+（根据错题分布，给出针对性的学习建议，不超过3条）
+
+---
+
+注意：简答题按要点给分，语气鼓励，评判客观。"""
+
+        user_message = {
+            "role": "user",
+            "content": f"请评判以下{subject}练习题的学生作答情况（知识点：{topic}）：\n\n{qa_text}",
+        }
+
+        client = self._get_client()
+        stream = await client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                user_message,
+            ],
+            stream=True,
+            max_tokens=3000,
+            **self._temp(0.2),
+        )
+        async for chunk in stream:
+            delta = chunk.choices[0].delta.content
+            if delta:
+                yield delta
 
     async def follow_up_stream(
         self,

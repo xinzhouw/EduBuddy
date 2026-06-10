@@ -19,6 +19,8 @@ const router = createRouter({
     { path: '/stats', component: () => import('@/views/stats/StatsView.vue') },
     { path: '/homework', component: () => import('@/views/homework/HomeworkGradingView.vue') },
     { path: '/reading-buddy', component: () => import('@/views/readingBuddy/ReadingBuddyView.vue') },
+    { path: '/monitor', component: () => import('@/views/monitor/MonitorView.vue') },
+    { path: '/monitor/students/:id', component: () => import('@/views/monitor/MonitorStudentView.vue') },
     { path: '/profile', component: () => import('@/views/profile/ProfileView.vue') },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],

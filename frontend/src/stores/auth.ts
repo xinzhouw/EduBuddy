@@ -8,10 +8,12 @@ export interface User {
   email: string
   nickname: string
   grade: string
+  role: string   // student / teacher / parent
   phone?: string | null
   gender?: string | null
   age?: number | null
   avatar_url: string | null
+  created_at?: string
 }
 
 export const useAuthStore = defineStore('auth', () => {

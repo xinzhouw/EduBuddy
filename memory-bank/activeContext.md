@@ -1,8 +1,54 @@
 # EduBuddy 活跃上下文
 
 ## 当前工作焦点
-**日期**：2026-06-05  
-**阶段**：V1.0 开发阶段 — 读书郎扫描版PDF支持
+**日期**：2026-06-10  
+**阶段**：V1.0 开发阶段 — Bug 修复
+
+## 最新完成的工作（本次）
+
+- **修复学习计划"练习题"内容 LaTeX 未渲染问题**（`frontend/src/views/plan/StudyPlanView.vue`）：
+  - **根因**：`StudyPlanView.vue` 练习题面板（`activePanel === 'quiz'`）中，题目内容 `q.question` 和选项 `opt` 使用了 `{{ }}` 纯文本插值，`$...$` LaTeX 语法完全不经过渲染函数处理，直接显示原始文本（如 `$f(x)=\sqrt{x-2}+\dfrac{1}{x-3}$`）。
+  - **修复**：
+    1. 在 `<script setup>` 中新增 `import { renderLatexOnly } from '@/utils/markdown'`
+    2. 题目标题 `{{ q.id }}. {{ q.question }}` → `v-html="\`${q.id}. \` + renderLatexOnly(q.question)"` 并添加 `.latex-content` class
+    3. 选项 `{{ opt }}` → `<span class="latex-content" v-html="renderLatexOnly(opt)"></span>`（`<label>` 改为 flex 布局，radio input 保持不变）
+  - **影响范围**：仅 `StudyPlanView.vue` 练习题面板的题目和选项渲染，不影响其他功能。
+  - **验证**：`vue-tsc --noEmit` 编译 exit code 0；`npm run build` 成功（2.17s）；`docker cp` 热部署到运行中的 `edubuddy-frontend-1` 容器。
+
+- **修复学习计划"AI生成学习内容"的 LaTeX 渲染问题**（`frontend/src/views/plan/StudyPlanView.vue`）：
+  - **根因**：`StudyPlanView.vue` 中的 `renderMd` 函数直接使用了 `new MarkdownIt(...)` 简单实例，只能渲染基础 Markdown，**不支持 LaTeX 公式**（`$...$`、`$$...$$`）渲染。
+  - **修复**：移除文件内自定义的 `MarkdownIt` 实例和 `renderMd` 函数，改为从 `@/utils/markdown` 导入 `renderMessage`，该函数完整支持 Markdown + KaTeX LaTeX 渲染（含块级 `$$...$$`、行内 `$...$`、公式清洗、SVG 图形等）。
+  - **影响范围**：学习内容面板（AI 生成内容展示、流式生成中预览）+ 评判结果面板（评判报告渲染）均通过 `renderMd = renderMessage` 正确渲染 LaTeX。
+  - **验证**：`vue-tsc --noEmit` 编译 exit code 0。
+
+## 最新测试结果（2026-06-09）
+
+**`test_new_features.sh` 修复后运行结果：✅ 19/19 全部通过**
+
+| # | 测试项 | 结果 |
+|---|--------|------|
+| 1 | API 健康检查 | ✅ PASS |
+| 2 | 获取用户信息（含grade字段） | ✅ PASS |
+| 3 | 更新用户Profile | ✅ PASS |
+| 4 | TTS 纯文本提取（中文古诗） | ✅ PASS |
+| 4b | TTS 空文本返回错误 | ✅ PASS |
+| 4c | TTS 超长文本截断/接受 | ✅ PASS |
+| 5 | TTS 文件上传 - 不支持类型返回400 | ✅ PASS |
+| 6 | TTS PNG图片OCR返回200 | ✅ PASS |
+| 7 | TTS 未登录被拒绝（Not authenticated） | ✅ PASS |
+| 8 | 文档列表查询（items/total结构） | ✅ PASS |
+| 9 | 作业批改SSE流式响应 | ✅ PASS |
+| 10 | 练习题主题识别接口 | ✅ PASS |
+| 11 | 学习统计概览 | ✅ PASS |
+| 12 | 前端页面HTTP 200 | ✅ PASS |
+| 13 | Swagger UI可访问 | ✅ PASS |
+| 14 | TTS路由已注册 | ✅ PASS |
+| 15a | Advice/today接口 | ✅ PASS |
+| 15b | Relations/observers接口 | ✅ PASS |
+| 15c | Monitor/students接口（权限控制正常） | ✅ PASS |
+
+> 原脚本4个误判均已修正：7（grep未匹配"Not authenticated"）、8（Python断言逻辑）、15a/b（访问了无子路径的根路由）
+> 测试脚本 `test_new_features.sh` 已在测试完成后删除（连同 `/tmp/test_tts.txt`、`/tmp/test_image.png`）
 
 ## 最新完成的工作
 

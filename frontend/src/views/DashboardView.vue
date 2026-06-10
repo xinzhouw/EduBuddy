@@ -3,11 +3,9 @@
 
     <!-- 欢迎横幅 -->
     <div class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-lg">
-      <!-- 装饰圆形背景 -->
       <div class="absolute -top-10 -right-10 w-48 h-48 bg-white/10 rounded-full"></div>
       <div class="absolute -bottom-8 -right-24 w-64 h-64 bg-white/5 rounded-full"></div>
       <div class="absolute top-4 right-32 w-16 h-16 bg-white/10 rounded-full"></div>
-
       <div class="relative p-6 flex items-center justify-between">
         <div>
           <p class="text-blue-200 text-sm font-medium mb-1">{{ dateStr }}</p>
@@ -21,6 +19,68 @@
         <div v-else class="text-center bg-white/15 backdrop-blur-sm rounded-2xl px-5 py-4 border border-white/20">
           <p class="text-4xl">📚</p>
           <p class="text-blue-200 text-xs mt-1 font-medium">开始学习</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 每日学习建议卡片（仅学生角色显示） -->
+    <div
+      v-if="authStore.user?.role !== 'teacher' && authStore.user?.role !== 'parent' && !adviceDismissed && adviceList.length > 0"
+      class="relative overflow-hidden rounded-2xl border shadow-sm"
+      :class="adviceTypeStyle(adviceList[adviceIndex]).card"
+    >
+      <!-- 关闭按钮 -->
+      <button
+        @click="adviceDismissed = true"
+        class="absolute top-3 right-3 w-7 h-7 rounded-full bg-black/10 hover:bg-black/20 flex items-center justify-center text-sm transition-colors z-10"
+      >✕</button>
+
+      <div class="p-5">
+        <div class="flex items-start gap-3 mb-3">
+          <span class="text-2xl shrink-0">{{ adviceList[adviceIndex].icon }}</span>
+          <div class="flex-1 min-w-0">
+            <p class="font-bold text-base" :class="adviceTypeStyle(adviceList[adviceIndex]).title">
+              {{ adviceList[adviceIndex].title }}
+            </p>
+            <p class="text-sm mt-1" :class="adviceTypeStyle(adviceList[adviceIndex]).body">
+              {{ adviceList[adviceIndex].content }}
+            </p>
+          </div>
+        </div>
+
+        <!-- 理论依据（可折叠） -->
+        <div v-if="adviceList[adviceIndex].theory_basis" class="mb-3">
+          <button
+            @click="theoryExpanded = !theoryExpanded"
+            class="text-xs flex items-center gap-1 opacity-70 hover:opacity-100 transition-opacity"
+            :class="adviceTypeStyle(adviceList[adviceIndex]).title"
+          >
+            📖 理论依据 {{ theoryExpanded ? '▲' : '▼' }}
+          </button>
+          <p v-if="theoryExpanded" class="text-xs mt-1.5 opacity-70 leading-relaxed" :class="adviceTypeStyle(adviceList[adviceIndex]).body">
+            {{ adviceList[adviceIndex].theory_basis }}
+          </p>
+        </div>
+
+        <div class="flex items-center justify-between">
+          <!-- 行动按钮 -->
+          <RouterLink
+            v-if="adviceList[adviceIndex].action"
+            :to="adviceList[adviceIndex].action.route"
+            @click="handleAdviceAction(adviceList[adviceIndex])"
+            class="text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors no-underline"
+            :class="adviceTypeStyle(adviceList[adviceIndex]).btn"
+          >
+            {{ adviceList[adviceIndex].action.label }} →
+          </RouterLink>
+          <span v-else></span>
+
+          <!-- 翻页指示器 -->
+          <div class="flex items-center gap-2">
+            <button @click="prevAdvice" :disabled="adviceIndex === 0" class="text-sm disabled:opacity-30 hover:opacity-70 transition-opacity">‹</button>
+            <span class="text-xs opacity-60">{{ adviceIndex + 1 }} / {{ adviceList.length }}</span>
+            <button @click="nextAdvice" :disabled="adviceIndex >= adviceList.length - 1" class="text-sm disabled:opacity-30 hover:opacity-70 transition-opacity">›</button>
+          </div>
         </div>
       </div>
     </div>
@@ -72,7 +132,6 @@
 
     <!-- 主内容区 -->
     <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
-
       <!-- 今日任务（占3列） -->
       <div class="lg:col-span-3 card">
         <div class="flex items-center justify-between mb-5">
@@ -80,12 +139,10 @@
             <span class="w-1 h-5 bg-gradient-to-b from-blue-500 to-indigo-500 rounded-full inline-block"></span>
             今日学习任务
           </h3>
-          <RouterLink to="/plan" class="text-xs text-blue-500 hover:text-blue-700 font-medium transition-colors">
-            查看全部 →
-          </RouterLink>
+          <RouterLink to="/plan" class="text-xs text-blue-500 hover:text-blue-700 font-medium transition-colors">查看全部 →</RouterLink>
         </div>
 
-        <div v-if="todayTasks.length === 0" class="flex flex-col items-center justify-center py-10 text-gray-300">
+        <div v-if="todayTasks.length === 0" class="flex flex-col items-center justify-center py-10">
           <div class="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mb-3">
             <span class="text-3xl">📅</span>
           </div>
@@ -144,7 +201,7 @@
       </div>
     </div>
 
-    <!-- 学科进度（新增） -->
+    <!-- 学科分布 -->
     <div class="card">
       <div class="flex items-center gap-2 mb-5">
         <span class="w-1 h-5 bg-gradient-to-b from-green-500 to-teal-500 rounded-full inline-block"></span>
@@ -154,9 +211,7 @@
       <div class="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-3">
         <div v-for="sub in subjects" :key="sub.name" class="flex flex-col items-center gap-1.5 group cursor-pointer">
           <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg transition-transform group-hover:scale-110"
-            :class="sub.color">
-            {{ sub.icon }}
-          </div>
+            :class="sub.color">{{ sub.icon }}</div>
           <span class="text-xs text-gray-500 font-medium">{{ sub.name }}</span>
         </div>
       </div>
@@ -167,28 +222,96 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { statsApi } from '@/api/docs'
 import { planApi } from '@/api/plan'
+import { adviceApi } from '@/api/advice'
 
 const authStore = useAuthStore()
+const router = useRouter()
+
 const stats = ref<any>({ today_study_minutes: 0, wrong_book_count: 0, streak_days: 0 })
 const todayTasks = ref<any[]>([])
 
-// 服务器时间（由 /stats/overview 返回的 server_time 提供，已拆解好分量）。
-// 在未获取到之前回退到浏览器本地时间，获取后统一按服务器时间计算，
-// 直接使用后端给出的 hour/month/day/weekday，避免前端再次解析字符串受浏览器时区影响。
+// ── 每日建议 ──────────────────────────────────────────────────────────────────
+const adviceList = ref<any[]>([])
+const adviceId = ref<number | null>(null)
+const adviceIndex = ref(0)
+const adviceDismissed = ref(false)
+const theoryExpanded = ref(false)
+
+function adviceTypeStyle(item: any) {
+  const type = item?.type || 'general'
+  const map: Record<string, { card: string; title: string; body: string; btn: string }> = {
+    review_reminder: {
+      card: 'bg-amber-50 border-amber-200',
+      title: 'text-amber-800',
+      body: 'text-amber-700',
+      btn: 'bg-amber-500 text-white hover:bg-amber-600',
+    },
+    practice_suggestion: {
+      card: 'bg-blue-50 border-blue-200',
+      title: 'text-blue-800',
+      body: 'text-blue-700',
+      btn: 'bg-blue-500 text-white hover:bg-blue-600',
+    },
+    plan_adjustment: {
+      card: 'bg-orange-50 border-orange-200',
+      title: 'text-orange-800',
+      body: 'text-orange-700',
+      btn: 'bg-orange-500 text-white hover:bg-orange-600',
+    },
+    achievement: {
+      card: 'bg-green-50 border-green-200',
+      title: 'text-green-800',
+      body: 'text-green-700',
+      btn: 'bg-green-500 text-white hover:bg-green-600',
+    },
+    general: {
+      card: 'bg-indigo-50 border-indigo-200',
+      title: 'text-indigo-800',
+      body: 'text-indigo-700',
+      btn: 'bg-indigo-500 text-white hover:bg-indigo-600',
+    },
+  }
+  return map[type] || map.general
+}
+
+function prevAdvice() {
+  if (adviceIndex.value > 0) {
+    adviceIndex.value--
+    theoryExpanded.value = false
+  }
+}
+
+function nextAdvice() {
+  if (adviceIndex.value < adviceList.value.length - 1) {
+    adviceIndex.value++
+    theoryExpanded.value = false
+  }
+}
+
+async function handleAdviceAction(item: any) {
+  // 记录用户点击了行动按钮
+  if (adviceId.value && item.id) {
+    try {
+      await adviceApi.recordAction(adviceId.value, item.id)
+    } catch {}
+  }
+}
+
+// ── 服务器时间 ─────────────────────────────────────────────────────────────────
 interface ServerTime {
-  hour: number     // 0-23
-  month: number    // 1-12
-  day: number      // 1-31
-  weekday: number  // 0=周日 ... 6=周六
+  hour: number
+  month: number
+  day: number
+  weekday: number
 }
 const serverTime = ref<ServerTime | null>(null)
 
 const timeParts = computed<ServerTime>(() => {
   if (serverTime.value) return serverTime.value
-  // 回退：使用浏览器本地时间
   const now = new Date()
   return {
     hour: now.getHours(),
@@ -224,7 +347,6 @@ const motivationText = computed(() => {
   return texts[timeParts.value.day % texts.length]
 })
 
-
 const todayDone = computed(() => todayTasks.value.filter((t: any) => t.is_done).length)
 const todayTotal = computed(() => todayTasks.value.length)
 
@@ -248,22 +370,16 @@ const subjects = [
 ]
 
 function taskTypeLabel(type: string) {
-  return { study: '学习', practice: '练习', review: '复习' }[type] || type
+  return ({ study: '学习', practice: '练习', review: '复习' } as any)[type] || type
 }
 
 onMounted(async () => {
   try {
     const res: any = await statsApi.getOverview()
     stats.value = res.data
-    // 优先使用后端返回的服务器时间来计算问候语 / 日期
     const st = res.data?.server_time
     if (st && typeof st.hour === 'number') {
-      serverTime.value = {
-        hour: st.hour,
-        month: st.month,
-        day: st.day,
-        weekday: st.weekday,
-      }
+      serverTime.value = { hour: st.hour, month: st.month, day: st.day, weekday: st.weekday }
     }
   } catch {}
 
@@ -271,6 +387,16 @@ onMounted(async () => {
     const res: any = await planApi.getToday()
     todayTasks.value = res.data || []
   } catch {}
+
+  // 仅学生角色加载每日建议
+  const role = authStore.user?.role
+  if (!role || role === 'student') {
+    try {
+      const res: any = await adviceApi.getToday()
+      adviceId.value = res.data?.advice_id ?? null
+      adviceList.value = res.data?.advices || []
+    } catch {}
+  }
 })
 </script>
 
@@ -281,5 +407,8 @@ onMounted(async () => {
 }
 .quick-link-card {
   @apply flex flex-col items-center text-center p-4 rounded-2xl border-2 border-gray-100 hover:border-blue-200 hover:bg-blue-50/50 transition-all cursor-pointer no-underline;
+}
+.card {
+  @apply bg-white rounded-2xl border border-gray-100 shadow-sm p-6;
 }
 </style>

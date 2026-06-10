@@ -18,6 +18,17 @@ class PlanTaskOut(BaseModel):
     duration_minutes: int
     is_done: bool
     order_num: int
+    ai_content: Optional[str] = None
+    submission_text: Optional[str] = None
+    submission_image: Optional[str] = None
+    evaluation: Optional[str] = None
+    eval_score: Optional[float] = None
+    completion_mode: Optional[str] = None
+    # 练习题字段
+    quiz_data: Optional[str] = None
+    quiz_submission: Optional[str] = None
+    quiz_evaluation: Optional[str] = None
+    quiz_score: Optional[float] = None
 
     class Config:
         from_attributes = True
@@ -39,3 +50,7 @@ class PomodoroCreate(BaseModel):
     subject: Optional[str] = None
     duration_minutes: int = 25
     completed: bool = True
+
+
+class TaskSubmitRequest(BaseModel):
+    submission_text: Optional[str] = None

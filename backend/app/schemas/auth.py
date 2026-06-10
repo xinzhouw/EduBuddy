@@ -8,6 +8,7 @@ class UserRegister(BaseModel):
     password: str
     nickname: str
     grade: str
+    role: Optional[str] = "student"  # student/teacher/parent
 
 
 class UserLogin(BaseModel):
@@ -33,6 +34,7 @@ class UserOut(BaseModel):
     email: str
     nickname: str
     grade: str
+    role: str = "student"
     phone: Optional[str] = None
     gender: Optional[str] = None
     age: Optional[int] = None

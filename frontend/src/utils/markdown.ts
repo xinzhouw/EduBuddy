@@ -128,7 +128,22 @@ export function renderMessage(content: string): string {
   })
 
 
-  // 0. 先提取 SVG 几何图：支持 ```svg ... ``` 代码块，以及裸 <svg>...</svg>
+  // 0b. 预处理：若存在未闭合的 ```svg 代码块（流式截断或 AI 漏写结尾 ```），
+  //     补上缺失的 ``` 结尾，确保后续步骤 0 的正则可以正常匹配。
+  //     注意：不扫描裸 <svg，因为 AI 描述文字中也可能出现 "<svg" 字样。
+  {
+    const openFence = s.search(/```\s*svg\b/i)
+    if (openFence !== -1) {
+      const afterFenceLine = s.indexOf('\n', openFence)
+      const closeFence = s.indexOf('\n```', afterFenceLine !== -1 ? afterFenceLine : openFence + 6)
+      if (closeFence === -1) {
+        // 未闭合：补全结尾 ``` 使步骤 0 可以正常提取 SVG
+        s = s + '\n```'
+      }
+    }
+  }
+
+  // 0. 提取 SVG 几何图：支持 ```svg ... ``` 代码块，以及裸 <svg>...</svg>
   //    用占位符替换，避免被 markdown-it 转义成代码文本或被公式逻辑破坏。
   s = s.replace(/```\s*svg\s*\n?([\s\S]*?)```/gi, (_m, code) => {
     svgBuf.push(sanitizeSvg(code))
@@ -154,20 +169,6 @@ export function renderMessage(content: string): string {
     }
     return whole
   })
-
-  // 0b. 流式输出过程中可能存在「尚未闭合」的 SVG 代码块（``` svg 已开始但还没收到结尾，
-
-  //     或 <svg 已开始但还没收到 </svg>）。直接渲染会把一大段 SVG 源码暴露给用户，
-  //     这里把未闭合的部分替换为"正在绘制图形…"的占位提示，等收完后再正常渲染。
-  const openFence = s.search(/```\s*svg\b/i)
-  if (openFence !== -1) {
-    s = s.slice(0, openFence) + '\n\n*🖌️ 正在绘制图形…*\n\n'
-  } else {
-    const openSvg = s.search(/<svg\b/i)
-    if (openSvg !== -1) {
-      s = s.slice(0, openSvg) + '\n\n*🖌️ 正在绘制图形…*\n\n'
-    }
-  }
 
 
   // 1. 手动扫描提取 $$...$$ 块（支持跨行，内部换行压成空格）

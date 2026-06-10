@@ -16,6 +16,10 @@ export const statsApi = {
   getStudyTime: (period: string = 'week') => api.get('/stats/study-time', { params: { period } }),
   getAccuracyBySubject: () => api.get('/stats/accuracy-by-subject'),
   getWrongDistribution: () => api.get('/stats/wrong-book-distribution'),
+  getRadar: () => api.get('/stats/radar'),
+  getHeatmap: () => api.get('/stats/heatmap'),
+  getSubjectTimeDistribution: () => api.get('/stats/subject-time-distribution'),
+  getPlanCompletion: () => api.get('/stats/plan-completion'),
   recordStudyLog: (data: { subject?: string; duration_minutes: number; activity_type: string }) =>
     api.post('/stats/study-log', data),
 }

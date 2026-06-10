@@ -55,6 +55,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
@@ -62,18 +63,28 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 
-const navItems: { path: string; icon: string; label: string; badge?: string | number }[] = [
-  { path: '/', icon: '🏠', label: '首页' },
-  { path: '/ai', icon: '🤖', label: 'AI 问答' },
-  { path: '/homework', icon: '✍️', label: 'AI 批改作业' },
-  { path: '/notes', icon: '📝', label: '笔记' },
-  { path: '/quiz', icon: '📚', label: '练习题' },
-  { path: '/wrong-book', icon: '❌', label: '错题本' },
-  { path: '/plan', icon: '📅', label: '学习计划' },
-  { path: '/docs', icon: '📄', label: '文档' },
-  { path: '/reading-buddy', icon: '📖', label: '读书郎' },
-  { path: '/stats', icon: '📊', label: '学习统计' },
-]
+// 根据用户角色动态生成导航菜单
+const navItems = computed<{ path: string; icon: string; label: string; badge?: string | number }[]>(() => {
+  const role = authStore.user?.role || 'student'
+  const studentItems = [
+    { path: '/', icon: '🏠', label: '首页' },
+    { path: '/ai', icon: '🤖', label: 'AI 问答' },
+    { path: '/homework', icon: '✍️', label: 'AI 批改作业' },
+    { path: '/notes', icon: '📝', label: '笔记' },
+    { path: '/quiz', icon: '📚', label: '练习题' },
+    { path: '/wrong-book', icon: '❌', label: '错题本' },
+    { path: '/plan', icon: '📅', label: '学习计划' },
+    { path: '/docs', icon: '📄', label: '文档' },
+    { path: '/reading-buddy', icon: '📖', label: '读书郎' },
+    { path: '/stats', icon: '📊', label: '学习统计' },
+  ]
+  const observerItems = [
+    { path: '/', icon: '🏠', label: '首页' },
+    { path: '/monitor', icon: '👁️', label: '学生监督' },
+    { path: '/stats', icon: '📊', label: '我的统计' },
+  ]
+  return (role === 'teacher' || role === 'parent') ? observerItems : studentItems
+})
 
 function isActive(path: string) {
   if (path === '/') return route.path === '/'

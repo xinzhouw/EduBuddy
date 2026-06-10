@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from jose import jwt
@@ -27,7 +27,8 @@ def register(data: UserRegister, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == data.email).first():
         raise HTTPException(status_code=400, detail="该邮箱已被注册")
     hashed = hash_password(data.password)
-    user = User(email=data.email, password=hashed, nickname=data.nickname, grade=data.grade)
+    role = data.role if data.role in ("student", "teacher", "parent") else "student"
+    user = User(email=data.email, password=hashed, nickname=data.nickname, grade=data.grade, role=role)
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -39,6 +40,9 @@ def login(data: UserLogin, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == data.email, User.is_active == True).first()
     if not user or not verify_password(data.password, user.password):
         raise HTTPException(status_code=401, detail="邮箱或密码错误")
+    # 更新最后登录日期（用于每日建议触发逻辑）
+    user.last_login_date = date.today()
+    db.commit()
     token = create_token(user.id)
     return {
         "code": 200,
