@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# SSL 证书（自签名，含私钥，不应提交到版本库）
+certs/
+*.crt
+*.key
+*.pem
+

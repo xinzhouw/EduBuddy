@@ -12,5 +12,8 @@ RUN npm run build
 FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 80
+# 拷贝自签名证书
+COPY certs/server.crt /etc/nginx/certs/server.crt
+COPY certs/server.key /etc/nginx/certs/server.key
+EXPOSE 80 443
 CMD ["nginx", "-g", "daemon off;"]
