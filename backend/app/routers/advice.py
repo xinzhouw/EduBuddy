@@ -15,6 +15,7 @@ from app.models.study_plan import PlanTask, StudyPlan
 from app.models.document import StudyLog
 from app.models.quiz import QuizAnswer, Question
 from app.services.ai_service import ai_service
+from app.services import stats_service
 
 router = APIRouter(prefix="/api/advice", tags=["每日建议"])
 
@@ -24,17 +25,7 @@ def _collect_context(db: Session, user: User) -> dict:
     today = date.today()
 
     # 连续打卡天数
-    streak = 0
-    check = today
-    while True:
-        exists = db.query(StudyLog).filter(
-            StudyLog.user_id == user.id, StudyLog.date == check
-        ).first()
-        if exists:
-            streak += 1
-            check -= timedelta(days=1)
-        else:
-            break
+    streak = stats_service.get_streak_days(db, user.id)
 
     # 今日计划完成率
     plan = db.query(StudyPlan).filter(

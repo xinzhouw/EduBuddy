@@ -52,3 +52,13 @@ class ChatMessage(Base):
     feedback = Column(String(20), nullable=True)  # 'thumbs_up' / 'thumbs_down'
     feedback_reason = Column(String(50), nullable=True)
     created_at = Column(DateTime, nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        # 复合索引：(session_id, created_at) 用于按时间排序查询
+        # (user_id) 用于用户维度的查询
+        {
+            'indexes': [
+                ('session_id', 'created_at'),
+            ]
+        },
+    )

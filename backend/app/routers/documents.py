@@ -1,5 +1,6 @@
 import base64
 import json
+import asyncio
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
@@ -10,7 +11,7 @@ from app.dependencies import get_current_user
 from app.models.user import User
 from app.models.document import Document
 from app.schemas.document import DocumentOut, DocumentAnalyzeRequest
-from app.services.document_service import save_upload_file, extract_text
+from app.services.document_service import save_upload_file, extract_text, ocr_pdf_pages_concurrent
 from app.services.ai_service import ai_service
 
 router = APIRouter(prefix="/api/documents", tags=["文档"])
@@ -40,15 +41,14 @@ async def upload_document(
     db.commit()
     db.refresh(doc)
 
-    # 提取文本
+    # 提取文本 - 使用内存中的字节内容，避免重复读取文件
     try:
+        file_bytes = file_info.get("content")
         if file_info["file_type"] in ("jpg", "png"):
-            # 图片文件：直接使用 Vision OCR
+            # 图片文件：直接使用 Vision OCR（使用内存字节，不重新读文件）
             try:
-                with open(file_info["file_path"], "rb") as _f:
-                    _img_bytes = _f.read()
                 mime_type = "image/jpeg" if file_info["file_type"] == "jpg" else "image/png"
-                image_base64 = base64.b64encode(_img_bytes).decode("utf-8")
+                image_base64 = base64.b64encode(file_bytes).decode("utf-8")
                 result = await ai_service.ocr_image_for_reading(
                     image_base64=image_base64,
                     mime_type=mime_type,
@@ -64,9 +64,7 @@ async def upload_document(
             # ── 图片型 PDF 降级：文字层为空时，用 Vision OCR 逐页识别 ──────────────
             if file_info["file_type"] == "pdf" and (not text or text.startswith("[")):
                 try:
-                    with open(file_info["file_path"], "rb") as _f:
-                        _pdf_bytes = _f.read()
-                    text = await _ocr_pdf_pages(_pdf_bytes)
+                    text = await _ocr_pdf_pages(file_bytes)
                 except Exception as _e:
                     text = f"[扫描版PDF，OCR识别失败：{_e}]"
 
@@ -150,36 +148,8 @@ def delete_document(doc_id: int, db: Session = Depends(get_db), current_user: Us
 
 
 async def _ocr_pdf_pages(pdf_bytes: bytes) -> str:
-    """将扫描版 PDF 每页转换为图片，逐页调用 Vision OCR，拼接返回全文。
+    """将扫描版 PDF 每页并发调用 Vision OCR，拼接返回全文。
 
-    仅在 PDF 文字层为空（扫描/图片型PDF）时调用。
-    依赖：PyMuPDF（fitz），容器中已安装。
+    使用 document_service 中的共享实现以避免代码重复。
     """
-    import fitz  # PyMuPDF
-
-    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-    page_count = doc.page_count
-    all_texts: list[str] = []
-
-    for page_index in range(page_count):
-        page = doc[page_index]
-        # 渲染为 150 DPI 的 PNG（提高 OCR 精度）
-        mat = fitz.Matrix(150 / 72, 150 / 72)
-        pix = page.get_pixmap(matrix=mat, colorspace=fitz.csRGB)
-        img_bytes = pix.tobytes("png")
-        image_base64 = base64.b64encode(img_bytes).decode("utf-8")
-
-        try:
-            result = await ai_service.ocr_image_for_reading(
-                image_base64=image_base64,
-                mime_type="image/png",
-            )
-            page_text = result.get("text", "").strip()
-        except Exception as e:
-            page_text = f"[第 {page_index + 1} 页识别失败：{e}]"
-
-        if page_text:
-            all_texts.append(page_text)
-
-    doc.close()
-    return "\n\n".join(all_texts)
+    return await ocr_pdf_pages_concurrent(pdf_bytes, ai_service)

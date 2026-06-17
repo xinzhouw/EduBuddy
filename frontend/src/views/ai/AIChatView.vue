@@ -314,6 +314,9 @@ const exportingMsgId = ref<number | null>(null)
 /** 历史会话左侧列表的学科过滤（'全部' 或具体学科名） */
 const filterSubject = ref('全部')
 
+/** 会话消息缓存：避免重复加载已读取的消息 */
+const messagesCacheMap = ref<Map<string, ChatMessage[]>>(new Map())
+
 /** 是否为新会话（未绑定历史会话） */
 const isNewChat = computed(() => currentSessionId.value === null)
 
@@ -401,6 +404,21 @@ async function loadSession(sessionId: string) {
   if (session?.subject) {
     selectedSubject.value = session.subject
   }
+
+  // 检查缓存：如果该会话的消息已加载过，直接使用缓存
+  if (messagesCacheMap.value.has(sessionId)) {
+    const cachedMsgs = messagesCacheMap.value.get(sessionId)!
+    messages.value = cachedMsgs
+    await scrollToBottom()
+    // 为缓存中尚未加载图片的 AI 消息补充图片搜索
+    for (const msg of messages.value) {
+      if (msg.role === 'assistant' && (!msg.imageBlocks || msg.imageBlocks.length === 0)) {
+        fetchImagesForMessage(msg)
+      }
+    }
+    return
+  }
+
   try {
     const res: any = await aiApi.getMessages(sessionId)
     const rawMsgs: ChatMessage[] = res.data || []
@@ -410,6 +428,8 @@ async function loadSession(sessionId: string) {
       imageBlocks: [],
       pendingImageKeywords: [],
     }))
+    // 缓存该会话的消息
+    messagesCacheMap.value.set(sessionId, messages.value)
     await scrollToBottom()
     // 为每条历史 AI 消息加载图片（非阻塞）
     for (const msg of messages.value) {

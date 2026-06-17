@@ -1,7 +1,9 @@
 import json
 import re
+import time
 from typing import AsyncGenerator, Optional
 from openai import AsyncOpenAI
+from httpx import Timeout
 from app.config import get_settings
 
 settings = get_settings()
@@ -166,6 +168,8 @@ class AIService:
             # 若配置了兼容接口地址则使用，否则使用 OpenAI 官方地址
             if settings.openai_base_url:
                 kwargs["base_url"] = settings.openai_base_url
+            # 添加客户端超时配置（连接30s，读取60s，写入10s）
+            kwargs["timeout"] = Timeout(timeout=60.0, connect=30.0, read=60.0, write=10.0)
             self.client = AsyncOpenAI(**kwargs)
         else:
             self.client = None
@@ -173,6 +177,11 @@ class AIService:
         self.model = settings.openai_model or "gpt-4o"
         # 部分模型网关（Claude/Bedrock 等）不接受 temperature 参数
         self.use_temperature = settings.openai_use_temperature
+
+        # 简单的速率限制：记录最后一次请求的时间戳
+        # 用于防止突发请求导致 API 配额耗尽
+        self._last_request_time = 0
+        self._min_interval_seconds = 0.1  # 最小请求间隔 100ms
 
     def _get_client(self) -> AsyncOpenAI:
         if not self.client:
@@ -182,6 +191,15 @@ class AIService:
     def _temp(self, value: float) -> dict:
         """按配置决定是否携带 temperature 参数（兼容不支持该参数的模型）"""
         return {"temperature": value} if self.use_temperature else {}
+
+    async def _apply_rate_limit(self):
+        """简单的速率限制：确保请求之间的最小间隔，防止 API 配额耗尽"""
+        now = time.time()
+        elapsed = now - self._last_request_time
+        if elapsed < self._min_interval_seconds:
+            import asyncio
+            await asyncio.sleep(self._min_interval_seconds - elapsed)
+        self._last_request_time = time.time()
 
 
     async def chat_stream(
@@ -296,6 +314,8 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
             # 以便像 length 截断一样自动续写，避免回答中途丢失
             stream_error = False
             try:
+                # 应用速率限制，防止 API 配额被耗尽
+                await self._apply_rate_limit()
                 stream = await client.chat.completions.create(
                     model=self.model,
                     messages=msgs,

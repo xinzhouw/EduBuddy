@@ -184,7 +184,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { statsApi } from '@/api/docs'
-import * as echarts from 'echarts'
+// 按需导入 ECharts，减少包体积
+import * as echarts from 'echarts/core'
+import { LineChart, PieChart, RadarChart } from 'echarts/charts'
+import { GridComponent, TooltipComponent, LegendComponent, RadarComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
+
+echarts.use([LineChart, PieChart, RadarChart, GridComponent, TooltipComponent, LegendComponent, RadarComponent, CanvasRenderer])
 
 // ── 数据 ──────────────────────────────────────────────────────────────────────
 const overview = ref<any>({

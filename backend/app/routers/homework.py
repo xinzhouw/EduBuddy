@@ -14,7 +14,7 @@ from app.dependencies import get_current_user
 from app.models.user import User
 from app.models.homework import HomeworkGrading
 from app.services.ai_service import ai_service
-from app.services.document_service import save_upload_file, extract_text
+from app.services.document_service import save_upload_file, extract_text, ocr_pdf_pages_concurrent
 
 router = APIRouter(prefix="/api/homework", tags=["AI批改作业"])
 
@@ -195,6 +195,7 @@ async def grade_file_homework(
     file_type = file_info["file_type"]
     file_path = file_info["file_path"]
     original_name = file_info["original_name"]
+    file_bytes = file_info.get("content")  # 使用内存中的字节，避免重复读取
 
     # 提取文本内容
     extracted_text = ""
@@ -206,9 +207,7 @@ async def grade_file_homework(
     # ── 图片型 PDF 降级：文字层为空时，用 Vision OCR 逐页识别 ──────────────────
     if file_type == "pdf" and (not extracted_text or extracted_text.startswith("[")):
         try:
-            with open(file_path, "rb") as _f:
-                _pdf_bytes = _f.read()
-            extracted_text = await _ocr_pdf_pages_for_grading(_pdf_bytes)
+            extracted_text = await _ocr_pdf_pages_for_grading(file_bytes)
         except Exception as _e:
             # OCR 失败时保留空字符串，后续 generate() 中会给出提示
             extracted_text = f"[扫描版PDF，OCR识别失败：{_e}]"
@@ -236,15 +235,13 @@ async def grade_file_homework(
     # 准备批改内容
     grade_level_val = grade_level or current_user.grade or ""
 
-    # 图片：读取文件字节并转为 base64，交给 Vision API
+    # 图片：使用内存字节转为 base64，交给 Vision API（避免重复读取文件）
     image_base64: str = ""
     image_mime_type: str = content_type  # 保留原始 MIME 类型
 
     if is_image:
         try:
-            with open(file_path, "rb") as f:
-                image_bytes = f.read()
-            image_base64 = base64.b64encode(image_bytes).decode("utf-8")
+            image_base64 = base64.b64encode(file_bytes).decode("utf-8")
             # 统一 MIME 类型映射
             mime_map = {
                 "jpg": "image/jpeg",
@@ -449,36 +446,5 @@ def delete_grading(
 
 
 async def _ocr_pdf_pages_for_grading(pdf_bytes: bytes) -> str:
-    """将扫描版 PDF 每页转换为图片，逐页调用 Vision OCR，拼接返回全文。
-
-    仅在 PDF 文字层为空（扫描/图片型PDF）时调用。
-    依赖：PyMuPDF（fitz），容器中已安装。
-    """
-    import fitz  # PyMuPDF
-
-    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-    page_count = doc.page_count
-    all_texts: list[str] = []
-
-    for page_index in range(page_count):
-        page = doc[page_index]
-        # 渲染为 150 DPI 的 PNG（提高 OCR 精度）
-        mat = fitz.Matrix(150 / 72, 150 / 72)
-        pix = page.get_pixmap(matrix=mat, colorspace=fitz.csRGB)
-        img_bytes = pix.tobytes("png")
-        image_base64 = base64.b64encode(img_bytes).decode("utf-8")
-
-        try:
-            result = await ai_service.ocr_image_for_reading(
-                image_base64=image_base64,
-                mime_type="image/png",
-            )
-            page_text = result.get("text", "").strip()
-        except Exception as e:
-            page_text = f"[第 {page_index + 1} 页识别失败：{e}]"
-
-        if page_text:
-            all_texts.append(page_text)
-
-    doc.close()
-    return "\n\n".join(all_texts)
+    """并发调用 Vision OCR 处理扫描版 PDF，使用共享实现以避免代码重复。"""
+    return await ocr_pdf_pages_concurrent(pdf_bytes, ai_service)

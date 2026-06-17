@@ -167,7 +167,13 @@
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { monitorApi } from '@/api/relations'
-import * as echarts from 'echarts'
+// 按需导入 ECharts，减少包体积
+import * as echarts from 'echarts/core'
+import { LineChart, RadarChart } from 'echarts/charts'
+import { GridComponent, TooltipComponent, LegendComponent, RadarComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
+
+echarts.use([LineChart, RadarChart, GridComponent, TooltipComponent, LegendComponent, RadarComponent, CanvasRenderer])
 
 const route = useRoute()
 const router = useRouter()

@@ -58,11 +58,11 @@ async def chat(
         db.add(session)
         db.commit()
 
-    # 获取历史消息（最近10条）
+    # 获取历史消息（最近10条）- 直接升序获取，避免反向操作
     history_msgs = db.query(ChatMessage).filter(
         ChatMessage.session_id == session_id
-    ).order_by(ChatMessage.created_at.desc()).limit(10).all()
-    history = [{"role": m.role, "content": m.content} for m in reversed(history_msgs)]
+    ).order_by(ChatMessage.created_at.asc()).limit(10).all()
+    history = [{"role": m.role, "content": m.content} for m in history_msgs]
 
     # 保存用户消息
     user_msg = ChatMessage(
@@ -145,20 +145,33 @@ def get_sessions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    from sqlalchemy import func, desc
+
     query = db.query(ChatSession).filter(ChatSession.user_id == current_user.id)
     total = query.count()
     sessions = query.order_by(ChatSession.updated_at.desc()).offset((page - 1) * size).limit(size).all()
 
+    # 构建会话 ID 列表
+    session_ids = [s.id for s in sessions]
+
+    # 一次查询获取每个会话的消息统计 + 最后消息时间
+    msg_stats = db.query(
+        ChatMessage.session_id,
+        func.count(ChatMessage.id).label("msg_count"),
+        func.max(ChatMessage.created_at).label("last_msg_time")
+    ).filter(ChatMessage.session_id.in_(session_ids)).group_by(ChatMessage.session_id).all()
+
+    stats_map = {stat[0]: {"count": stat[1], "last_time": stat[2]} for stat in msg_stats}
+
     items = []
     for s in sessions:
-        msg_count = db.query(ChatMessage).filter(ChatMessage.session_id == s.id).count()
-        last_msg = db.query(ChatMessage).filter(ChatMessage.session_id == s.id).order_by(ChatMessage.created_at.desc()).first()
+        stat = stats_map.get(s.id, {"count": 0, "last_time": None})
         items.append({
             "id": s.id,
             "title": s.title,
             "subject": s.subject,
-            "last_message_at": last_msg.created_at.isoformat() if last_msg else s.created_at.isoformat(),
-            "message_count": msg_count,
+            "last_message_at": stat["last_time"].isoformat() if stat["last_time"] else s.created_at.isoformat(),
+            "message_count": stat["count"],
         })
 
     return {"code": 200, "data": {"items": items, "total": total, "page": page, "size": size}}

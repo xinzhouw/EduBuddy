@@ -91,3 +91,7 @@ coverage/
 # ========================
 agents/textbook_crawler/cache/
 backend/data/knowledge_base/chroma/
+OPTIMIZATION_SUMMARY.md
+PERFORMANCE_QUICK_REFERENCE.md
+docs/COMPREHENSIVE_PERFORMANCE_OPTIMIZATION.md
+docs/AI_CHAT_PERFORMANCE_OPTIMIZATION.md

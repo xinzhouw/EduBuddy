@@ -13,7 +13,7 @@ from app.models.wrong_item import WrongItem
 from app.schemas.quiz import QuizGenerateRequest, QuizSubmitRequest, AnswerResult, QuizResult
 from app.services.ai_service import ai_service
 from app.services.review_service import get_initial_review_date
-from app.services.document_service import extract_text
+from app.services.document_service import extract_text, ocr_pdf_pages_concurrent
 
 router = APIRouter(prefix="/api/quiz", tags=["练习题"])
 
@@ -241,8 +241,16 @@ async def submit_quiz(
     total_time = 0
     wrong_item_ids = []
 
+    # 预加载所有问题，避免 N+1 查询
+    question_ids = [ans.question_id for ans in data.answers]
+    questions = db.query(Question).filter(
+        Question.id.in_(question_ids),
+        Question.session_id == session_id
+    ).all()
+    question_map = {q.id: q for q in questions}
+
     for ans in data.answers:
-        question = db.query(Question).filter(Question.id == ans.question_id, Question.session_id == session_id).first()
+        question = question_map.get(ans.question_id)
         if not question:
             continue
         is_correct = ans.answer.strip().upper() == question.correct_answer.strip().upper()
@@ -376,36 +384,5 @@ def recommended_difficulty(
 
 
 async def _ocr_pdf_pages_for_quiz(pdf_bytes: bytes) -> str:
-    """将扫描版 PDF 每页转换为图片，逐页调用 Vision OCR，拼接返回全文。
-
-    仅在 PDF 文字层为空（扫描/图片型PDF）时调用。
-    依赖：PyMuPDF（fitz），容器中已安装。
-    """
-    import fitz  # PyMuPDF
-
-    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-    page_count = doc.page_count
-    all_texts: list[str] = []
-
-    for page_index in range(page_count):
-        page = doc[page_index]
-        # 渲染为 150 DPI 的 PNG（提高 OCR 精度）
-        mat = fitz.Matrix(150 / 72, 150 / 72)
-        pix = page.get_pixmap(matrix=mat, colorspace=fitz.csRGB)
-        img_bytes = pix.tobytes("png")
-        image_base64 = base64.b64encode(img_bytes).decode("utf-8")
-
-        try:
-            result = await ai_service.ocr_image_for_reading(
-                image_base64=image_base64,
-                mime_type="image/png",
-            )
-            page_text = result.get("text", "").strip()
-        except Exception as e:
-            page_text = f"[第 {page_index + 1} 页识别失败：{e}]"
-
-        if page_text:
-            all_texts.append(page_text)
-
-    doc.close()
-    return "\n\n".join(all_texts)
+    """并发调用 Vision OCR 处理扫描版 PDF，使用共享实现以避免代码重复。"""
+    return await ocr_pdf_pages_concurrent(pdf_bytes, ai_service)

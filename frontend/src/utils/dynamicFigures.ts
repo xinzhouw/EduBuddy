@@ -11,8 +11,15 @@
  *   // v-html 内容更新后（nextTick 内）：
  *   hydrateDynamicFigures(containerEl)
  */
-import * as echarts from 'echarts'
+// 按需导入 ECharts 核心库 + 所需图表，减少包体积
+import * as echarts from 'echarts/core'
+import { LineChart, ScatterChart } from 'echarts/charts'
+import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
 import SmilesDrawer from 'smiles-drawer'
+
+// 注册所需的图表和组件
+echarts.use([LineChart, ScatterChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
 
 // 已水合过的元素打标记，避免重复绘制
 const HYDRATED = 'data-hydrated'

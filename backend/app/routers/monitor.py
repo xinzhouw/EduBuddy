@@ -60,18 +60,8 @@ def get_students_summary(
             StudyLog.date == today,
         ).scalar() or 0
 
-        # 连续打卡
-        streak = 0
-        check = today
-        while True:
-            exists = db.query(StudyLog).filter(
-                StudyLog.user_id == student.id, StudyLog.date == check
-            ).first()
-            if exists:
-                streak += 1
-                check -= timedelta(days=1)
-            else:
-                break
+        # 连续打卡 - 使用服务方法，避免重复代码
+        streak = stats_service.get_streak_days(db, student.id)
 
         # 近7天计划完成率
         plan = db.query(StudyPlan).filter(
