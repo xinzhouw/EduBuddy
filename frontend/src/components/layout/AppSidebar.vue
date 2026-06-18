@@ -3,9 +3,33 @@
     <!-- Logo -->
     <div class="h-16 flex items-center px-6 border-b border-slate-700/50">
       <div class="flex items-center gap-2.5">
-        <div class="w-8 h-8 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-lg flex items-center justify-center shadow-md">
-          <span class="text-white text-sm font-bold">E</span>
-        </div>
+        <svg class="w-8 h-8" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+          <defs>
+            <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#60a5fa;stop-opacity:1" />
+              <stop offset="100%" style="stop-color:#4f46e5;stop-opacity:1" />
+            </linearGradient>
+          </defs>
+          <circle cx="100" cy="100" r="95" fill="url(#logoGrad)"/>
+          <g transform="translate(100, 100)">
+            <path d="M -12 -10 Q -22 -3 -22 10 Q -22 23 -12 27 L 12 27 Q 22 23 22 10 Q 22 -3 12 -10 Q 0 -17 -12 -10" fill="white" opacity="0.95"/>
+            <circle cx="0" cy="0" r="8" fill="none" stroke="#fbbf24" stroke-width="1.5" opacity="0.8"/>
+            <rect x="-10" y="27" width="20" height="5" rx="1.5" fill="white" opacity="0.9"/>
+            <rect x="-8" y="32" width="16" height="3" rx="0.5" fill="white" opacity="0.8"/>
+            <circle cx="-4" cy="37" r="1.5" fill="white" opacity="0.9"/>
+            <circle cx="4" cy="37" r="1.5" fill="white" opacity="0.9"/>
+            <g stroke="#fbbf24" stroke-width="1.2" stroke-linecap="round" opacity="0.6">
+              <line x1="0" y1="-28" x2="0" y2="-33"/>
+              <line x1="20" y1="-20" x2="24" y2="-24"/>
+              <line x1="28" y1="0" x2="33" y2="0"/>
+              <line x1="20" y1="20" x2="24" y2="24"/>
+              <line x1="-20" y1="20" x2="-24" y2="24"/>
+              <line x1="-28" y1="0" x2="-33" y2="0"/>
+              <line x1="-20" y1="-20" x2="-24" y2="-24"/>
+            </g>
+          </g>
+          <circle cx="100" cy="100" r="92" fill="none" stroke="white" stroke-width="1" opacity="0.2"/>
+        </svg>
         <span class="text-lg font-bold text-white tracking-wide">EduBuddy</span>
       </div>
     </div>
