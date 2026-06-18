@@ -1,5 +1,7 @@
 import os
 import uuid
+import base64
+import asyncio
 from pathlib import Path
 from fastapi import UploadFile, HTTPException
 from app.config import get_settings
@@ -92,8 +94,6 @@ async def ocr_pdf_pages_concurrent(pdf_bytes: bytes, ai_service) -> str:
     使用 asyncio.gather 并发处理多页，相比顺序处理可提升 5-10 倍速度。
     依赖：PyMuPDF（fitz），容器中已安装。
     """
-    import base64
-    import asyncio
     import fitz  # PyMuPDF
 
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")

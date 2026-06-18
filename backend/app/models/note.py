@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Index
 from sqlalchemy.sql import func
 from app.database import Base
 
@@ -55,10 +55,5 @@ class ChatMessage(Base):
 
     __table_args__ = (
         # 复合索引：(session_id, created_at) 用于按时间排序查询
-        # (user_id) 用于用户维度的查询
-        {
-            'indexes': [
-                ('session_id', 'created_at'),
-            ]
-        },
+        Index('ix_chat_messages_session_id_created_at', 'session_id', 'created_at'),
     )

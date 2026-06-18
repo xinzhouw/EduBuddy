@@ -23,22 +23,24 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        // 代码分割：将第三方库与业务代码分离，加快初始加载速度
-        manualChunks: {
-          // 将 ECharts 单独打包成一个 chunk
-          echarts: ['echarts'],
-          // 将 Vue + Element Plus 打包成 vendor chunk
-          'vue-vendor': ['vue', 'element-plus'],
+        // 代码分割：改用 Rolldown 支持的函数形式
+        manualChunks(id) {
+          // 检查是否来自 node_modules
+          if (id.includes('node_modules')) {
+            // 将 ECharts 单独打包成一个 chunk
+            if (id.includes('echarts')) {
+              return 'echarts';
+            }
+            // 将 Vue + Element Plus 打包成 vue-vendor chunk
+            if (id.includes('vue') || id.includes('element-plus')) {
+              return 'vue-vendor';
+            }
+          }
         },
       },
     },
-    // 文件过小时不分割代码
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true, // 生产环境移除 console 日志
-      },
-    },
+    // 使用性能极高的 oxc 压缩混淆器，不需要在外部独立安装
+    minify: 'oxc',
   },
   server: {
     port: 5173,

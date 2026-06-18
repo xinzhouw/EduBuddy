@@ -1,6 +1,7 @@
 import json
 import re
 import time
+import asyncio
 from typing import AsyncGenerator, Optional
 from openai import AsyncOpenAI
 from httpx import Timeout
@@ -197,7 +198,6 @@ class AIService:
         now = time.time()
         elapsed = now - self._last_request_time
         if elapsed < self._min_interval_seconds:
-            import asyncio
             await asyncio.sleep(self._min_interval_seconds - elapsed)
         self._last_request_time = time.time()
 
