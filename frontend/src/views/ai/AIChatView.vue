@@ -1,7 +1,7 @@
 <template>
-  <div class="flex h-full gap-4" style="height: calc(100vh - 160px)">
-    <!-- 历史会话列表 -->
-    <div class="w-64 shrink-0 card flex flex-col gap-2 overflow-hidden">
+  <div class="flex h-full gap-3 sm:gap-4 overflow-hidden" style="height: calc(100vh - 160px)">
+    <!-- 历史会话列表（PC 端固定，移动端改为按钮触发抽屉） -->
+    <div class="hidden md:flex w-64 shrink-0 card flex-col gap-2 overflow-hidden">
       <div class="flex items-center justify-between">
         <h3 class="font-semibold text-gray-700 text-sm">历史对话</h3>
         <button @click="newChat" class="text-blue-500 text-sm hover:text-blue-600">+ 新对话</button>
@@ -69,44 +69,52 @@
 
     <!-- 聊天区域 -->
     <div class="flex-1 card flex flex-col overflow-hidden">
-      <!-- 学科选择 -->
-      <div class="flex items-center gap-3 pb-3 border-b border-gray-100 shrink-0">
-        <span class="text-sm text-gray-500">学科：</span>
+      <!-- 学科选择 + 移动端会话按钮 -->
+      <div class="flex items-center gap-2 sm:gap-3 pb-3 border-b border-gray-100 shrink-0 flex-wrap">
+        <!-- 移动端：会话列表按钮 -->
+        <button
+          @click="showSessionDrawer = true"
+          class="md:hidden px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+        >
+          📋 对话列表
+        </button>
+
+        <span class="text-sm text-gray-500 hidden sm:inline">学科：</span>
         <el-select
           v-model="selectedSubject"
           size="small"
-          style="width: 120px"
+          style="width: 100px"
           :disabled="!isNewChat"
           :title="!isNewChat ? '查看历史对话时学科不可更改' : ''"
         >
           <el-option v-for="s in subjects" :key="s" :label="s" :value="s" />
         </el-select>
-        <span v-if="!isNewChat" class="text-xs text-gray-400">（历史对话学科不可更改）</span>
+        <span v-if="!isNewChat" class="text-xs text-gray-400 hidden sm:inline">（历史对话学科不可更改）</span>
       </div>
 
       <!-- 消息区域 -->
-      <div ref="messagesEl" class="flex-1 overflow-y-auto py-4 space-y-4">
+      <div ref="messagesEl" class="flex-1 overflow-y-auto py-2 sm:py-4 space-y-2 sm:space-y-4 px-2 sm:px-4">
         <div v-if="messages.length === 0" class="flex flex-col items-center justify-center h-full text-gray-400">
-          <span class="text-5xl mb-4">🤖</span>
-          <p class="text-lg font-medium">向 EduBuddy 提问吧！</p>
-          <p class="text-sm mt-2">支持数学、物理、化学等全部中学学科，可粘贴含公式的题目</p>
+          <span class="text-4xl sm:text-5xl mb-2 sm:mb-4">🤖</span>
+          <p class="text-base sm:text-lg font-medium text-center">向 EduBuddy 提问吧！</p>
+          <p class="text-xs sm:text-sm mt-1 sm:mt-2 text-center text-gray-500">支持数学、物理、化学等学科</p>
         </div>
 
-        <div v-for="msg in messages" :key="msg.id || msg.tempId" class="flex gap-3"
+        <div v-for="msg in messages" :key="msg.id || msg.tempId" class="flex gap-2 sm:gap-3"
           :class="msg.role === 'user' ? 'justify-end' : 'justify-start'">
-          <!-- AI 头像 -->
-          <div v-if="msg.role === 'assistant'" class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm shrink-0 mt-1">
+          <!-- AI 头像（移动端隐藏） -->
+          <div v-if="msg.role === 'assistant'" class="hidden sm:flex w-8 h-8 bg-blue-500 rounded-full items-center justify-center text-white text-sm shrink-0 mt-1">
             🤖
           </div>
           <!-- 消息内容 -->
-          <div class="max-w-2xl">
+          <div class="max-w-xs sm:max-w-2xl">
             <!-- 用户消息：支持 LaTeX 渲染（保留换行） -->
             <div v-if="msg.role === 'user'"
-              class="px-4 py-3 rounded-2xl text-sm leading-relaxed bg-blue-500 text-white rounded-tr-sm user-message-content"
+              class="px-3 sm:px-4 py-2 sm:py-3 rounded-2xl text-xs sm:text-sm leading-relaxed bg-blue-500 text-white rounded-tr-sm user-message-content"
               v-html="renderUserMessage(msg.content)">
             </div>
             <!-- AI 消息：Markdown + LaTeX 富文本渲染 + 图片 -->
-            <div v-else :data-msg-key="msg.id || msg.tempId" class="ai-message-content px-4 py-3 rounded-2xl rounded-tl-sm bg-gray-100 text-gray-800">
+            <div v-else :data-msg-key="msg.id || msg.tempId" class="ai-message-content px-3 sm:px-4 py-2 sm:py-3 rounded-2xl rounded-tl-sm bg-gray-100 text-gray-800 text-xs sm:text-sm">
 
               <div class="markdown-body" v-dyn-figures v-html="renderMessageWithImagePlaceholders(msg.content)"></div>
               <span v-if="msg.streaming" class="typing-cursor"></span>
@@ -205,9 +213,9 @@
       </div>
 
       <!-- 输入区 -->
-      <div class="border-t border-gray-100 pt-3 shrink-0">
+      <div class="border-t border-gray-100 pt-2 sm:pt-3 px-2 sm:px-0 shrink-0">
         <!-- 实时 LaTeX 预览区（有内容时显示） -->
-        <div v-if="inputText.trim()" class="mb-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-xl text-sm text-gray-700 leading-relaxed input-preview-content"
+        <div v-if="inputText.trim()" class="mb-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-xl text-xs sm:text-sm text-gray-700 leading-relaxed input-preview-content"
           v-html="renderUserMessage(inputText)">
         </div>
         <div class="flex gap-2 items-end">
@@ -215,12 +223,12 @@
             v-model="inputText"
             type="textarea"
             :rows="2"
-            placeholder="输入你的问题... (Shift+Enter 换行，Enter 发送，公式预览在上方)"
-            class="flex-1"
+            placeholder="输入问题..."
+            class="flex-1 text-xs sm:text-sm"
             @keydown.enter.exact.prevent="sendMessage"
             resize="none"
           />
-          <el-button type="primary" @click="sendMessage" :disabled="!inputText.trim() || isLoading">
+          <el-button type="primary" @click="sendMessage" :disabled="!inputText.trim() || isLoading" size="small" class="shrink-0">
             发送
           </el-button>
         </div>
@@ -313,6 +321,9 @@ const exportingMsgId = ref<number | null>(null)
 
 /** 历史会话左侧列表的学科过滤（'全部' 或具体学科名） */
 const filterSubject = ref('全部')
+
+/** 移动端会话列表抽屉是否显示 */
+const showSessionDrawer = ref(false)
 
 /** 会话消息缓存：避免重复加载已读取的消息 */
 const messagesCacheMap = ref<Map<string, ChatMessage[]>>(new Map())

@@ -1,5 +1,5 @@
 <template>
-  <aside class="w-64 bg-gradient-to-b from-slate-900 to-slate-800 flex flex-col h-full shrink-0 shadow-xl">
+  <aside class="w-64 bg-gradient-to-b from-slate-900 to-slate-800 flex flex-col h-full shrink-0 shadow-xl hidden md:flex">
     <!-- Logo -->
     <div class="h-16 flex items-center px-6 border-b border-slate-700/50">
       <div class="flex items-center gap-2.5">

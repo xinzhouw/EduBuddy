@@ -6,18 +6,18 @@
       <div class="absolute -top-10 -right-10 w-48 h-48 bg-white/10 rounded-full"></div>
       <div class="absolute -bottom-8 -right-24 w-64 h-64 bg-white/5 rounded-full"></div>
       <div class="absolute top-4 right-32 w-16 h-16 bg-white/10 rounded-full"></div>
-      <div class="relative p-6 flex items-center justify-between">
-        <div>
-          <p class="text-blue-200 text-sm font-medium mb-1">{{ dateStr }}</p>
-          <h1 class="text-2xl font-bold">{{ greeting }}，{{ authStore.user?.nickname || '同学' }} 👋</h1>
-          <p class="text-blue-100 mt-1.5 text-sm">{{ motivationText }}</p>
+      <div class="relative p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex-1 min-w-0">
+          <p class="text-blue-200 text-xs sm:text-sm font-medium mb-1">{{ dateStr }}</p>
+          <h1 class="text-lg sm:text-2xl font-bold truncate">{{ greeting }}，{{ authStore.user?.nickname || '同学' }} 👋</h1>
+          <p class="text-blue-100 mt-1 sm:mt-1.5 text-xs sm:text-sm line-clamp-2">{{ motivationText }}</p>
         </div>
-        <div v-if="stats.streak_days > 0" class="text-center bg-white/15 backdrop-blur-sm rounded-2xl px-5 py-4 border border-white/20">
-          <p class="text-4xl font-black leading-none">{{ stats.streak_days }}</p>
+        <div v-if="stats.streak_days > 0" class="text-center bg-white/15 backdrop-blur-sm rounded-2xl px-4 sm:px-5 py-3 sm:py-4 border border-white/20 shrink-0">
+          <p class="text-3xl sm:text-4xl font-black leading-none">{{ stats.streak_days }}</p>
           <p class="text-blue-200 text-xs mt-1 font-medium">🔥 连续打卡</p>
         </div>
-        <div v-else class="text-center bg-white/15 backdrop-blur-sm rounded-2xl px-5 py-4 border border-white/20">
-          <p class="text-4xl">📚</p>
+        <div v-else class="text-center bg-white/15 backdrop-blur-sm rounded-2xl px-4 sm:px-5 py-3 sm:py-4 border border-white/20 shrink-0">
+          <p class="text-3xl sm:text-4xl">📚</p>
           <p class="text-blue-200 text-xs mt-1 font-medium">开始学习</p>
         </div>
       </div>
@@ -86,7 +86,7 @@
     </div>
 
     <!-- 统计卡片 -->
-    <div class="grid grid-cols-3 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
       <div class="stat-card group">
         <div class="flex items-center justify-between mb-3">
           <div class="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center group-hover:bg-blue-100 transition-colors">
@@ -131,9 +131,9 @@
     </div>
 
     <!-- 主内容区 -->
-    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
       <!-- 今日任务（占3列） -->
-      <div class="lg:col-span-3 card">
+      <div class="lg:col-span-3 card p-4 sm:p-5">
         <div class="flex items-center justify-between mb-5">
           <h3 class="font-bold text-gray-800 flex items-center gap-2">
             <span class="w-1 h-5 bg-gradient-to-b from-blue-500 to-indigo-500 rounded-full inline-block"></span>
@@ -178,12 +178,12 @@
       </div>
 
       <!-- 快捷入口（占2列） -->
-      <div class="lg:col-span-2 card">
-        <div class="flex items-center gap-2 mb-5">
+      <div class="lg:col-span-2 card p-4 sm:p-5">
+        <div class="flex items-center gap-2 mb-4 sm:mb-5">
           <span class="w-1 h-5 bg-gradient-to-b from-purple-500 to-pink-500 rounded-full inline-block"></span>
-          <h3 class="font-bold text-gray-800">快速开始</h3>
+          <h3 class="font-bold text-gray-800 text-sm sm:text-base">快速开始</h3>
         </div>
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-2 sm:grid-cols-2 gap-2 sm:gap-3">
           <RouterLink
             v-for="item in quickLinks"
             :key="item.path"

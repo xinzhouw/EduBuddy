@@ -1,36 +1,49 @@
 <template>
-  <header class="h-16 bg-white/80 backdrop-blur-md border-b border-gray-100 flex items-center justify-between px-6 shrink-0 sticky top-0 z-10">
+  <header class="h-16 bg-white/80 backdrop-blur-md border-b border-gray-100 flex items-center justify-between px-3 sm:px-6 shrink-0 sticky top-0 z-10">
     <!-- 页面标题 -->
-    <div class="flex items-center gap-3">
-      <h1 class="text-lg font-bold text-gray-800">{{ pageTitle }}</h1>
+    <div class="flex items-center gap-3 min-w-0">
+      <h1 class="text-base sm:text-lg font-bold text-gray-800 truncate">{{ pageTitle }}</h1>
     </div>
 
     <!-- 右侧工具栏 -->
-    <div class="flex items-center gap-3">
-      <!-- 今日待复习提示 -->
+    <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+      <!-- PC: 今日待复习提示（移动端隐藏文字） -->
       <RouterLink
         v-if="todayDue > 0"
         to="/wrong-book?due=true"
-        class="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-sm hover:bg-amber-100 hover:border-amber-300 transition-all shadow-sm"
+        class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-sm hover:bg-amber-100 hover:border-amber-300 transition-all shadow-sm"
       >
         <span>⏰</span>
         <span class="font-medium">{{ todayDue }} 道待复习</span>
       </RouterLink>
 
-      <!-- 连续打卡 -->
+      <!-- 移动端：待复习图标 -->
+      <RouterLink
+        v-if="todayDue > 0"
+        to="/wrong-book?due=true"
+        class="sm:hidden w-8 h-8 flex items-center justify-center text-amber-600 hover:bg-amber-50 rounded-lg transition-colors relative"
+        title="待复习"
+      >
+        <span class="text-lg">⏰</span>
+        <span v-if="todayDue > 0" class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
+          {{ todayDue > 9 ? '9+' : todayDue }}
+        </span>
+      </RouterLink>
+
+      <!-- PC: 连续打卡（移动端隐藏） -->
       <div
         v-if="streakDays > 0"
-        class="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 text-orange-600 border border-orange-200 rounded-full text-sm shadow-sm"
+        class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 text-orange-600 border border-orange-200 rounded-full text-sm shadow-sm"
       >
         <span>🔥</span>
         <span class="font-medium">连续 {{ streakDays }} 天</span>
       </div>
 
-      <!-- 分隔线 -->
-      <div class="w-px h-5 bg-gray-200"></div>
+      <!-- 分隔线（PC 端） -->
+      <div class="hidden sm:block w-px h-5 bg-gray-200"></div>
 
-      <!-- 搜索按钮（占位） -->
-      <button class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+      <!-- 搜索按钮（占位）（PC 端） -->
+      <button class="hidden sm:flex w-8 h-8 items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />

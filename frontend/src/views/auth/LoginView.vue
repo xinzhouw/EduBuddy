@@ -16,26 +16,32 @@
     </div>
 
     <!-- 右侧登录表单 -->
-    <div class="flex-1 flex items-center justify-center p-8">
+    <div class="flex-1 flex items-center justify-center p-4 sm:p-8">
       <div class="w-full max-w-md">
-        <div class="text-center mb-8">
-          <h2 class="text-2xl font-bold text-gray-900">欢迎回来！</h2>
-          <p class="text-gray-500 mt-2">登录你的 EduBuddy 账号</p>
+        <!-- 移动端 Logo -->
+        <div class="lg:hidden text-center mb-6">
+          <div class="text-5xl mb-2">📚</div>
+          <h1 class="text-2xl font-bold text-gray-900">EduBuddy</h1>
+        </div>
+
+        <div class="text-center mb-6 sm:mb-8">
+          <h2 class="text-xl sm:text-2xl font-bold text-gray-900">欢迎回来！</h2>
+          <p class="text-gray-500 mt-2 text-sm sm:text-base">登录你的 EduBuddy 账号</p>
         </div>
 
         <el-form :model="form" :rules="rules" ref="formRef" @submit.prevent="handleLogin">
           <el-form-item prop="email">
-            <el-input v-model="form.email" placeholder="邮箱地址" size="large" type="email" prefix-icon="Message" />
+            <el-input v-model="form.email" placeholder="邮箱地址" size="large" type="email" prefix-icon="Message" clearable />
           </el-form-item>
           <el-form-item prop="password">
-            <el-input v-model="form.password" placeholder="密码" size="large" type="password" show-password prefix-icon="Lock" @keyup.enter="handleLogin" />
+            <el-input v-model="form.password" placeholder="密码" size="large" type="password" show-password prefix-icon="Lock" @keyup.enter="handleLogin" clearable />
           </el-form-item>
-          <el-button type="primary" size="large" class="w-full mt-2" :loading="loading" @click="handleLogin">
+          <el-button type="primary" size="large" class="w-full mt-2 h-11 sm:h-12" :loading="loading" @click="handleLogin">
             登 录
           </el-button>
         </el-form>
 
-        <p class="text-center text-gray-500 mt-6 text-sm">
+        <p class="text-center text-gray-500 mt-6 text-xs sm:text-sm">
           还没有账号？
           <RouterLink to="/register" class="text-blue-500 hover:text-blue-600 font-medium">立即注册</RouterLink>
         </p>

@@ -7,25 +7,31 @@
         <p class="text-xl text-blue-100">开始你的 AI 学习之旅</p>
       </div>
     </div>
-    <div class="flex-1 flex items-center justify-center p-8">
+    <div class="flex-1 flex items-center justify-center p-4 sm:p-8">
       <div class="w-full max-w-md">
-        <div class="text-center mb-8">
-          <h2 class="text-2xl font-bold text-gray-900">创建账号</h2>
-          <p class="text-gray-500 mt-2">加入 EduBuddy，开启智能学习</p>
+        <!-- 移动端 Logo -->
+        <div class="lg:hidden text-center mb-6">
+          <div class="text-5xl mb-2">📚</div>
+          <h1 class="text-2xl font-bold text-gray-900">EduBuddy</h1>
+        </div>
+
+        <div class="text-center mb-6 sm:mb-8">
+          <h2 class="text-xl sm:text-2xl font-bold text-gray-900">创建账号</h2>
+          <p class="text-gray-500 mt-2 text-sm sm:text-base">加入 EduBuddy，开启智能学习</p>
         </div>
         <el-form :model="form" :rules="rules" ref="formRef">
           <el-form-item prop="role">
-            <el-radio-group v-model="form.role" size="large" class="w-full role-group">
+            <el-radio-group v-model="form.role" size="large" class="w-full role-group flex flex-wrap gap-2">
               <el-radio-button v-for="r in roles" :key="r.value" :value="r.value">
                 {{ r.icon }} {{ r.label }}
               </el-radio-button>
             </el-radio-group>
           </el-form-item>
           <el-form-item prop="nickname">
-            <el-input v-model="form.nickname" placeholder="昵称" size="large" prefix-icon="User" />
+            <el-input v-model="form.nickname" placeholder="昵称" size="large" prefix-icon="User" clearable />
           </el-form-item>
           <el-form-item prop="email">
-            <el-input v-model="form.email" placeholder="邮箱地址" size="large" type="email" prefix-icon="Message" />
+            <el-input v-model="form.email" placeholder="邮箱地址" size="large" type="email" prefix-icon="Message" clearable />
           </el-form-item>
           <el-form-item v-if="form.role === 'student'" prop="grade">
             <el-select v-model="form.grade" placeholder="选择年级" size="large" class="w-full">
@@ -33,16 +39,16 @@
             </el-select>
           </el-form-item>
           <el-form-item prop="password">
-            <el-input v-model="form.password" placeholder="密码（至少6位）" size="large" type="password" show-password prefix-icon="Lock" />
+            <el-input v-model="form.password" placeholder="密码（至少6位）" size="large" type="password" show-password prefix-icon="Lock" clearable />
           </el-form-item>
           <el-form-item prop="confirmPassword">
-            <el-input v-model="form.confirmPassword" placeholder="再次输入密码" size="large" type="password" show-password prefix-icon="Lock" />
+            <el-input v-model="form.confirmPassword" placeholder="再次输入密码" size="large" type="password" show-password prefix-icon="Lock" clearable />
           </el-form-item>
-          <el-button type="primary" size="large" class="w-full mt-2" :loading="loading" @click="handleRegister">
+          <el-button type="primary" size="large" class="w-full mt-2 h-11 sm:h-12" :loading="loading" @click="handleRegister">
             注 册
           </el-button>
         </el-form>
-        <p class="text-center text-gray-500 mt-6 text-sm">
+        <p class="text-center text-gray-500 mt-6 text-xs sm:text-sm">
           已有账号？
           <RouterLink to="/login" class="text-blue-500 hover:text-blue-600 font-medium">立即登录</RouterLink>
         </p>
