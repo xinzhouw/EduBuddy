@@ -36,6 +36,8 @@ import { useAuthStore } from '@/stores/auth'
 import AppSidebar from '@/components/layout/AppSidebar.vue'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import AppBottomNav from '@/components/layout/AppBottomNav.vue'
+import { initializeMobileFormOptimizations } from '@/utils/mobileFormOptimizations'
+import { initializePerformanceOptimizations, reportPerformanceMetrics } from '@/utils/performanceOptimization'
 
 const authStore = useAuthStore()
 const route = useRoute()
@@ -49,6 +51,14 @@ const handleResize = () => {
 
 onMounted(() => {
   window.addEventListener('resize', handleResize)
+  // 初始化移动端表单优化
+  initializeMobileFormOptimizations()
+  // 初始化性能优化
+  initializePerformanceOptimizations()
+  // 报告性能指标（开发环境）
+  if (process.env.NODE_ENV === 'development') {
+    reportPerformanceMetrics()
+  }
 })
 
 onUnmounted(() => {

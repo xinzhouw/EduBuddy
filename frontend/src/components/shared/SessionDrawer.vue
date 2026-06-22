@@ -1,12 +1,13 @@
 <template>
   <!-- 移动端会话列表抽屉（底部弹出） -->
   <el-drawer
-    v-model="modelValue"
+    :model-value="modelValue"
     :title="'历史对话'"
     direction="btt"
     :size="350"
     :destroy-on-close="true"
     class="session-drawer md:hidden"
+    @update:model-value="$emit('update:modelValue', $event)"
     @open="$emit('open')"
     @close="$emit('close')"
   >
@@ -88,7 +89,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 
 interface Session {
   id: string
@@ -112,10 +113,7 @@ const emit = defineEmits<{
   'filter-subject': [subject: string]
 }>()
 
-const filterSubject = computed({
-  get: () => (props as any).filterSubject || '全部',
-  set: (val) => emit('filter-subject', val),
-})
+const filterSubject = ref('全部')
 
 const groupedSessions = computed(() => {
   const groups: Record<string, Session[]> = {}

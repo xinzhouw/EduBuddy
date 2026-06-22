@@ -234,6 +234,18 @@
         </div>
       </div>
     </div>
+
+    <!-- 移动端会话列表抽屉（移动端专用） -->
+    <SessionDrawer
+      v-model="showSessionDrawer"
+      :sessions="sessions"
+      :current-session-id="currentSessionId"
+      :subjects="subjects"
+      @new-chat="newChat"
+      @select-session="loadSession"
+      @delete-session="confirmDeleteSession"
+      @filter-subject="(s: string) => filterSubject = s"
+    />
   </div>
 </template>
 
@@ -244,6 +256,8 @@ import { aiApi } from '@/api/ai'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { renderMessage, renderLatexOnly } from '@/utils/markdown'
 import { searchEducationalImages } from '@/utils/imageSearch'
+import SessionDrawer from '@/components/shared/SessionDrawer.vue'
+import { setupLongPressCopyGesture } from '@/utils/touchGestures'
 
 
 // ===================== 类型定义 =====================
@@ -940,6 +954,15 @@ function stopSpeech() {
 // ===================== 生命周期 =====================
 onMounted(async () => {
   await loadSessions()
+
+  // 为消息添加长按复制功能
+  setTimeout(() => {
+    const messageContents = document.querySelectorAll('.markdown-body, .ai-message-content')
+    messageContents.forEach((content) => {
+      setupLongPressCopyGesture(content as HTMLElement)
+    })
+  }, 200)
+
   // 预加载语音列表（部分浏览器需要通过事件触发）
   if (typeof window !== 'undefined' && window.speechSynthesis) {
     window.speechSynthesis.getVoices()
