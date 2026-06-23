@@ -3,7 +3,7 @@ import { ElMessage } from 'element-plus'
 
 const api = axios.create({
   baseURL: '/api',
-  timeout: 30000,
+  timeout: 60000, // 增加到 60 秒以支持弱网环境
 })
 
 // 不需要登录态的白名单接口（避免退出登录后误判）

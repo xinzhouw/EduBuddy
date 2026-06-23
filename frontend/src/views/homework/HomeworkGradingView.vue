@@ -1,7 +1,7 @@
 <template>
   <div class="flex h-full gap-4" style="height: calc(100vh - 160px)">
-    <!-- 左侧：历史记录 -->
-    <div class="w-64 shrink-0 card flex flex-col gap-2 overflow-hidden">
+    <!-- 左侧：历史记录（PC 端固定侧边栏，移动端隐藏） -->
+    <div class="hidden md:flex w-64 shrink-0 card flex-col gap-2 overflow-hidden">
       <div class="flex items-center justify-between shrink-0">
         <h3 class="font-semibold text-gray-700 text-sm">批改历史</h3>
         <button @click="startNew" class="text-blue-500 text-sm hover:text-blue-600">+ 新批改</button>
@@ -49,14 +49,25 @@
     <div class="flex-1 card flex flex-col overflow-hidden">
       <!-- 顶部工具栏 -->
       <div class="flex items-center gap-3 pb-3 border-b border-gray-100 shrink-0 flex-wrap">
-        <!-- 学科：只读显示（来自批改历史中选择的学科） -->
-        <div class="flex items-center gap-1.5">
-          <span class="text-sm text-gray-500">学科：</span>
-          <span
-            class="text-xs px-2 py-1 rounded-md font-medium"
-            :class="subjectColorClass(form.subject)"
-          >{{ form.subject }}</span>
-        </div>
+        <!-- 移动端：批改历史按钮 -->
+        <button
+          @click="showGradingDrawer = true"
+          class="md:hidden px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+        >
+          📋 批改历史
+        </button>
+
+        <!-- 学科：下拉选择（新建时可选，查看历史时禁用） -->
+        <span class="text-sm text-gray-500">学科：</span>
+        <el-select
+          v-model="form.subject"
+          size="small"
+          style="width: 100px"
+          :disabled="viewMode === 'result'"
+          :title="viewMode === 'result' ? '查看历史批改时学科不可更改' : ''"
+        >
+          <el-option v-for="s in subjects" :key="s" :label="s" :value="s" />
+        </el-select>
         <!-- 提交方式切换（仅表单视图显示） -->
         <el-radio-group v-if="viewMode === 'form'" v-model="submitMode" size="small" :disabled="isGrading || isRecognizing">
           <el-radio-button value="text">📝 文本输入</el-radio-button>
@@ -602,6 +613,17 @@
       由 EduBuddy AI 智能学习助手生成 · {{ new Date().toLocaleDateString('zh-CN') }}
     </div>
   </div>
+
+  <!-- 移动端批改历史抽屉 -->
+  <GradingHistoryDrawer
+    v-model="showGradingDrawer"
+    :history-list="historyList"
+    :current-grading-id="currentGradingId"
+    :subjects="subjects"
+    @start-new="handleDrawerStartNew"
+    @select-grading="handleDrawerSelectGrading"
+    @delete-grading="handleDrawerDeleteGrading"
+  />
 </template>
 
 <script setup lang="ts">
@@ -610,6 +632,7 @@ import { useAuthStore } from '@/stores/auth'
 import { homeworkApi, createTextGradingStream, createFileGradingStream } from '@/api/homework'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { renderMessage, renderRecognizedText } from '@/utils/markdown'
+import GradingHistoryDrawer from '@/components/shared/GradingHistoryDrawer.vue'
 // 引入 MathLive Web Component
 import 'mathlive'
 
@@ -625,6 +648,7 @@ const viewMode = ref<'form' | 'result'>('form')
 const isGrading = ref(false)
 const isDragOver = ref(false)
 const filterSubject = ref('')
+const showGradingDrawer = ref(false)
 
 // 表单
 const form = ref({
@@ -1181,6 +1205,21 @@ function submitHomework() {
       },
     )
   }
+}
+
+// ─── 移动端抽屉事件处理 ───────────────────────────────────────
+function handleDrawerStartNew() {
+  startNew()
+  showGradingDrawer.value = false
+}
+
+function handleDrawerSelectGrading(id: number) {
+  loadDetail(id)
+  showGradingDrawer.value = false
+}
+
+function handleDrawerDeleteGrading(item: any) {
+  confirmDelete(item)
 }
 
 function startNew() {

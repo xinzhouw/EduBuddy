@@ -35,6 +35,13 @@ export function createTextGradingStream(
 ): () => void {
   let aborted = false
   const controller = new AbortController()
+  const timeoutId = setTimeout(() => {
+    if (!aborted) {
+      aborted = true
+      controller.abort()
+      onError('请求超时（120秒），请检查网络连接')
+    }
+  }, 120000) // 120 秒超时
 
   fetch('/api/homework/grade/text', {
     method: 'POST',
@@ -46,6 +53,7 @@ export function createTextGradingStream(
     signal: controller.signal,
   })
     .then(async (response) => {
+      clearTimeout(timeoutId)
       if (!response.ok) {
         const err = await response.json().catch(() => ({ detail: '请求失败' }))
         onError(err.detail || '请求失败')
@@ -68,8 +76,10 @@ export function createTextGradingStream(
             if (payload.type === 'content') {
               onChunk(payload.delta)
             } else if (payload.type === 'done') {
+              clearTimeout(timeoutId)
               onDone(payload.grading_id, payload.score ?? 0)
             } else if (payload.type === 'error') {
+              clearTimeout(timeoutId)
               onError(payload.message || 'AI批改失败')
             }
           } catch {}
@@ -77,6 +87,7 @@ export function createTextGradingStream(
       }
     })
     .catch((err) => {
+      clearTimeout(timeoutId)
       if (!aborted) onError(err.message || '网络错误')
     })
 
@@ -98,6 +109,13 @@ export function createFileGradingStream(
 ): () => void {
   let aborted = false
   const controller = new AbortController()
+  const timeoutId = setTimeout(() => {
+    if (!aborted) {
+      aborted = true
+      controller.abort()
+      onError('请求超时（120秒），请检查网络连接')
+    }
+  }, 120000) // 120 秒超时
 
   fetch('/api/homework/grade/file', {
     method: 'POST',
@@ -108,6 +126,7 @@ export function createFileGradingStream(
     signal: controller.signal,
   })
     .then(async (response) => {
+      clearTimeout(timeoutId)
       if (!response.ok) {
         const err = await response.json().catch(() => ({ detail: '请求失败' }))
         onError(err.detail || '请求失败')
@@ -130,8 +149,10 @@ export function createFileGradingStream(
             if (payload.type === 'content') {
               onChunk(payload.delta)
             } else if (payload.type === 'done') {
+              clearTimeout(timeoutId)
               onDone(payload.grading_id, payload.score ?? 0)
             } else if (payload.type === 'error') {
+              clearTimeout(timeoutId)
               onError(payload.message || 'AI批改失败')
             }
           } catch {}
@@ -139,6 +160,7 @@ export function createFileGradingStream(
       }
     })
     .catch((err) => {
+      clearTimeout(timeoutId)
       if (!aborted) onError(err.message || '网络错误')
     })
 

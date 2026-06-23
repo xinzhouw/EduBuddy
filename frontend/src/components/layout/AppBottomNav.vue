@@ -24,33 +24,43 @@
       <span>更多</span>
     </button>
 
-    <!-- 更多菜单弹出层 -->
-    <div
-      v-if="showMoreMenu && hiddenItems.length > 0"
-      class="fixed bottom-20 right-0 bg-white rounded-t-2xl border-t border-l border-gray-200 shadow-2xl z-50"
-      @click="showMoreMenu = false"
-    >
-      <div class="p-3 space-y-1 max-h-64 overflow-y-auto w-48">
-        <RouterLink
-          v-for="item in hiddenItems"
-          :key="item.path"
-          :to="item.path"
-          class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-150"
-          :class="isActive(item.path) ? 'text-blue-600 bg-blue-50' : 'text-gray-700 hover:bg-gray-100'"
-        >
-          <span class="text-lg">{{ item.icon }}</span>
-          <span>{{ item.label }}</span>
-        </RouterLink>
-      </div>
-    </div>
-  </nav>
+    <!-- 菜单弹出层 - 使用 Teleport 脱离父容器的限制 -->
+    <Teleport to="body">
+      <!-- 背景遮罩 - z-index 最低，且必须放在菜单前面，这样菜单会在上层 -->
+      <transition name="fade">
+        <div
+          v-if="showMoreMenu && hiddenItems.length > 0"
+          class="fixed inset-0 z-30 md:hidden"
+          @click="showMoreMenu = false"
+          style="background-color: rgba(0, 0, 0, 0.3)"
+        />
+      </transition>
 
-  <!-- 背景遮罩（点击关闭菜单） -->
-  <div
-    v-if="showMoreMenu && hiddenItems.length > 0"
-    class="fixed inset-0 top-0 z-40 md:hidden"
-    @click="showMoreMenu = false"
-  />
+      <!-- 菜单容器 - z-index 最高，确保显示在遮罩之上 -->
+      <transition name="fade">
+        <div
+          v-if="showMoreMenu && hiddenItems.length > 0"
+          class="fixed bottom-20 right-2 bg-white rounded-t-2xl border-t border-l border-gray-200 shadow-2xl z-50 w-56 md:hidden"
+          style="max-height: 60vh; display: flex; flex-direction: column"
+          @click.stop
+        >
+          <div class="overflow-y-auto flex-1 p-3 space-y-1">
+            <RouterLink
+              v-for="item in hiddenItems"
+              :key="item.path"
+              :to="item.path"
+              class="block w-full text-left flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-150 hover:bg-gray-100"
+              :class="isActive(item.path) ? 'text-blue-600 bg-blue-50' : 'text-gray-700'"
+              @click="showMoreMenu = false"
+            >
+              <span class="text-lg flex-shrink-0">{{ item.icon }}</span>
+              <span class="flex-1">{{ item.label }}</span>
+            </RouterLink>
+          </div>
+        </div>
+      </transition>
+    </Teleport>
+  </nav>
 </template>
 
 <script setup lang="ts">
@@ -104,5 +114,16 @@ function isActive(path: string): boolean {
 /* 移动端底部导航固定定位，防止被内容遮挡 */
 nav {
   z-index: 40;
+}
+
+/* 菜单过渡动画 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>
