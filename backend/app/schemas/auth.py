@@ -56,3 +56,14 @@ class ApiResponse(BaseModel):
     code: int = 200
     message: str = "success"
     data: Optional[object] = None
+
+
+class PasswordStrengthResponse(BaseModel):
+    score: int  # 0-100
+    strength: str  # "weak" | "medium" | "strong"
+    issues: list[str]
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str

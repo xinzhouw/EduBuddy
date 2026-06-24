@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, date
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from jose import jwt
 from app.database import get_db
@@ -7,7 +7,8 @@ from app.config import get_settings
 from app.dependencies import get_current_user
 from app.models.user import User
 from app.security import hash_password, verify_password
-from app.schemas.auth import UserRegister, UserLogin, UserOut, TokenData, UserUpdate, PasswordChange
+from app.schemas.auth import UserRegister, UserLogin, UserOut, TokenData, UserUpdate, PasswordChange, PasswordStrengthResponse, ChangePasswordRequest
+from app.utils.password_validator import validate_password_strength, check_password_validity
 
 router = APIRouter(prefix="/api/auth", tags=["认证"])
 settings = get_settings()
@@ -22,17 +23,42 @@ def create_token(user_id: int) -> str:
     )
 
 
+@router.post("/password/validate")
+def validate_password_endpoint(password: str = Query(..., min_length=1)):
+    """
+    实时检查密码强度
+
+    不检查已注册密码或其他业务逻辑，仅返回技术强度评分。
+    前端用此 API 提供实时反馈。
+    """
+    result = validate_password_strength(password)
+    return PasswordStrengthResponse(
+        score=result.score,
+        strength=result.strength.value,
+        issues=result.issues,
+    )
+
+
 @router.post("/register")
 def register(data: UserRegister, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == data.email).first():
         raise HTTPException(status_code=400, detail="该邮箱已被注册")
+    # 检查密码强度（注册时强制）
+    is_valid, error_msg = check_password_validity(data.password)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=f"密码不符合要求: {error_msg}")
     hashed = hash_password(data.password)
     role = data.role if data.role in ("student", "teacher", "parent") else "student"
     user = User(email=data.email, password=hashed, nickname=data.nickname, grade=data.grade, role=role)
     db.add(user)
     db.commit()
     db.refresh(user)
-    return {"code": 200, "message": "注册成功", "data": UserOut.model_validate(user)}
+    token = create_token(user.id)
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": UserOut.model_validate(user),
+    }
 
 
 @router.post("/login")
@@ -76,6 +102,33 @@ def update_me(data: UserUpdate, db: Session = Depends(get_db), current_user: Use
     db.commit()
     db.refresh(current_user)
     return {"code": 200, "message": "更新成功", "data": UserOut.model_validate(current_user)}
+
+
+@router.post("/change-password")
+def change_password_post(
+    req: ChangePasswordRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """修改密码"""
+    # 验证旧密码
+    if not verify_password(req.old_password, user.password):
+        raise HTTPException(status_code=401, detail="旧密码错误")
+
+    # 检查新密码强度
+    is_valid, error_msg = check_password_validity(req.new_password)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=f"新密码不符合要求: {error_msg}")
+
+    # 不能与旧密码相同
+    if req.old_password == req.new_password:
+        raise HTTPException(status_code=400, detail="新密码不能与旧密码相同")
+
+    # 更新密码
+    user.password = hash_password(req.new_password)
+    db.commit()
+
+    return {"message": "密码已修改"}
 
 
 @router.put("/password")
