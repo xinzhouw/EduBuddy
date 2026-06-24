@@ -74,17 +74,10 @@
         <h3 class="font-bold text-gray-800">修改密码</h3>
       </div>
 
-      <el-form :model="pwdForm" label-position="top" class="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
-        <el-form-item label="旧密码">
-          <el-input v-model="pwdForm.old_password" type="password" show-password placeholder="请输入旧密码" />
-        </el-form-item>
-        <el-form-item label="新密码（至少6位）">
-          <el-input v-model="pwdForm.new_password" type="password" show-password placeholder="请输入新密码" />
-        </el-form-item>
-      </el-form>
+      <p class="text-sm text-gray-500 mb-4">点击按钮修改你的登录密码，新密码需满足强度要求。</p>
 
-      <div class="flex justify-end mt-2">
-        <el-button :loading="changingPwd" @click="changePwd">更新密码</el-button>
+      <div class="flex justify-end">
+        <el-button @click="openChangePasswordDialog">修改密码</el-button>
       </div>
     </div>
 
@@ -342,6 +335,9 @@
     </div>
 
   </div>
+
+  <!-- 修改密码对话框 -->
+  <ChangePasswordDialog ref="changePasswordDialog" />
 </template>
 
 <script setup lang="ts">
@@ -351,6 +347,7 @@ import { useAuthStore } from '@/stores/auth'
 import { authApi } from '@/api/auth'
 import { relationsApi } from '@/api/relations'
 import { ElMessage } from 'element-plus'
+import ChangePasswordDialog from '@/components/ChangePasswordDialog.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -389,9 +386,14 @@ const form = reactive({
   gender: '' as string,
   age: undefined as number | undefined,
 })
-const pwdForm = reactive({ old_password: '', new_password: '' })
 const saving = ref(false)
-const changingPwd = ref(false)
+
+// ── 修改密码对话框 ─────────────────────────────────────────────────────────────
+const changePasswordDialog = ref<InstanceType<typeof ChangePasswordDialog>>()
+
+function openChangePasswordDialog() {
+  changePasswordDialog.value!.visible.value = true
+}
 
 // ── 关联关系 ──────────────────────────────────────────────────────────────────
 const observers = ref<any[]>([])   // 学生端：关联的教师/家长
@@ -451,27 +453,6 @@ async function saveProfile() {
   } catch {
   } finally {
     saving.value = false
-  }
-}
-
-async function changePwd() {
-  if (!pwdForm.old_password || !pwdForm.new_password) {
-    ElMessage.warning('请填写旧密码和新密码')
-    return
-  }
-  if (pwdForm.new_password.length < 6) {
-    ElMessage.warning('新密码至少 6 位')
-    return
-  }
-  changingPwd.value = true
-  try {
-    await authApi.changePassword(pwdForm)
-    ElMessage.success('密码修改成功')
-    pwdForm.old_password = ''
-    pwdForm.new_password = ''
-  } catch {
-  } finally {
-    changingPwd.value = false
   }
 }
 
