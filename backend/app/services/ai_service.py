@@ -9,6 +9,13 @@ from app.config import get_settings
 
 settings = get_settings()
 
+# 支持 Anthropic Claude（可选）
+try:
+    from anthropic import Anthropic, AsyncAnthropic
+    ANTHROPIC_AVAILABLE = True
+except ImportError:
+    ANTHROPIC_AVAILABLE = False
+
 # RAG 服务（懒加载，知识库不存在时自动降级）
 try:
     from app.services.rag_service import rag_service as _rag_service
@@ -164,20 +171,32 @@ $$答案的LaTeX公式或文字说明$$
 
 class AIService:
     def __init__(self):
-        if settings.openai_api_key:
-            kwargs = {"api_key": settings.openai_api_key}
-            # 若配置了兼容接口地址则使用，否则使用 OpenAI 官方地址
-            if settings.openai_base_url:
-                kwargs["base_url"] = settings.openai_base_url
-            # 添加客户端超时配置（连接30s，读取60s，写入10s）
-            kwargs["timeout"] = Timeout(timeout=60.0, connect=30.0, read=60.0, write=10.0)
-            self.client = AsyncOpenAI(**kwargs)
+        self.provider = settings.llm_provider or "openai"
+        self.client = None
+        self.model = None
+        self.use_temperature = True
+
+        if self.provider == "anthropic" and ANTHROPIC_AVAILABLE:
+            # 使用 Anthropic Claude 模式
+            if settings.anthropic_api_key:
+                kwargs = {"api_key": settings.anthropic_api_key}
+                if settings.anthropic_base_url:
+                    kwargs["base_url"] = settings.anthropic_base_url
+                self.client = AsyncAnthropic(**kwargs)
+                self.model = settings.anthropic_model or "claude-opus-4-8"
+                self.use_temperature = True  # Claude 支持 temperature
         else:
-            self.client = None
-        # 使用配置的模型名，默认 gpt-4o
-        self.model = settings.openai_model or "gpt-4o"
-        # 部分模型网关（Claude/Bedrock 等）不接受 temperature 参数
-        self.use_temperature = settings.openai_use_temperature
+            # 默认使用 OpenAI 兼容模式
+            if settings.openai_api_key:
+                kwargs = {"api_key": settings.openai_api_key}
+                if settings.openai_base_url:
+                    kwargs["base_url"] = settings.openai_base_url
+                # 添加客户端超时配置：流式响应应使用更长的 read 超时（180s），确保长文本回答不被中断
+                # connect=30s（初始连接），read=180s（每个chunk的等待时间），write=10s（请求发送）
+                kwargs["timeout"] = Timeout(timeout=180.0, connect=30.0, read=180.0, write=10.0)
+                self.client = AsyncOpenAI(**kwargs)
+                self.model = settings.openai_model or "gpt-4o"
+                self.use_temperature = settings.openai_use_temperature
 
         # 简单的速率限制：记录最后一次请求的时间戳
         # 用于防止突发请求导致 API 配额耗尽

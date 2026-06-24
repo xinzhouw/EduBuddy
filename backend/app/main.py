@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 from app.config import get_settings
 from app.database import init_db
-from app.routers import auth, ai, notes, quiz, wrong_book, plan, documents, stats
+from app.routers import auth, ai, notes, quiz, wrong_book, plan, documents, stats, system
 from app.routers.notes import flashcard_router
 from app.routers import homework
 from app.routers import tts
@@ -40,6 +40,7 @@ app.add_middleware(
 )
 
 # 注册路由
+app.include_router(system.router)
 app.include_router(auth.router)
 app.include_router(ai.router)
 app.include_router(notes.router)

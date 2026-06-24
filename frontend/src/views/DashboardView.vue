@@ -23,6 +23,28 @@
       </div>
     </div>
 
+    <!-- 系统信息卡片 - 显示当前使用的 AI 模型 -->
+    <div v-if="systemInfo.llm_model" class="card p-4 sm:p-5 bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 border border-purple-100">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div class="flex items-start gap-4 flex-1">
+          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center text-white text-xl shrink-0">
+            🤖
+          </div>
+          <div class="min-w-0 flex-1">
+            <p class="text-xs text-gray-500 font-semibold uppercase tracking-wide">当前 AI 引擎</p>
+            <p class="text-base sm:text-lg font-bold text-gray-800 mt-1">{{ systemInfo.llm_model_short }}</p>
+            <p class="text-xs text-gray-600 mt-1.5 font-mono bg-white/60 px-2 py-1 rounded w-fit">
+              {{ systemInfo.llm_model }}
+            </p>
+          </div>
+        </div>
+        <div class="text-right text-xs text-gray-600 sm:border-l sm:border-gray-200 sm:pl-4">
+          <p class="font-medium">{{ systemInfo.llm_provider }}</p>
+          <p class="mt-1.5 text-gray-400">EduBuddy v{{ systemInfo.app_version }}</p>
+        </div>
+      </div>
+    </div>
+
     <!-- 每日学习建议卡片（仅学生角色显示） -->
     <div
       v-if="authStore.user?.role !== 'teacher' && authStore.user?.role !== 'parent' && !adviceDismissed && adviceList.length > 0"
@@ -227,12 +249,14 @@ import { useAuthStore } from '@/stores/auth'
 import { statsApi } from '@/api/docs'
 import { planApi } from '@/api/plan'
 import { adviceApi } from '@/api/advice'
+import { systemApi } from '@/api/system'
 
 const authStore = useAuthStore()
 const router = useRouter()
 
 const stats = ref<any>({ today_study_minutes: 0, wrong_book_count: 0, streak_days: 0 })
 const todayTasks = ref<any[]>([])
+const systemInfo = ref<any>({ llm_model: '', llm_model_short: '', llm_provider: '', app_version: '1.0.0' })
 
 // ── 每日建议 ──────────────────────────────────────────────────────────────────
 const adviceList = ref<any[]>([])
@@ -374,6 +398,12 @@ function taskTypeLabel(type: string) {
 }
 
 onMounted(async () => {
+  // 获取系统信息（LLM 模型）
+  try {
+    const res: any = await systemApi.getSystemInfo()
+    systemInfo.value = res.data
+  } catch {}
+
   try {
     const res: any = await statsApi.getOverview()
     stats.value = res.data
