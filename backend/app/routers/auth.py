@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, date
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from jose import jwt
 from app.database import get_db
@@ -7,7 +7,7 @@ from app.config import get_settings
 from app.dependencies import get_current_user
 from app.models.user import User
 from app.security import hash_password, verify_password
-from app.schemas.auth import UserRegister, UserLogin, UserOut, TokenData, UserUpdate, PasswordChange, PasswordStrengthResponse, ChangePasswordRequest
+from app.schemas.auth import UserRegister, UserLogin, UserOut, TokenData, UserUpdate, PasswordChange, PasswordStrengthResponse, ChangePasswordRequest, PasswordValidateRequest
 from app.utils.password_validator import validate_password_strength, check_password_validity
 
 router = APIRouter(prefix="/api/auth", tags=["认证"])
@@ -24,14 +24,16 @@ def create_token(user_id: int) -> str:
 
 
 @router.post("/password/validate")
-def validate_password_endpoint(password: str = Query(..., min_length=1)):
+def validate_password_endpoint(req: PasswordValidateRequest):
     """
     实时检查密码强度
 
     不检查已注册密码或其他业务逻辑，仅返回技术强度评分。
     前端用此 API 提供实时反馈。
     """
-    result = validate_password_strength(password)
+    if not req.password:
+        raise HTTPException(status_code=400, detail="密码参数缺失")
+    result = validate_password_strength(req.password)
     return PasswordStrengthResponse(
         score=result.score,
         strength=result.strength.value,

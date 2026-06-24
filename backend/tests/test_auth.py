@@ -9,14 +9,14 @@ client = TestClient(app)
 
 class TestPasswordValidateEndpoint:
     def test_validate_weak_password(self):
-        response = client.post("/api/auth/password/validate?password=weak")
+        response = client.post("/api/auth/password/validate", json={"password": "weak"})
         assert response.status_code == 200
         data = response.json()
         assert data["strength"] == "weak"
         assert len(data["issues"]) > 0
 
     def test_validate_strong_password(self):
-        response = client.post("/api/auth/password/validate?password=SecurePass123!")
+        response = client.post("/api/auth/password/validate", json={"password": "SecurePass123!"})
         assert response.status_code == 200
         data = response.json()
         assert data["strength"] == "strong"

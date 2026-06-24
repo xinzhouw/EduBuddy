@@ -58,6 +58,10 @@ class ApiResponse(BaseModel):
     data: Optional[object] = None
 
 
+class PasswordValidateRequest(BaseModel):
+    password: str
+
+
 class PasswordStrengthResponse(BaseModel):
     score: int  # 0-100
     strength: str  # "weak" | "medium" | "strong"
