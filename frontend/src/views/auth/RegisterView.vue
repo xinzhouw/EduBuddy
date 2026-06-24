@@ -39,7 +39,7 @@
             </el-select>
           </el-form-item>
           <el-form-item prop="password">
-            <el-input v-model="form.password" placeholder="密码（至少6位）" size="large" type="password" show-password prefix-icon="Lock" clearable />
+            <PasswordInput ref="passwordInput" />
           </el-form-item>
           <el-form-item prop="confirmPassword">
             <el-input v-model="form.confirmPassword" placeholder="再次输入密码" size="large" type="password" show-password prefix-icon="Lock" clearable />
@@ -60,12 +60,15 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import type { FormInstance, FormItemRule } from 'element-plus'
+import PasswordInput from '@/components/PasswordInput.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const formRef = ref<FormInstance>()
+const passwordInput = ref<InstanceType<typeof PasswordInput>>()
 const loading = ref(false)
 const grades = ['初一', '初二', '初三', '高一', '高二', '高三']
 const roles = [
@@ -73,12 +76,12 @@ const roles = [
   { value: 'parent', label: '家长', icon: '👨‍👩‍👧' },
   { value: 'teacher', label: '教师', icon: '🧑‍🏫' },
 ]
-const form = reactive({ role: 'student', nickname: '', email: '', grade: '', password: '', confirmPassword: '' })
+const form = reactive({ role: 'student', nickname: '', email: '', grade: '', confirmPassword: '' })
 
 const validateConfirmPassword = (_rule: FormItemRule, value: string, callback: (err?: Error) => void) => {
   if (value === '') {
     callback(new Error('请再次输入密码'))
-  } else if (value !== form.password) {
+  } else if (value !== passwordInput.value?.password.value) {
     callback(new Error('两次输入的密码不一致'))
   } else {
     callback()
@@ -94,21 +97,54 @@ const validateGrade = (_rule: FormItemRule, value: string, callback: (err?: Erro
   }
 }
 
+const validatePassword = (_rule: FormItemRule, _value: unknown, callback: (err?: Error) => void) => {
+  const issues = passwordInput.value?.validation.value.issues ?? []
+  if (!passwordInput.value?.password.value) {
+    callback(new Error('请输入密码'))
+  } else if (issues.length > 0) {
+    callback(new Error(issues[0]))
+  } else {
+    callback()
+  }
+}
+
 const rules = {
   nickname: [{ required: true, message: '请输入昵称', trigger: 'blur' }],
   email: [{ required: true, type: 'email', message: '请输入有效邮箱', trigger: 'blur' }],
   grade: [{ validator: validateGrade, trigger: 'change' }],
-  password: [{ required: true, min: 6, message: '密码至少6位', trigger: 'blur' }],
+  password: [{ validator: validatePassword, trigger: 'blur' }],
   confirmPassword: [{ required: true, validator: validateConfirmPassword, trigger: 'blur' }],
 }
 
 async function handleRegister() {
+  // 密码强度检查（在表单校验之前快速失败）
+  const issues = passwordInput.value?.validation.value.issues ?? []
+  if (issues.length > 0) {
+    ElMessage.error('密码不符合要求')
+    return
+  }
+
   await formRef.value?.validate(async (valid) => {
     if (!valid) return
+
+    const password = passwordInput.value!.password.value
+
+    // 再次确认两次密码一致
+    if (password !== form.confirmPassword) {
+      ElMessage.error('两次输入的密码不一致')
+      return
+    }
+
     loading.value = true
     try {
       // 家长/教师没有年级概念，提交一个占位值，避免后端必填校验失败
-      const payload = { ...form, grade: form.role === 'student' ? form.grade : (form.grade || '—') }
+      const payload = {
+        email: form.email,
+        password,
+        nickname: form.nickname,
+        grade: form.role === 'student' ? form.grade : (form.grade || '—'),
+        role: form.role,
+      }
       await authStore.register(payload)
       router.push('/login')
     } catch {
