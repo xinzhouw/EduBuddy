@@ -115,29 +115,20 @@ def change_password_post(
     if not verify_password(req.old_password, user.password):
         raise HTTPException(status_code=401, detail="旧密码错误")
 
+    # 不能与旧密码相同
+    if req.old_password == req.new_password:
+        raise HTTPException(status_code=400, detail="新密码不能与旧密码相同")
+
     # 检查新密码强度
     is_valid, error_msg = check_password_validity(req.new_password)
     if not is_valid:
         raise HTTPException(status_code=400, detail=f"新密码不符合要求: {error_msg}")
-
-    # 不能与旧密码相同
-    if req.old_password == req.new_password:
-        raise HTTPException(status_code=400, detail="新密码不能与旧密码相同")
 
     # 更新密码
     user.password = hash_password(req.new_password)
     db.commit()
 
     return {"message": "密码已修改"}
-
-
-@router.put("/password")
-def change_password(data: PasswordChange, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if not verify_password(data.old_password, current_user.password):
-        raise HTTPException(status_code=400, detail="旧密码错误")
-    current_user.password = hash_password(data.new_password)
-    db.commit()
-    return {"code": 200, "message": "密码修改成功"}
 
 
 @router.delete("/me")
