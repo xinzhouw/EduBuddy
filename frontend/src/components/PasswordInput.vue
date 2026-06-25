@@ -7,6 +7,7 @@
       placeholder="请输入密码"
       :show-password="true"
       @input="handlePasswordChange"
+      autocomplete="new-password"
     />
 
     <!-- 实时反馈（仅当输入时显示）-->

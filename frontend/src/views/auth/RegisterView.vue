@@ -42,7 +42,7 @@
             <PasswordInput ref="passwordInput" />
           </el-form-item>
           <el-form-item prop="confirmPassword">
-            <el-input v-model="form.confirmPassword" placeholder="再次输入密码" size="large" type="password" show-password prefix-icon="Lock" clearable />
+            <el-input v-model="form.confirmPassword" placeholder="再次输入密码" size="large" type="password" show-password prefix-icon="Lock" clearable autocomplete="new-password" />
           </el-form-item>
           <el-button type="primary" size="large" class="w-full mt-2 h-11 sm:h-12" :loading="loading" @click="handleRegister">
             注 册
@@ -58,7 +58,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
@@ -71,11 +71,11 @@ const formRef = ref<FormInstance>()
 const passwordInput = ref<InstanceType<typeof PasswordInput>>()
 const loading = ref(false)
 
-onMounted(() => {
-  resetForm()
+onMounted(async () => {
+  await resetForm()
 })
 
-function resetForm() {
+async function resetForm() {
   form.role = 'student'
   form.nickname = ''
   form.email = ''
@@ -83,6 +83,37 @@ function resetForm() {
   form.confirmPassword = ''
   passwordInput.value?.reset()
   formRef.value?.clearValidate()
+
+  // 清空 DOM 中的所有密码字段，防止浏览器 autocomplete 残留
+  await nextTick()
+  const passwordInputs = document.querySelectorAll('input[type="password"]')
+  passwordInputs.forEach(input => {
+    const el = input as HTMLInputElement
+    el.value = ''
+    el.setAttribute('autocomplete', 'new-password')
+  })
+
+  // 多次清空确保浏览器 autocomplete 不会覆盖
+  for (let i = 0; i < 3; i++) {
+    await new Promise(resolve => setTimeout(resolve, 50))
+    passwordInputs.forEach(input => {
+      const el = input as HTMLInputElement
+      el.value = ''
+    })
+  }
+}
+
+async function clearSensitiveData() {
+  // 注册成功后立即清空所有敏感数据
+  form.confirmPassword = ''
+  passwordInput.value?.reset()
+
+  await nextTick()
+  const passwordInputs = document.querySelectorAll('input[type="password"]')
+  passwordInputs.forEach(input => {
+    const el = input as HTMLInputElement
+    el.value = ''
+  })
 }
 const grades = ['初一', '初二', '初三', '高一', '高二', '高三']
 const roles = [
@@ -160,6 +191,8 @@ async function handleRegister() {
         role: form.role,
       }
       await authStore.register(payload)
+      // 在跳转前清空所有敏感数据
+      await clearSensitiveData()
       router.push('/login')
     } catch {
     } finally {
