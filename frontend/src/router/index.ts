@@ -4,9 +4,11 @@ import { useAuthStore } from '@/stores/auth'
 // 角色权限说明：
 // - student（学生）：可访问学习类功能（AI 问答、作业批改、笔记、练习题、错题本、学习计划、文档、读书郎、统计）
 // - teacher（教师）/ parent（家长）：可访问监督类功能（学生监督、统计）
+// - admin（管理员）：可访问管理后台
 // 未在 meta.roles 中限制的页面（如首页、个人资料）对所有已登录角色开放。
 const STUDENT_ONLY = ['student']
 const OBSERVER_ONLY = ['teacher', 'parent']
+const ADMIN_ONLY = ['admin']
 
 const router = createRouter({
   history: createWebHistory(),
@@ -28,6 +30,18 @@ const router = createRouter({
     { path: '/reading-buddy', component: () => import('@/views/readingBuddy/ReadingBuddyView.vue'), meta: { roles: STUDENT_ONLY } },
     { path: '/monitor', component: () => import('@/views/monitor/MonitorView.vue'), meta: { roles: OBSERVER_ONLY } },
     { path: '/monitor/students/:id', component: () => import('@/views/monitor/MonitorStudentView.vue'), meta: { roles: OBSERVER_ONLY } },
+    {
+      path: '/admin',
+      component: () => import('@/views/admin/AdminLayout.vue'),
+      meta: { roles: ADMIN_ONLY },
+      children: [
+        { path: 'dashboard', component: () => import('@/views/admin/AdminDashboard.vue'), meta: { title: '仪表板' } },
+        { path: 'users', component: () => import('@/views/admin/UserManagement.vue'), meta: { title: '用户管理' } },
+        { path: 'users/:id', component: () => import('@/views/admin/UserDetail.vue'), meta: { title: '用户详情' } },
+        { path: 'audit-logs', component: () => import('@/views/admin/AuditLogs.vue'), meta: { title: '审计日志' } },
+        { path: '', redirect: 'dashboard' }
+      ]
+    },
     { path: '/profile', component: () => import('@/views/profile/ProfileView.vue') },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],

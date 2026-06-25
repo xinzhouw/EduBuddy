@@ -107,6 +107,14 @@ const navItems = computed<{ path: string; icon: string; label: string; badge?: s
     { path: '/monitor', icon: '👁️', label: '学生监督' },
     { path: '/stats', icon: '📊', label: '我的统计' },
   ]
+  const adminItems = [
+    { path: '/admin/dashboard', icon: '📊', label: '管理后台' },
+    { path: '/admin/users', icon: '👥', label: '用户管理' },
+    { path: '/admin/audit-logs', icon: '📋', label: '审计日志' },
+  ]
+  if (role === 'admin') {
+    return adminItems
+  }
   return (role === 'teacher' || role === 'parent') ? observerItems : studentItems
 })
 
