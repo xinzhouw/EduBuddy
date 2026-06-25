@@ -48,7 +48,7 @@ def extract_user_id_from_token(request: Request) -> int:
             return None
 
         token = auth_header.split(" ")[1]
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
         return payload.get("sub")
     except Exception:
         return None
