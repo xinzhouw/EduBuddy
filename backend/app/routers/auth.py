@@ -70,6 +70,9 @@ def login(data: UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="邮箱或密码错误")
     # 更新最后登录日期（用于每日建议触发逻辑）
     user.last_login_date = date.today()
+    # 更新登录统计（用于管理后台）
+    user.last_login = datetime.utcnow()
+    user.login_count = (user.login_count or 0) + 1
     db.commit()
     token = create_token(user.id)
     return {
