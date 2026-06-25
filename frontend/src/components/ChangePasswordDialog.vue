@@ -3,7 +3,7 @@
     v-model="visible"
     title="修改密码"
     width="400px"
-    @close="resetForm"
+    @close="handleDialogClose"
   >
     <el-form :model="form" ref="formRef">
       <!-- 旧密码 -->
@@ -13,6 +13,7 @@
           type="password"
           :show-password="true"
           placeholder="请输入旧密码"
+          autocomplete="off"
         />
       </el-form-item>
 
@@ -28,6 +29,7 @@
           type="password"
           :show-password="true"
           placeholder="请再次输入新密码"
+          autocomplete="new-password"
         />
       </el-form-item>
     </el-form>
@@ -42,7 +44,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import PasswordInput from '@/components/PasswordInput.vue'
 import api from '@/api'
@@ -58,12 +60,27 @@ const form = ref({
   confirmPassword: ''
 })
 
-function resetForm() {
+async function resetForm() {
   form.value = {
     oldPassword: '',
     newPassword: '',
     confirmPassword: ''
   }
+  passwordInput.value?.reset()
+  formRef.value?.clearValidate()
+
+  // 清空 DOM 中的所有密码字段
+  await nextTick()
+  const passwordInputs = document.querySelectorAll('input[type="password"]')
+  passwordInputs.forEach(input => {
+    const el = input as HTMLInputElement
+    el.value = ''
+  })
+}
+
+async function handleDialogClose() {
+  // 对话框关闭时清空所有敏感数据
+  await resetForm()
 }
 
 async function handleSubmit() {
@@ -93,7 +110,7 @@ async function handleSubmit() {
     })
     ElMessage.success('密码已修改')
     visible.value = false
-    resetForm()
+    await resetForm()
   } catch (error: any) {
     ElMessage.error(error.response?.data?.detail || '修改失败')
   } finally {
