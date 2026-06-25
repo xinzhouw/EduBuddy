@@ -118,7 +118,7 @@ def change_password_post(
     """修改密码"""
     # 验证旧密码
     if not verify_password(req.old_password, user.password):
-        raise HTTPException(status_code=401, detail="旧密码错误")
+        raise HTTPException(status_code=400, detail="旧密码错误")
 
     # 不能与旧密码相同
     if req.old_password == req.new_password:
