@@ -119,7 +119,8 @@ async function handleSubmit() {
 }
 
 defineExpose({
-  open() {
+  async open() {
+    await resetForm()
     visible.value = true
   },
   close() {
