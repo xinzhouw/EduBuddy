@@ -10,7 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.database import SessionLocal
 from app.models.audit_log import AuditLog
 from app.utils.geoip import get_geoip_manager
-import jwt
+from jose import jwt, JWTError
 from app.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -50,7 +50,7 @@ def extract_user_id_from_token(request: Request) -> int:
         token = auth_header.split(" ")[1]
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
         return payload.get("sub")
-    except Exception:
+    except (JWTError, Exception):
         return None
 
 class AuditMiddleware(BaseHTTPMiddleware):
