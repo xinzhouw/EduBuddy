@@ -81,7 +81,7 @@ const form = reactive({ role: 'student', nickname: '', email: '', grade: '', con
 const validateConfirmPassword = (_rule: FormItemRule, value: string, callback: (err?: Error) => void) => {
   if (value === '') {
     callback(new Error('请再次输入密码'))
-  } else if (value !== passwordInput.value?.password.value) {
+  } else if (value !== passwordInput.value?.password) {
     callback(new Error('两次输入的密码不一致'))
   } else {
     callback()
@@ -98,8 +98,8 @@ const validateGrade = (_rule: FormItemRule, value: string, callback: (err?: Erro
 }
 
 const validatePassword = (_rule: FormItemRule, _value: unknown, callback: (err?: Error) => void) => {
-  const issues = passwordInput.value?.validation.value.issues ?? []
-  if (!passwordInput.value?.password.value) {
+  const issues = passwordInput.value?.validation.issues ?? []
+  if (!passwordInput.value?.password) {
     callback(new Error('请输入密码'))
   } else if (issues.length > 0) {
     callback(new Error(issues[0]))
@@ -118,7 +118,7 @@ const rules = {
 
 async function handleRegister() {
   // 密码强度检查（在表单校验之前快速失败）
-  const issues = passwordInput.value?.validation.value.issues ?? []
+  const issues = passwordInput.value?.validation.issues ?? []
   if (issues.length > 0) {
     ElMessage.error('密码不符合要求')
     return
@@ -127,7 +127,7 @@ async function handleRegister() {
   await formRef.value?.validate(async (valid) => {
     if (!valid) return
 
-    const password = passwordInput.value!.password.value
+    const password = passwordInput.value!.password
 
     // 再次确认两次密码一致
     if (password !== form.confirmPassword) {
