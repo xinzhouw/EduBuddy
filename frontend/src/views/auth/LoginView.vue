@@ -31,10 +31,10 @@
 
         <el-form :model="form" :rules="rules" ref="formRef" @submit.prevent="handleLogin">
           <el-form-item prop="email">
-            <el-input v-model="form.email" placeholder="邮箱地址" size="large" type="email" prefix-icon="Message" clearable autocomplete="email" />
+            <el-input v-model="form.email" placeholder="邮箱地址" size="large" type="email" prefix-icon="Message" clearable :autocomplete="shouldDisableAutocomplete ? 'off' : 'email'" />
           </el-form-item>
           <el-form-item prop="password">
-            <el-input v-model="form.password" placeholder="密码" size="large" type="password" show-password prefix-icon="Lock" @keyup.enter="handleLogin" clearable autocomplete="current-password" />
+            <el-input v-model="form.password" placeholder="密码" size="large" type="password" show-password prefix-icon="Lock" @keyup.enter="handleLogin" clearable :autocomplete="shouldDisableAutocomplete ? 'off' : 'current-password'" />
           </el-form-item>
           <el-button type="primary" size="large" class="w-full mt-2 h-11 sm:h-12" :loading="loading" @click="handleLogin">
             登 录
@@ -52,26 +52,45 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import type { FormInstance } from 'element-plus'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const formRef = ref<FormInstance>()
 const loading = ref(false)
+const shouldDisableAutocomplete = ref(false)
 
 const form = reactive({ email: '', password: '' })
 
 onMounted(async () => {
+  const shouldClearCredentials = route.query.clearCredentials === 'true'
+
+  if (shouldClearCredentials) {
+    shouldDisableAutocomplete.value = true
+  }
+
   await nextTick()
+
   form.email = ''
   form.password = ''
   formRef.value?.clearValidate()
+
   const emailInput = document.querySelector('input[type="email"]') as HTMLInputElement
   const passwordInput = document.querySelector('input[type="password"]') as HTMLInputElement
   if (emailInput) emailInput.value = ''
   if (passwordInput) passwordInput.value = ''
+
+  if (shouldClearCredentials) {
+    setTimeout(() => {
+      if (emailInput) emailInput.value = ''
+      if (passwordInput) passwordInput.value = ''
+      form.email = ''
+      form.password = ''
+    }, 150)
+  }
 })
 const rules = {
   email: [{ required: true, message: '请输入邮箱', trigger: 'blur' }, { type: 'email', message: '邮箱格式不正确', trigger: 'blur' }],

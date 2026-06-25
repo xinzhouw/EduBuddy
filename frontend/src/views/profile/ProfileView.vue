@@ -369,7 +369,7 @@ async function deleteAccount() {
     ElMessage.success('账号已删除')
     showDeleteDialog.value = false
     authStore.logout()
-    router.push('/login')
+    router.push('/login?clearCredentials=true')
   } catch (e: any) {
     ElMessage.error(e?.response?.data?.detail || '删除失败，请稍后重试')
   } finally {
