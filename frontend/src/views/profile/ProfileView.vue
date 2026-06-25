@@ -389,7 +389,7 @@ const form = reactive({
 const saving = ref(false)
 
 // ── 修改密码对话框 ─────────────────────────────────────────────────────────────
-const changePasswordDialog = ref<InstanceType<typeof ChangePasswordDialog>>()
+const changePasswordDialog = ref()
 
 function openChangePasswordDialog() {
   if (!changePasswordDialog.value) {
