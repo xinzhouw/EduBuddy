@@ -49,7 +49,7 @@ import api from '@/api'
 
 const visible = ref(false)
 const loading = ref(false)
-const passwordInput = ref<InstanceType<typeof PasswordInput>>()
+const passwordInput = ref()
 const formRef = ref()
 
 const form = ref({
