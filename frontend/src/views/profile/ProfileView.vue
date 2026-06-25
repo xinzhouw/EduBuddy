@@ -392,7 +392,15 @@ const saving = ref(false)
 const changePasswordDialog = ref<InstanceType<typeof ChangePasswordDialog>>()
 
 function openChangePasswordDialog() {
-  changePasswordDialog.value!.visible.value = true
+  console.log('[DEBUG] openChangePasswordDialog called')
+  console.log('[DEBUG] changePasswordDialog.value:', changePasswordDialog.value)
+  if (!changePasswordDialog.value) {
+    console.error('[ERROR] changePasswordDialog ref is null or undefined')
+    ElMessage.error('对话框组件未正确初始化')
+    return
+  }
+  changePasswordDialog.value.visible.value = true
+  console.log('[DEBUG] Dialog visible set to true')
 }
 
 // ── 关联关系 ──────────────────────────────────────────────────────────────────
