@@ -7,7 +7,7 @@ const api = axios.create({
 })
 
 // 不需要登录态的白名单接口（避免退出登录后误判）
-const PUBLIC_PATHS = ['/auth/login', '/auth/register']
+const PUBLIC_PATHS = ['/auth/login', '/auth/register', '/auth/password/validate']
 
 function isPublicPath(url?: string) {
   if (!url) return false
