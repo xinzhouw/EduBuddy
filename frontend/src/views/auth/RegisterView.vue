@@ -58,7 +58,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
@@ -70,6 +70,20 @@ const authStore = useAuthStore()
 const formRef = ref<FormInstance>()
 const passwordInput = ref<InstanceType<typeof PasswordInput>>()
 const loading = ref(false)
+
+onMounted(() => {
+  resetForm()
+})
+
+function resetForm() {
+  form.role = 'student'
+  form.nickname = ''
+  form.email = ''
+  form.grade = ''
+  form.confirmPassword = ''
+  passwordInput.value?.reset()
+  formRef.value?.clearValidate()
+}
 const grades = ['初一', '初二', '初三', '高一', '高二', '高三']
 const roles = [
   { value: 'student', label: '学生', icon: '🎓' },
