@@ -102,6 +102,11 @@ async function handleSubmit() {
 }
 
 defineExpose({
-  visible
+  open() {
+    visible.value = true
+  },
+  close() {
+    visible.value = false
+  }
 })
 </script>

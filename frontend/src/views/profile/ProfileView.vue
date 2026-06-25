@@ -392,10 +392,7 @@ const saving = ref(false)
 const changePasswordDialog = ref()
 
 function openChangePasswordDialog() {
-  if (!changePasswordDialog.value) {
-    return
-  }
-  changePasswordDialog.value.visible.value = true
+  changePasswordDialog.value?.open()
 }
 
 // ── 关联关系 ──────────────────────────────────────────────────────────────────
