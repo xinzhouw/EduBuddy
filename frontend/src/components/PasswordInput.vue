@@ -79,10 +79,14 @@ const handlePasswordChange = debounce(async () => {
   validation.value = await validatePasswordStrength(password.value)
 }, 300)
 
-// 外部可调用此方法获取当前密码
+// 外部可调用此方法获取当前密码值（注意：返回的是值，不是 ref）
 defineExpose({
-  password,
-  validation
+  get password() {
+    return password.value
+  },
+  get validation() {
+    return validation.value
+  }
 })
 </script>
 

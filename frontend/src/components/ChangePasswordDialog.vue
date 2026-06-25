@@ -80,7 +80,7 @@ async function handleSubmit() {
   }
 
   // 验证新密码一致
-  if (passwordInput.value!.password.value !== form.value.confirmPassword) {
+  if (passwordInput.value!.password !== form.value.confirmPassword) {
     ElMessage.error('两次输入的新密码不一致')
     return
   }
@@ -89,7 +89,7 @@ async function handleSubmit() {
   try {
     await api.post('/auth/change-password', {
       old_password: form.value.oldPassword,
-      new_password: passwordInput.value!.password.value
+      new_password: passwordInput.value!.password
     })
     ElMessage.success('密码已修改')
     visible.value = false
