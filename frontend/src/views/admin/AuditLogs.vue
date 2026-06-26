@@ -33,7 +33,7 @@
               end-placeholder="结束日期"
               style="width: 240px; margin-right: 10px"
             />
-            <el-button type="primary" @click="handleSearch">搜索</el-button>
+            <el-button type="primary" @click="handleSearchAndReset">搜索</el-button>
             <el-button @click="handleReset">重置</el-button>
           </div>
         </div>
@@ -91,7 +91,7 @@
         :total="adminStore.auditLogs.total"
         layout="total, sizes, prev, pager, next"
         style="margin-top: 20px; text-align: right"
-        @change="handleSearch"
+        @pagination="handleSearch"
       />
     </el-card>
   </div>
@@ -132,8 +132,12 @@ const formatTime = (time: string) => {
   return new Date(time).toLocaleString('zh-CN')
 }
 
-const handleSearch = async () => {
+const handleSearchAndReset = async () => {
   currentPage.value = 1
+  await handleSearch()
+}
+
+const handleSearch = async () => {
   const startDate = dateRange.value ? dateRange.value[0].toISOString() : undefined
   const endDate = dateRange.value ? dateRange.value[1].toISOString() : undefined
 
@@ -147,12 +151,12 @@ const handleSearch = async () => {
   )
 }
 
-const handleReset = () => {
+const handleReset = async () => {
   filterFeature.value = ''
   filterUserId.value = null
   dateRange.value = null
   currentPage.value = 1
-  handleSearch()
+  await handleSearch()
 }
 </script>
 

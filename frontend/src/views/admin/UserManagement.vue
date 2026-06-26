@@ -10,20 +10,20 @@
               placeholder="搜索邮箱或昵称"
               clearable
               style="width: 200px; margin-right: 10px"
-              @keyup.enter="handleSearch"
+              @keyup.enter="handleSearchAndReset"
             />
             <el-select
               v-model="roleFilter"
               placeholder="筛选角色"
               clearable
               style="width: 150px; margin-right: 10px"
-              @change="handleSearch"
+              @change="handleSearchAndReset"
             >
               <el-option label="学生" value="student" />
               <el-option label="教师" value="teacher" />
               <el-option label="家长" value="parent" />
             </el-select>
-            <el-button type="primary" @click="handleSearch">搜索</el-button>
+            <el-button type="primary" @click="handleSearchAndReset">搜索</el-button>
             <el-tooltip content="加载所有用户（可能耗时较长）" placement="top">
               <el-button @click="handleLoadAll" :loading="isLoadingAll">
                 全部加载
@@ -229,8 +229,12 @@ const formatTime = (time: string | null) => {
   return new Date(time).toLocaleString('zh-CN')
 }
 
-const handleSearch = async () => {
+const handleSearchAndReset = async () => {
   currentPage.value = 1
+  await handleSearch()
+}
+
+const handleSearch = async () => {
   await adminStore.fetchUserList(
     currentPage.value,
     pageSize.value,
