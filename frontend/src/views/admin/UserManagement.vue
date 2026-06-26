@@ -265,26 +265,19 @@ const handleViewDetail = (userId: number) => {
 
 <style scoped>
 .user-management {
-  height: 100%;
   width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
   padding: 20px;
+  box-sizing: border-box;
 }
 
 :deep(.el-card) {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  overflow: hidden;
-  border: 1px solid #ebeef5;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-:deep(.el-card__header) {
-  flex-shrink: 0;
-  border-bottom: 1px solid #ebeef5;
-  padding: 15px 20px;
+  flex: 1;
+  min-height: 0;
 }
 
 :deep(.el-card__body) {
@@ -295,20 +288,29 @@ const handleViewDetail = (userId: number) => {
   padding: 0;
 }
 
-.card-container {
+.batch-actions {
   display: flex;
-  flex-direction: column;
-  flex: 1;
-  overflow: hidden;
-  margin: 20px;
+  align-items: center;
+  gap: 15px;
+  padding: 12px 16px;
+  margin-bottom: 15px;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+  border-left: 4px solid #409eff;
+  flex-shrink: 0;
 }
 
-:deep(.el-card__body) {
-  display: flex;
-  flex-direction: column;
+.batch-actions span {
+  color: #606266;
+  font-weight: 500;
+}
+
+.card-container {
   flex: 1;
   overflow: hidden;
-  padding-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
 }
 
 .table-container {
@@ -318,24 +320,16 @@ const handleViewDetail = (userId: number) => {
   overflow: hidden;
   border: 1px solid #ebeef5;
   border-radius: 4px;
-  min-height: 300px;
-  max-height: calc(100vh - 400px);
 }
 
 :deep(.table-container .el-table) {
-  height: 100%;
-}
-
-:deep(.table-container .el-table__body-wrapper) {
-  height: calc(100% - 46px) !important;
-  overflow-y: auto;
+  flex: 1;
 }
 
 :deep(.el-pagination) {
   flex-shrink: 0;
-  padding: 15px 20px 20px 20px;
+  padding: 15px 20px;
   text-align: right;
-  background-color: #fff;
   border-top: 1px solid #ebeef5;
 }
 
@@ -358,26 +352,5 @@ const handleViewDetail = (userId: number) => {
 
 .items-center {
   align-items: center;
-}
-
-.batch-actions {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  padding: 12px 16px;
-  margin-bottom: 15px;
-  background-color: #f5f7fa;
-  border-radius: 4px;
-  border-left: 4px solid #409eff;
-}
-
-.batch-actions span {
-  color: #606266;
-  font-weight: 500;
-}
-
-:deep(.el-pagination) {
-  margin-top: 20px;
-  text-align: right;
 }
 </style>

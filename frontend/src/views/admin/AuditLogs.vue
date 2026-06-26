@@ -157,33 +157,26 @@ const handleReset = () => {
 
 <style scoped>
 .audit-logs {
-  height: 100%;
   width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
   padding: 20px;
+  box-sizing: border-box;
 }
 
 :deep(.el-card) {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  overflow: hidden;
-  border: 1px solid #ebeef5;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-:deep(.el-card__header) {
-  flex-shrink: 0;
-  border-bottom: 1px solid #ebeef5;
-  padding: 15px 20px;
+  flex: 1;
+  min-height: 0;
 }
 
 :deep(.el-card__body) {
-  display: flex;
-  flex-direction: column;
   flex: 1;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
   padding: 0;
 }
 
@@ -194,22 +187,16 @@ const handleReset = () => {
   overflow: hidden;
   border: 1px solid #ebeef5;
   border-radius: 4px;
-  margin: 20px;
 }
 
 :deep(.table-container .el-table) {
-  height: auto;
-}
-
-:deep(.table-container .el-table__body-wrapper) {
-  overflow-y: auto;
+  flex: 1;
 }
 
 :deep(.el-pagination) {
   flex-shrink: 0;
-  padding: 15px 20px 20px 20px;
+  padding: 15px 20px;
   text-align: right;
-  background-color: #fff;
   border-top: 1px solid #ebeef5;
 }
 
@@ -232,10 +219,5 @@ const handleReset = () => {
 
 .items-center {
   align-items: center;
-}
-
-:deep(.el-pagination) {
-  margin-top: 20px;
-  text-align: right;
 }
 </style>

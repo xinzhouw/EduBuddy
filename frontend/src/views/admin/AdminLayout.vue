@@ -118,8 +118,6 @@ const handleLogout = () => {
   padding: 0;
   overflow: auto;
   flex: 1;
-  min-width: 0;  /* ✅ 防止 flex 子元素溢出 */
-  display: flex;
-  flex-direction: column;
+  min-width: 0;
 }
 </style>
