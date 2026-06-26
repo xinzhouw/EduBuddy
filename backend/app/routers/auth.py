@@ -21,6 +21,14 @@ router = APIRouter(prefix="/api/auth", tags=["认证"])
 settings = get_settings()
 
 
+# 错误码常量
+class LoginErrorCode:
+    INVALID_CREDENTIALS = "INVALID_CREDENTIALS"
+    ACCOUNT_DISABLED = "ACCOUNT_DISABLED"
+    RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED"
+    SERVER_ERROR = "SERVER_ERROR"
+
+
 def create_token(user_id: int, token_type: str = "access") -> str:
     """
     创建 JWT 令牌
@@ -135,18 +143,42 @@ def login(data: UserLogin, db: Session = Depends(get_db), request: Request = Non
         if not allowed:
             raise HTTPException(
                 status_code=429,
-                detail=f"请求过于频繁，请在 {retry_after} 秒后重试",
+                detail={
+                    "code": 429,
+                    "error_code": LoginErrorCode.RATE_LIMIT_EXCEEDED,
+                    "message": f"登录过于频繁，请在 {retry_after} 秒后重试",
+                    "data": None,
+                    "retry_after": retry_after,
+                },
                 headers={"Retry-After": str(retry_after)},
             )
 
-    user = db.query(User).filter(User.email == data.email, User.is_active == True).first()
-    if user and verify_password(data.password, user.password):
-        # Valid credentials
-        pass
-    else:
+    user = db.query(User).filter(User.email == data.email).first()
+    if not user or not verify_password(data.password, user.password):
         # Always return the same error message regardless of whether email exists or password is wrong
         # This prevents user enumeration attacks
-        raise HTTPException(status_code=401, detail="邮箱或密码错误")
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "code": 401,
+                "error_code": LoginErrorCode.INVALID_CREDENTIALS,
+                "message": "邮箱或密码错误",
+                "data": None,
+                "retry_after": None,
+            },
+        )
+    # 检查账户是否被禁用
+    if not user.is_active:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": 403,
+                "error_code": LoginErrorCode.ACCOUNT_DISABLED,
+                "message": "账户已禁用，请联系管理员",
+                "data": None,
+                "retry_after": None,
+            },
+        )
     # 更新最后登录日期（用于每日建议触发逻辑）
     user.last_login_date = date.today()
     # 更新登录统计（用于管理后台）
