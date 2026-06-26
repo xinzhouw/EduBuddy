@@ -168,13 +168,15 @@ def login(data: UserLogin, db: Session = Depends(get_db), request: Request = Non
             },
         )
     # 检查账户是否被禁用
+    # 使用 401 而非 403，防止攻击者通过状态码差异枚举已注册邮箱
+    # error_code 仍为 ACCOUNT_DISABLED，供前端区分；对外消息保持统一
     if not user.is_active:
         raise HTTPException(
-            status_code=403,
+            status_code=401,
             detail={
-                "code": 403,
+                "code": 401,
                 "error_code": LoginErrorCode.ACCOUNT_DISABLED,
-                "message": "账户已禁用，请联系管理员",
+                "message": "邮箱或密码错误",
                 "data": None,
                 "retry_after": None,
             },
