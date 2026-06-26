@@ -36,10 +36,46 @@
           <el-form-item prop="password">
             <el-input v-model="form.password" placeholder="密码" size="large" type="password" show-password prefix-icon="Lock" @keyup.enter="handleLogin" clearable :autocomplete="shouldDisableAutocomplete ? 'off' : 'current-password'" />
           </el-form-item>
-          <el-button type="primary" size="large" class="w-full mt-2 h-11 sm:h-12" :loading="loading" @click="handleLogin">
-            登 录
+          <el-button
+            type="primary"
+            size="large"
+            class="w-full mt-2 h-11 sm:h-12"
+            :loading="loading"
+            @click="handleLogin"
+            :disabled="retryCountdown > 0"
+          >
+            {{ retryCountdown > 0 ? `登 录 (${retryCountdown}s)` : '登 录' }}
           </el-button>
         </el-form>
+
+        <!-- 错误对话框 -->
+        <el-dialog
+          v-model="errorDialogVisible"
+          :title="errorTitle"
+          width="90%"
+          :close-on-click-modal="false"
+          :close-on-press-escape="false"
+        >
+          <div class="space-y-4">
+            <p class="text-gray-700">{{ errorMessage }}</p>
+
+            <!-- 倒计时提示 -->
+            <p v-if="retryCountdown > 0" class="text-sm text-orange-600">
+              请在 <span class="font-bold">{{ retryCountdown }}</span> 秒后重试
+            </p>
+
+            <!-- 建议操作 -->
+            <p v-if="errorSuggestion" class="text-sm text-gray-600">
+              💡 {{ errorSuggestion }}
+            </p>
+          </div>
+
+          <template #footer>
+            <el-button type="primary" @click="closeErrorDialog">
+              确定
+            </el-button>
+          </template>
+        </el-dialog>
 
         <p class="text-center text-gray-500 mt-6 text-xs sm:text-sm">
           还没有账号？
@@ -51,16 +87,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, nextTick } from 'vue'
+import { ref, reactive, onMounted, nextTick, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { ElMessage } from 'element-plus'
 import type { FormInstance } from 'element-plus'
+import { LOGIN_ERROR_MESSAGES } from '@/utils/errorMessages'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const formRef = ref<FormInstance>()
 const loading = ref(false)
+const errorDialogVisible = ref(false)
+const errorTitle = ref('')
+const errorMessage = ref('')
+const errorSuggestion = ref<string | null>(null)
+const retryCountdown = ref(0)
+const countdownInterval = ref<NodeJS.Timeout | null>(null)
 const shouldDisableAutocomplete = ref(false)
 
 const form = reactive({ email: '', password: '' })
@@ -97,22 +141,66 @@ const rules = {
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
 }
 
+function showErrorDialog(errorCode: string, retryAfter?: number) {
+  const errorInfo = LOGIN_ERROR_MESSAGES[errorCode] || LOGIN_ERROR_MESSAGES.SERVER_ERROR
+  errorTitle.value = errorInfo.title
+  errorMessage.value = errorInfo.message
+  errorSuggestion.value = errorInfo.suggestion
+  errorDialogVisible.value = true
+
+  // 如果是速率限制错误，启动倒计时
+  if (errorCode === 'RATE_LIMIT_EXCEEDED' && retryAfter) {
+    retryCountdown.value = retryAfter
+    disableLoginButtonWithCountdown(retryAfter)
+  }
+}
+
+function disableLoginButtonWithCountdown(seconds: number) {
+  loading.value = true
+
+  if (countdownInterval.value) {
+    clearInterval(countdownInterval.value)
+  }
+
+  countdownInterval.value = setInterval(() => {
+    retryCountdown.value--
+    if (retryCountdown.value <= 0) {
+      clearInterval(countdownInterval.value!)
+      loading.value = false
+      retryCountdown.value = 0
+    }
+  }, 1000)
+}
+
+function closeErrorDialog() {
+  errorDialogVisible.value = false
+}
+
+onBeforeUnmount(() => {
+  if (countdownInterval.value) {
+    clearInterval(countdownInterval.value)
+  }
+})
+
 async function handleLogin() {
   await formRef.value?.validate(async (valid) => {
     if (!valid) return
     loading.value = true
     try {
       await authStore.login(form.email, form.password)
-      // 根据角色跳转到不同页面
+      // 登录成功，显示成功消息并跳转
+      ElMessage.success('登录成功')
       const role = authStore.user?.role
       if (role === 'admin') {
         router.push('/admin/dashboard')
       } else {
         router.push('/')
       }
-    } catch {
-    } finally {
+    } catch (error: any) {
       loading.value = false
+      const errorCode = error.response?.data?.error_code || 'NETWORK_ERROR'
+      const retryAfter = error.response?.data?.retry_after
+      showErrorDialog(errorCode, retryAfter)
     }
   })
 }
