@@ -2,25 +2,32 @@
   <div id="app">
     <!-- 已登录：显示响应式布局 -->
     <template v-if="authStore.isAuthenticated">
-      <!-- PC 布局（≥768px）：侧边栏 + 顶部栏 -->
-      <div v-if="!isMobile" class="flex h-screen overflow-hidden">
-        <AppSidebar />
-        <div class="flex-1 flex flex-col overflow-hidden">
+      <!-- 管理员用户：使用管理后台布局（由 AdminLayout 组件处理） -->
+      <template v-if="authStore.user?.role === 'admin'">
+        <RouterView :key="route.fullPath" />
+      </template>
+      <!-- 普通用户：显示学生/教师布局 -->
+      <template v-else>
+        <!-- PC 布局（≥768px）：侧边栏 + 顶部栏 -->
+        <div v-if="!isMobile" class="flex h-screen overflow-hidden">
+          <AppSidebar />
+          <div class="flex-1 flex flex-col overflow-hidden">
+            <AppHeader />
+            <main class="flex-1 overflow-y-auto p-6 bg-gray-50">
+              <RouterView :key="route.fullPath" />
+            </main>
+          </div>
+        </div>
+
+        <!-- 移动布局（<768px）：全屏内容 + 底部导航 -->
+        <div v-else class="flex flex-col h-screen overflow-hidden">
           <AppHeader />
-          <main class="flex-1 overflow-y-auto p-6 bg-gray-50">
+          <main class="flex-1 overflow-y-auto bg-gray-50 pb-20">
             <RouterView :key="route.fullPath" />
           </main>
+          <AppBottomNav />
         </div>
-      </div>
-
-      <!-- 移动布局（<768px）：全屏内容 + 底部导航 -->
-      <div v-else class="flex flex-col h-screen overflow-hidden">
-        <AppHeader />
-        <main class="flex-1 overflow-y-auto bg-gray-50 pb-20">
-          <RouterView :key="route.fullPath" />
-        </main>
-        <AppBottomNav />
-      </div>
+      </template>
     </template>
     <!-- 未登录：只显示路由内容 -->
     <template v-else>
