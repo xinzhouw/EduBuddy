@@ -3,7 +3,7 @@
     <el-card class="card-container">
       <template #header>
         <div class="flex justify-between items-center">
-          <span>用户管理</span>
+          <span>用户管理 ({{ adminStore.userList.total }} 个用户)</span>
           <div class="search-group">
             <el-input
               v-model="searchText"
@@ -24,6 +24,11 @@
               <el-option label="家长" value="parent" />
             </el-select>
             <el-button type="primary" @click="handleSearch">搜索</el-button>
+            <el-tooltip content="加载所有用户（可能耗时较长）" placement="top">
+              <el-button @click="handleLoadAll" :loading="isLoadingAll">
+                全部加载
+              </el-button>
+            </el-tooltip>
           </div>
         </div>
       </template>
@@ -137,6 +142,7 @@ const roleFilter = ref('')
 const currentPage = ref(1)
 const pageSize = ref(50)  // 默认每页显示 50 个用户
 const selectedUsers = ref<any[]>([])
+const isLoadingAll = ref(false)
 
 onMounted(() => {
   handleSearch()
@@ -171,6 +177,38 @@ const handleBatchDelete = async () => {
     await handleSearch()
   } else {
     ElMessage.error('删除用户失败，请重试')
+  }
+}
+
+const handleLoadAll = async () => {
+  isLoadingAll.value = true
+  try {
+    // 计算需要加载的总页数
+    const total = adminStore.userList.total
+    const pageSizeTemp = 100  // 临时使用最大页码大小
+    const totalPages = Math.ceil(total / pageSizeTemp)
+
+    if (totalPages === 1) {
+      // 只需加载一页
+      await adminStore.fetchUserList(1, pageSizeTemp, searchText.value || undefined, roleFilter.value || undefined)
+      ElMessage.success(`已加载全部 ${total} 个用户`)
+    } else {
+      // 加载所有页，然后合并结果
+      let allUsers: any[] = []
+      for (let page = 1; page <= totalPages; page++) {
+        await adminStore.fetchUserList(page, pageSizeTemp, searchText.value || undefined, roleFilter.value || undefined)
+        allUsers = allUsers.concat(adminStore.userList.items)
+      }
+      // 手动更新显示为"加载全部"后的结果
+      currentPage.value = 1
+      pageSize.value = 100
+      await adminStore.fetchUserList(1, 100, searchText.value || undefined, roleFilter.value || undefined)
+      ElMessage.success(`已加载全部 ${allUsers.length} 个用户`)
+    }
+  } catch (error) {
+    ElMessage.error('加载用户失败，请重试')
+  } finally {
+    isLoadingAll.value = false
   }
 }
 
