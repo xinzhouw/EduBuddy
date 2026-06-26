@@ -29,26 +29,52 @@
           <p class="text-gray-500 mt-2 text-sm sm:text-base">登录你的 EduBuddy 账号</p>
         </div>
 
-        <el-form :model="form" :rules="rules" ref="formRef" @submit.prevent="handleLogin">
+        <el-form :model="form" :rules="rules" ref="formRef" @submit.prevent="handleLogin" class="space-y-4">
           <el-form-item prop="email">
-            <el-input v-model="form.email" placeholder="邮箱地址" size="large" type="email" prefix-icon="Message" clearable :autocomplete="shouldDisableAutocomplete ? 'off' : 'email'" />
+            <el-input
+              v-model="form.email"
+              placeholder="邮箱地址"
+              size="large"
+              type="email"
+              prefix-icon="Message"
+              clearable
+              :autocomplete="shouldDisableAutocomplete ? 'off' : 'email'"
+              class="h-12"
+            />
           </el-form-item>
           <el-form-item prop="password">
-            <el-input v-model="form.password" placeholder="密码" size="large" type="password" show-password prefix-icon="Lock" @keyup.enter="handleLogin" clearable :autocomplete="shouldDisableAutocomplete ? 'off' : 'current-password'" />
+            <el-input
+              v-model="form.password"
+              placeholder="密码"
+              size="large"
+              type="password"
+              show-password
+              prefix-icon="Lock"
+              @keyup.enter="handleLogin"
+              clearable
+              :autocomplete="shouldDisableAutocomplete ? 'off' : 'current-password'"
+              class="h-12"
+            />
           </el-form-item>
+
           <el-button
             type="primary"
             size="large"
-            class="w-full mt-2 h-11 sm:h-12"
+            class="w-full h-12 text-base font-semibold rounded-lg"
             :loading="loading"
             @click="handleLogin"
             :disabled="retryCountdown > 0"
           >
             {{ retryCountdown > 0 ? `登 录 (${retryCountdown}s)` : '登 录' }}
           </el-button>
-          <div class="text-center mt-4">
-            <RouterLink to="/forgot-password" class="text-blue-500 hover:text-blue-600 text-sm font-medium">
-              忘记密码？
+
+          <div class="text-center pt-2">
+            <RouterLink
+              to="/forgot-password"
+              class="text-blue-500 hover:text-blue-600 text-sm font-medium inline-flex items-center gap-1 transition-colors"
+            >
+              <span>🔑</span>
+              <span>忘记密码？</span>
             </RouterLink>
           </div>
         </el-form>
@@ -58,34 +84,81 @@
           v-model="errorDialogVisible"
           :title="errorTitle"
           width="90%"
+          max-width="450px"
           :close-on-click-modal="false"
           :close-on-press-escape="false"
+          class="error-dialog-wrapper"
+          align-center
         >
+          <template #header>
+            <div class="w-full">
+              <div class="flex items-center gap-3 mb-2">
+                <div class="text-3xl" :class="getIconByErrorCode">
+                  {{ getEmojiByErrorCode }}
+                </div>
+                <div class="flex-1">
+                  <h3 class="text-lg font-bold text-gray-900">{{ errorTitle }}</h3>
+                </div>
+              </div>
+            </div>
+          </template>
+
           <div class="space-y-4">
-            <p class="text-gray-700">{{ errorMessage }}</p>
+            <!-- 主要错误消息 -->
+            <p class="text-gray-700 text-base leading-relaxed">{{ errorMessage }}</p>
 
             <!-- 倒计时提示 -->
-            <p v-if="retryCountdown > 0" class="text-sm text-orange-600">
-              请在 <span class="font-bold">{{ retryCountdown }}</span> 秒后重试
-            </p>
+            <div v-if="retryCountdown > 0" class="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <div class="flex items-center gap-3">
+                <div class="text-2xl">⏳</div>
+                <div class="flex-1">
+                  <p class="text-sm font-semibold text-amber-900">请稍候</p>
+                  <p class="text-sm text-amber-700">
+                    <span class="font-bold text-lg text-amber-600">{{ retryCountdown }}</span> 秒后重试
+                  </p>
+                </div>
+              </div>
+            </div>
 
             <!-- 建议操作 -->
-            <p v-if="errorSuggestion" class="text-sm text-gray-600">
-              💡 {{ errorSuggestion }}
-            </p>
+            <div v-if="errorSuggestion" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div class="flex gap-3">
+                <span class="text-xl">💡</span>
+                <p class="text-sm text-blue-900">{{ errorSuggestion }}</p>
+              </div>
+            </div>
 
             <!-- 忘记密码链接 -->
-            <div v-if="showForgotPasswordLink" class="text-center mt-4">
-              <RouterLink to="/forgot-password" class="text-blue-500 hover:text-blue-600 text-sm font-medium">
-                → 前往重置密码
+            <div v-if="showForgotPasswordLink" class="pt-2">
+              <RouterLink
+                to="/forgot-password"
+                @click="closeErrorDialog"
+                class="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg text-blue-600 hover:text-blue-700 text-sm font-medium transition-all w-full justify-center"
+              >
+                <span>🔑</span>
+                <span>前往重置密码</span>
               </RouterLink>
             </div>
           </div>
 
           <template #footer>
-            <el-button type="primary" @click="closeErrorDialog">
-              确定
-            </el-button>
+            <div class="flex gap-2 w-full">
+              <el-button
+                v-if="showForgotPasswordLink"
+                plain
+                @click="closeErrorDialog"
+                class="flex-1"
+              >
+                关闭
+              </el-button>
+              <el-button
+                type="primary"
+                @click="closeErrorDialog"
+                :class="{ 'flex-1': showForgotPasswordLink, 'w-full': !showForgotPasswordLink }"
+              >
+                确定
+              </el-button>
+            </div>
           </template>
         </el-dialog>
 
@@ -99,7 +172,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, nextTick, onBeforeUnmount } from 'vue'
+import { ref, reactive, onMounted, nextTick, onBeforeUnmount, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { ElMessage } from 'element-plus'
@@ -188,6 +261,22 @@ function disableLoginButtonWithCountdown(seconds: number) {
 function closeErrorDialog() {
   errorDialogVisible.value = false
 }
+
+const getEmojiByErrorCode = computed(() => {
+  if (retryCountdown.value > 0) return '⏱️'
+  if (showForgotPasswordLink.value) return '🔑'
+  if (errorTitle.value.includes('禁用')) return '🔒'
+  if (errorTitle.value.includes('锁定')) return '🔐'
+  return '⚠️'
+})
+
+const getIconByErrorCode = computed(() => {
+  if (retryCountdown.value > 0) return 'text-amber-500'
+  if (showForgotPasswordLink.value) return 'text-blue-500'
+  if (errorTitle.value.includes('禁用')) return 'text-red-500'
+  if (errorTitle.value.includes('锁定')) return 'text-red-500'
+  return 'text-gray-500'
+})
 
 onBeforeUnmount(() => {
   if (countdownInterval.value) {
