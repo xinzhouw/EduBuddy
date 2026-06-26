@@ -4,10 +4,14 @@ from sqlalchemy.orm import Session
 from jose import jwt
 from app.database import get_db
 from app.config import get_settings
-from app.dependencies import get_current_user, require_rate_limit, get_client_ip
+from app.dependencies import get_current_user, require_rate_limit, get_client_ip, verify_refresh_token
 from app.models.user import User
 from app.security import hash_password, verify_password
-from app.schemas.auth import UserRegister, UserLogin, UserOut, TokenData, UserUpdate, PasswordChange, PasswordStrengthResponse, ChangePasswordRequest, PasswordValidateRequest
+from app.schemas.auth import (
+    UserRegister, UserLogin, UserOut, TokenData, UserUpdate, PasswordChange,
+    PasswordStrengthResponse, ChangePasswordRequest, PasswordValidateRequest,
+    RefreshTokenRequest, RefreshTokenResponse
+)
 from app.utils.password_validator import validate_password_strength, check_password_validity
 from app.utils.rate_limiter import check_rate_limit_for_endpoint
 
@@ -15,10 +19,24 @@ router = APIRouter(prefix="/api/auth", tags=["认证"])
 settings = get_settings()
 
 
-def create_token(user_id: int) -> str:
-    expire = datetime.utcnow() + timedelta(days=settings.access_token_expire_days)
+def create_token(user_id: int, token_type: str = "access") -> str:
+    """
+    创建 JWT 令牌
+
+    Args:
+        user_id: 用户 ID
+        token_type: 令牌类型 ("access" 或 "refresh")
+
+    Returns:
+        JWT 令牌字符串
+    """
+    if token_type == "refresh":
+        expire = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
+    else:  # access token
+        expire = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
+
     return jwt.encode(
-        {"sub": str(user_id), "exp": expire},
+        {"sub": str(user_id), "exp": expire, "type": token_type},
         settings.secret_key,
         algorithm=settings.algorithm,
     )
@@ -77,10 +95,13 @@ def register(data: UserRegister, db: Session = Depends(get_db), request: Request
     db.add(user)
     db.commit()
     db.refresh(user)
-    token = create_token(user.id)
+    access_token = create_token(user.id, "access")
+    refresh_token = create_token(user.id, "refresh")
     return {
-        "access_token": token,
+        "access_token": access_token,
+        "refresh_token": refresh_token,
         "token_type": "bearer",
+        "expires_in": settings.access_token_expire_minutes * 60,
         "user": UserOut.model_validate(user),
     }
 
@@ -112,14 +133,16 @@ def login(data: UserLogin, db: Session = Depends(get_db), request: Request = Non
     user.last_login = datetime.utcnow()
     user.login_count = (user.login_count or 0) + 1
     db.commit()
-    token = create_token(user.id)
+    access_token = create_token(user.id, "access")
+    refresh_token = create_token(user.id, "refresh")
     return {
         "code": 200,
         "message": "登录成功",
         "data": TokenData(
-            access_token=token,
+            access_token=access_token,
+            refresh_token=refresh_token,
             token_type="bearer",
-            expires_in=settings.access_token_expire_days * 86400,
+            expires_in=settings.access_token_expire_minutes * 60,
             user=UserOut.model_validate(user),
         ),
     }
@@ -145,6 +168,39 @@ def update_me(data: UserUpdate, db: Session = Depends(get_db), current_user: Use
     db.commit()
     db.refresh(current_user)
     return {"code": 200, "message": "更新成功", "data": UserOut.model_validate(current_user)}
+
+
+@router.post("/refresh")
+def refresh_token(req: RefreshTokenRequest, db: Session = Depends(get_db)):
+    """
+    使用刷新令牌获取新的访问令牌
+
+    Args:
+        req: 包含刷新令牌的请求
+
+    Returns:
+        新的访问令牌和可选的新刷新令牌
+    """
+    # 验证刷新令牌
+    user_id = verify_refresh_token(req.refresh_token)
+
+    # 确保用户存在且活跃
+    user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="用户不存在或已被禁用")
+
+    # 颁发新的访问令牌
+    new_access_token = create_token(user_id, "access")
+
+    # 可选：颁发新的刷新令牌（以轮换旧令牌）
+    new_refresh_token = create_token(user_id, "refresh")
+
+    return RefreshTokenResponse(
+        access_token=new_access_token,
+        refresh_token=new_refresh_token,
+        token_type="bearer",
+        expires_in=settings.access_token_expire_minutes * 60,
+    )
 
 
 @router.post("/change-password")

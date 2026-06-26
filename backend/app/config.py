@@ -31,7 +31,8 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173,http://localhost:80"
 
     algorithm: str = "HS256"
-    access_token_expire_days: int = 7
+    access_token_expire_minutes: int = 15  # 访问令牌有效期 (分钟)
+    refresh_token_expire_days: int = 7  # 刷新令牌有效期 (天)
 
     class Config:
         env_file = ".env"

@@ -47,6 +47,7 @@ class UserOut(BaseModel):
 
 class TokenData(BaseModel):
     access_token: str
+    refresh_token: Optional[str] = None
     token_type: str = "bearer"
     expires_in: int
     user: UserOut
@@ -71,3 +72,14 @@ class PasswordStrengthResponse(BaseModel):
 class ChangePasswordRequest(BaseModel):
     old_password: str
     new_password: str
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+
+class RefreshTokenResponse(BaseModel):
+    access_token: str
+    refresh_token: Optional[str] = None
+    token_type: str = "bearer"
+    expires_in: int

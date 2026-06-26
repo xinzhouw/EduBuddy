@@ -24,7 +24,11 @@ def get_current_user(
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
         user_id: int = payload.get("sub")
+        token_type = payload.get("type", "access")
         if user_id is None:
+            raise credentials_exception
+        # 确保这是访问令牌，而不是刷新令牌
+        if token_type != "access":
             raise credentials_exception
     except JWTError:
         raise credentials_exception
@@ -65,6 +69,34 @@ def get_client_ip(request: Request) -> str:
         return request.headers.get("x-real-ip")
     # 使用连接的远程地址
     return request.client.host if request.client else "unknown"
+
+
+def verify_refresh_token(token: str) -> int:
+    """
+    验证刷新令牌并返回用户 ID
+
+    Args:
+        token: 刷新令牌
+
+    Returns:
+        用户 ID
+
+    Raises:
+        HTTPException: 令牌无效或已过期
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="刷新令牌无效或已过期",
+    )
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        user_id: int = payload.get("sub")
+        token_type = payload.get("type")
+        if user_id is None or token_type != "refresh":
+            raise credentials_exception
+        return int(user_id)
+    except JWTError:
+        raise credentials_exception
 
 
 def require_rate_limit(endpoint: str):
