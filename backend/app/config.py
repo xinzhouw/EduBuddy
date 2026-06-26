@@ -40,6 +40,14 @@ class Settings(BaseSettings):
     cookie_httponly: bool = True
     cookie_samesite: str = "lax"
 
+    # ===== SMTP 邮件配置 =====
+    smtp_server: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = "noreply@edubuddy.com"
+    smtp_from_name: str = "EduBuddy"
+
     class Config:
         env_file = ".env"
 

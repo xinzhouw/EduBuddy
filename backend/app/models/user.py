@@ -24,5 +24,11 @@ class User(Base):
     created_at = Column(DateTime, nullable=False, server_default=func.now())
     updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
 
+    # 密码重置字段
+    password_reset_code = Column(String(6), nullable=True)
+    reset_code_expiry = Column(DateTime, nullable=True)
+    reset_attempts = Column(Integer, default=0)
+    reset_code_locked_until = Column(DateTime, nullable=True)
+
     # 关系
     audit_logs = relationship("AuditLog", back_populates="user", cascade="all, delete-orphan")
