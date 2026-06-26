@@ -4,6 +4,7 @@
     title="修改密码"
     width="400px"
     @close="handleDialogClose"
+    @open="onDialogOpen"
   >
     <el-form :model="form" ref="formRef">
       <!-- 旧密码 -->
@@ -66,8 +67,6 @@ async function resetForm() {
     newPassword: '',
     confirmPassword: ''
   }
-  passwordInput.value?.reset()
-  formRef.value?.clearValidate()
 
   // 清空 DOM 中的所有密码字段
   await nextTick()
@@ -75,12 +74,26 @@ async function resetForm() {
   passwordInputs.forEach(input => {
     const el = input as HTMLInputElement
     el.value = ''
+    el.dispatchEvent(new Event('input', { bubbles: true }))
   })
+
+  passwordInput.value?.reset()
+  formRef.value?.clearValidate()
 }
 
 async function handleDialogClose() {
   // 对话框关闭时清空所有敏感数据
   await resetForm()
+}
+
+async function onDialogOpen() {
+  // 对话框打开时清空自动填充的密码
+  await nextTick()
+  const oldPasswordInput = document.querySelector('input[placeholder="请输入旧密码"]') as HTMLInputElement
+  if (oldPasswordInput) {
+    oldPasswordInput.value = ''
+    oldPasswordInput.dispatchEvent(new Event('input', { bubbles: true }))
+  }
 }
 
 async function handleSubmit() {
