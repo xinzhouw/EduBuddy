@@ -1,10 +1,10 @@
 <template>
   <div class="user-management">
-    <el-card>
+    <el-card class="card-container">
       <template #header>
         <div class="flex justify-between items-center">
           <span>用户管理</span>
-          <div>
+          <div class="search-group">
             <el-input
               v-model="searchText"
               placeholder="搜索邮箱或昵称"
@@ -36,13 +36,14 @@
         style="margin-bottom: 20px"
       />
       <el-empty v-if="!adminStore.userListLoading && !adminStore.userList.items.length" description="暂无用户数据" />
-      <el-table
-        v-if="adminStore.userList.items.length"
-        :data="adminStore.userList.items"
-        :loading="adminStore.userListLoading"
-        stripe
-        style="width: 100%"
-      >
+      <div v-if="adminStore.userList.items.length" class="table-container">
+        <el-table
+          :data="adminStore.userList.items"
+          :loading="adminStore.userListLoading"
+          stripe
+          style="width: 100%"
+          max-height="600"
+        >
         <el-table-column prop="id" label="ID" width="60" />
         <el-table-column prop="email" label="邮箱" min-width="180" show-overflow-tooltip />
         <el-table-column prop="nickname" label="昵称" width="120" />
@@ -88,7 +89,8 @@
             </el-popconfirm>
           </template>
         </el-table-column>
-      </el-table>
+        </el-table>
+      </div>
 
       <el-pagination
         v-model:current-page="currentPage"
@@ -174,6 +176,37 @@ const handleViewDetail = (userId: number) => {
 <style scoped>
 .user-management {
   padding: 20px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+:deep(.el-card__body) {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.table-container {
+  flex: 1;
+  overflow: auto;
+  border: 1px solid #ebeef5;
+  border-radius: 4px;
+}
+
+.search-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .flex {
@@ -188,5 +221,10 @@ const handleViewDetail = (userId: number) => {
 
 .items-center {
   align-items: center;
+}
+
+:deep(.el-pagination) {
+  margin-top: 20px;
+  text-align: right;
 }
 </style>

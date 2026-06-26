@@ -47,14 +47,14 @@
         style="margin-bottom: 20px"
       />
       <el-empty v-if="!adminStore.auditLogsLoading && !adminStore.auditLogs.items.length" description="暂无审计日志" />
-      <el-table
-        v-if="adminStore.auditLogs.items.length"
-        :data="adminStore.auditLogs.items"
-        :loading="adminStore.auditLogsLoading"
-        stripe
-        size="small"
-        max-height="600"
-      >
+      <div v-if="adminStore.auditLogs.items.length" class="table-container">
+        <el-table
+          :data="adminStore.auditLogs.items"
+          :loading="adminStore.auditLogsLoading"
+          stripe
+          size="small"
+          style="width: 100%"
+        >
         <el-table-column prop="id" label="ID" width="60" />
         <el-table-column prop="user_id" label="用户 ID" width="80" />
         <el-table-column prop="timestamp" label="时间" width="160">
@@ -79,7 +79,8 @@
             </el-tag>
           </template>
         </el-table-column>
-      </el-table>
+        </el-table>
+      </div>
 
       <el-pagination
         v-model:current-page="currentPage"
@@ -156,6 +157,30 @@ const handleReset = () => {
 <style scoped>
 .audit-logs {
   padding: 20px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+:deep(.el-card) {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+:deep(.el-card__body) {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.table-container {
+  flex: 1;
+  overflow: auto;
+  border: 1px solid #ebeef5;
+  border-radius: 4px;
 }
 
 .filter-group {
@@ -177,5 +202,10 @@ const handleReset = () => {
 
 .items-center {
   align-items: center;
+}
+
+:deep(.el-pagination) {
+  margin-top: 20px;
+  text-align: right;
 }
 </style>
