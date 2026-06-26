@@ -324,13 +324,15 @@ const handleViewDetail = (userId: number) => {
 
 :deep(.table-container .el-table) {
   flex: 1;
+  overflow-y: auto;
 }
 
 :deep(.el-pagination) {
   flex-shrink: 0;
-  padding: 15px 20px;
+  padding: 12px 20px;
   text-align: right;
   border-top: 1px solid #ebeef5;
+  background-color: #fff;
 }
 
 .search-group {

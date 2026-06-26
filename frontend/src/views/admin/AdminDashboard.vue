@@ -124,12 +124,15 @@ const initFeatureChart = () => {
 
 <style scoped>
 .admin-dashboard {
-  height: 100%;
   width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 20px;
+  box-sizing: border-box;
+  background-color: #f5f7fa;
 }
 
 .stat-card {
