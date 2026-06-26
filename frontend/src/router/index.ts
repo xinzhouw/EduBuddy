@@ -15,6 +15,7 @@ const router = createRouter({
   routes: [
     { path: '/login', component: () => import('@/views/auth/LoginView.vue'), meta: { public: true } },
     { path: '/register', component: () => import('@/views/auth/RegisterView.vue'), meta: { public: true } },
+    { path: '/forgot-password', component: () => import('@/views/auth/ForgotPasswordView.vue'), meta: { public: true } },
     { path: '/', component: () => import('@/views/DashboardView.vue') },
     { path: '/ai', component: () => import('@/views/ai/AIChatView.vue'), meta: { roles: STUDENT_ONLY } },
     { path: '/notes', component: () => import('@/views/notes/NotesListView.vue'), meta: { roles: STUDENT_ONLY } },
