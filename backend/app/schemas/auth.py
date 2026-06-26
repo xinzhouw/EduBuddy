@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
 from typing import Optional
 
@@ -83,3 +83,24 @@ class RefreshTokenResponse(BaseModel):
     refresh_token: Optional[str] = None
     token_type: str = "bearer"
     expires_in: int
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str = Field(..., description="用户邮箱")
+
+
+class ForgotPasswordResponse(BaseModel):
+    code: int
+    message: str
+    data: dict = None
+
+
+class ResetPasswordRequest(BaseModel):
+    email: str = Field(..., description="用户邮箱")
+    code: str = Field(..., description="6位验证码")
+    new_password: str = Field(..., description="新密码")
+
+
+class ResetPasswordResponse(BaseModel):
+    code: int
+    message: str

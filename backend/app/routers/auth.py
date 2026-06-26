@@ -1,4 +1,5 @@
 import json
+import time
 from datetime import datetime, timedelta, date
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -12,12 +13,15 @@ from app.security import hash_password, verify_password
 from app.schemas.auth import (
     UserRegister, UserLogin, UserOut, TokenData, UserUpdate, PasswordChange,
     PasswordStrengthResponse, ChangePasswordRequest, PasswordValidateRequest,
-    RefreshTokenRequest, RefreshTokenResponse
+    RefreshTokenRequest, RefreshTokenResponse, ForgotPasswordRequest, ResetPasswordRequest
 )
 from app.utils.password_validator import validate_password_strength, check_password_validity
 from app.utils.rate_limiter import check_rate_limit_for_endpoint
+from app.services.email_service import email_service
 
 router = APIRouter(prefix="/api/auth", tags=["认证"])
+
+_password_reset_rate_limit = {}
 settings = get_settings()
 
 
@@ -26,6 +30,16 @@ class LoginErrorCode:
     INVALID_CREDENTIALS = "INVALID_CREDENTIALS"
     ACCOUNT_DISABLED = "ACCOUNT_DISABLED"
     RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED"
+    SERVER_ERROR = "SERVER_ERROR"
+
+
+class PasswordResetErrorCode:
+    EMAIL_NOT_FOUND = "EMAIL_NOT_FOUND"
+    RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED"
+    INVALID_CODE = "INVALID_CODE"
+    CODE_EXPIRED = "CODE_EXPIRED"
+    TOO_MANY_ATTEMPTS = "TOO_MANY_ATTEMPTS"
+    WEAK_PASSWORD = "WEAK_PASSWORD"
     SERVER_ERROR = "SERVER_ERROR"
 
 
@@ -350,4 +364,186 @@ def delete_me(db: Session = Depends(get_db), current_user: User = Depends(get_cu
     db.commit()
     return {"code": 200, "message": "账号已成功删除"}
 
+
+@router.post("/forgot-password")
+def forgot_password(req: ForgotPasswordRequest, request: Request, db: Session = Depends(get_db)):
+    """
+    发送密码重置验证码
+
+    防止邮箱枚举：无论邮箱是否存在均返回 200 成功响应。
+    速率限制：每个 IP 30 秒内只允许请求一次。
+    """
+    # 检查速率限制（30 秒 / IP）
+    ip_address = get_client_ip(request)
+    now = time.time()
+    last_request_time = _password_reset_rate_limit.get(ip_address)
+    if last_request_time is not None:
+        elapsed = now - last_request_time
+        if elapsed < 30:
+            retry_after = int(30 - elapsed) + 1
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "code": 429,
+                    "error_code": PasswordResetErrorCode.RATE_LIMIT_EXCEEDED,
+                    "message": f"请求过于频繁，请在 {retry_after} 秒后重试",
+                    "data": None,
+                    "retry_after": retry_after,
+                },
+                headers={"Retry-After": str(retry_after)},
+            )
+    _password_reset_rate_limit[ip_address] = now
+
+    # 查询用户（不管是否存在都不提前返回，防止枚举）
+    user = db.query(User).filter(User.email == req.email).first()
+
+    if user:
+        # 生成验证码
+        reset_code = email_service.generate_reset_code()
+
+        # 写入用户字段
+        user.password_reset_code = reset_code
+        user.reset_code_expiry = datetime.utcnow() + timedelta(minutes=15)
+        user.reset_attempts = 0
+        user.reset_code_locked_until = None
+        db.commit()
+
+        # 发送邮件
+        sent = email_service.send_password_reset_email(user.email, user.nickname, reset_code)
+        if not sent:
+            # 邮件发送失败：清除字段，避免残留无效验证码
+            user.password_reset_code = None
+            user.reset_code_expiry = None
+            user.reset_attempts = 0
+            user.reset_code_locked_until = None
+            db.commit()
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "code": 500,
+                    "error_code": PasswordResetErrorCode.SERVER_ERROR,
+                    "message": "邮件发送失败，请稍后重试",
+                    "data": None,
+                },
+            )
+
+    # 无论邮箱是否存在，统一返回 200（防止邮箱枚举）
+    return {"code": 200, "message": "验证码已发送到邮箱，请在 15 分钟内使用", "data": {"email": req.email}}
+
+
+@router.post("/reset-password")
+def reset_password(req: ResetPasswordRequest, db: Session = Depends(get_db)):
+    """
+    使用验证码重置密码
+
+    验证流程：
+    1. 校验邮箱是否存在
+    2. 校验账户是否被锁定（失败次数过多）
+    3. 校验验证码是否匹配（失败则累计次数，达到 5 次锁定 1 小时）
+    4. 校验验证码是否过期
+    5. 校验新密码强度
+    6. 校验新密码不与旧密码相同
+    7. 更新密码，清除重置相关字段
+    """
+    now = datetime.utcnow()
+
+    # Step 1: 查询用户
+    user = db.query(User).filter(User.email == req.email).first()
+    if not user:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": 400,
+                "error_code": PasswordResetErrorCode.EMAIL_NOT_FOUND,
+                "message": "邮箱不存在，请先注册账户",
+                "data": None,
+            },
+        )
+
+    # Step 2: 检查是否被锁定
+    if user.reset_code_locked_until and user.reset_code_locked_until > now:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": 403,
+                "error_code": PasswordResetErrorCode.TOO_MANY_ATTEMPTS,
+                "message": "验证码输入失败次数过多，账户已锁定 1 小时",
+                "data": None,
+            },
+        )
+
+    # Step 3: 校验验证码
+    if req.code != user.password_reset_code:
+        user.reset_attempts = (user.reset_attempts or 0) + 1
+        if user.reset_attempts >= 5:
+            user.reset_code_locked_until = now + timedelta(hours=1)
+            db.commit()
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "code": 403,
+                    "error_code": PasswordResetErrorCode.TOO_MANY_ATTEMPTS,
+                    "message": "验证码输入失败次数过多，账户已锁定 1 小时",
+                    "data": None,
+                },
+            )
+        else:
+            db.commit()
+            remaining = 5 - user.reset_attempts
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": 400,
+                    "error_code": PasswordResetErrorCode.INVALID_CODE,
+                    "message": f"验证码错误，还有 {remaining} 次尝试机会",
+                    "data": None,
+                },
+            )
+
+    # Step 4: 检查验证码是否过期
+    if not user.reset_code_expiry or user.reset_code_expiry < now:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": 400,
+                "error_code": PasswordResetErrorCode.CODE_EXPIRED,
+                "message": "验证码已过期，请重新申请",
+                "data": None,
+            },
+        )
+
+    # Step 5: 校验新密码强度
+    is_valid, error_msg = check_password_validity(req.new_password)
+    if not is_valid:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": 400,
+                "error_code": PasswordResetErrorCode.WEAK_PASSWORD,
+                "message": f"密码不符合要求: {error_msg}",
+                "data": None,
+            },
+        )
+
+    # Step 6: 新密码不能与当前密码相同
+    if verify_password(req.new_password, user.password):
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": 400,
+                "error_code": PasswordResetErrorCode.WEAK_PASSWORD,
+                "message": "新密码不能与当前密码相同",
+                "data": None,
+            },
+        )
+
+    # Step 7: 更新密码，清除重置相关字段
+    user.password = hash_password(req.new_password)
+    user.password_reset_code = None
+    user.reset_code_expiry = None
+    user.reset_attempts = 0
+    user.reset_code_locked_until = None
+    db.commit()
+
+    return {"code": 200, "message": "密码已重置，请使用新密码登录"}
 
