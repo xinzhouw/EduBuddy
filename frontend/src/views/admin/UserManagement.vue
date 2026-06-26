@@ -62,8 +62,7 @@
           :data="adminStore.userList.items"
           :loading="adminStore.userListLoading"
           stripe
-          style="width: 100%"
-          max-height="400"
+          style="width: 100%; height: 100%"
           @selection-change="handleSelectionChange"
         >
         <el-table-column type="selection" width="50" />

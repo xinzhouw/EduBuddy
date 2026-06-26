@@ -54,8 +54,7 @@
           :loading="adminStore.auditLogsLoading"
           stripe
           size="small"
-          style="width: 100%"
-          max-height="400"
+          style="width: 100%; height: 100%"
         >
         <el-table-column prop="id" label="ID" width="60" />
         <el-table-column prop="user_id" label="用户 ID" width="80" />
