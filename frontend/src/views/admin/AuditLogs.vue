@@ -106,6 +106,10 @@ const dateRange = ref<[Date, Date] | null>(null)
 const currentPage = ref(1)
 const pageSize = ref(20)
 
+onMounted(() => {
+  handleSearch()
+})
+
 const getFeatureLabel = (feature: string) => {
   const featureMap = {
     ai_chat: 'AI 对话',
@@ -147,10 +151,6 @@ const handleReset = () => {
   currentPage.value = 1
   handleSearch()
 }
-
-onMounted(() => {
-  handleSearch()
-})
 </script>
 
 <style scoped>

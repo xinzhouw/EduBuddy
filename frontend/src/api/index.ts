@@ -41,11 +41,9 @@ api.interceptors.response.use(
     const status = error.response?.status
     const message = error.response?.data?.detail || error.message || '请求失败'
 
-    // 401（Token 无效/过期）与 403 中的“未认证”均视为登录态失效：
+    // 401（Token 无效/过期）均视为登录态失效：
     // 静默清理登录信息并跳转登录页，不弹出错误提示。
-    const isAuthError =
-      status === 401 ||
-      (status === 403 && /not authenticated/i.test(message))
+    const isAuthError = status === 401
 
     if (isAuthError) {
       localStorage.removeItem('token')

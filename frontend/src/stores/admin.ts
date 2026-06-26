@@ -40,9 +40,11 @@ export const useAdminStore = defineStore('admin', () => {
     userListError.value = null
     try {
       const response = await adminUserAPI.getUserList(page, page_size, search, role)
-      userList.value = response.data
+      console.log('fetchUserList response:', response)
+      userList.value = response
     } catch (error: any) {
-      userListError.value = error.response?.data?.message || '获取用户列表失败'
+      console.error('fetchUserList error:', error)
+      userListError.value = error.response?.data?.detail || error.response?.data?.message || error.message || '获取用户列表失败'
     } finally {
       userListLoading.value = false
     }
@@ -54,9 +56,9 @@ export const useAdminStore = defineStore('admin', () => {
     userDetailError.value = null
     try {
       const response = await adminUserAPI.getUserDetail(userId)
-      userDetail.value = response.data
+      userDetail.value = response
     } catch (error: any) {
-      userDetailError.value = error.response?.data?.message || '获取用户详情失败'
+      userDetailError.value = error.response?.data?.detail || error.response?.data?.message || error.message || '获取用户详情失败'
     } finally {
       userDetailLoading.value = false
     }
@@ -68,7 +70,7 @@ export const useAdminStore = defineStore('admin', () => {
       await adminUserAPI.toggleUserStatus(userId, is_active)
       return true
     } catch (error: any) {
-      userListError.value = error.response?.data?.message || '修改用户状态失败'
+      userListError.value = error.response?.data?.detail || error.response?.data?.message || error.message || '修改用户状态失败'
       return false
     }
   }
@@ -79,7 +81,7 @@ export const useAdminStore = defineStore('admin', () => {
       await adminUserAPI.deleteUser(userId)
       return true
     } catch (error: any) {
-      userListError.value = error.response?.data?.message || '删除用户失败'
+      userListError.value = error.response?.data?.detail || error.response?.data?.message || error.message || '删除用户失败'
       return false
     }
   }
@@ -97,9 +99,9 @@ export const useAdminStore = defineStore('admin', () => {
     auditLogsError.value = null
     try {
       const response = await adminAuditAPI.getAuditLogs(page, page_size, userId, feature, startDate, endDate)
-      auditLogs.value = response.data
+      auditLogs.value = response
     } catch (error: any) {
-      auditLogsError.value = error.response?.data?.message || '获取审计日志失败'
+      auditLogsError.value = error.response?.data?.detail || error.response?.data?.message || error.message || '获取审计日志失败'
     } finally {
       auditLogsLoading.value = false
     }
@@ -111,9 +113,9 @@ export const useAdminStore = defineStore('admin', () => {
     dashboardStatsError.value = null
     try {
       const response = await adminStatsAPI.getDashboardStats()
-      dashboardStats.value = response.data
+      dashboardStats.value = response
     } catch (error: any) {
-      dashboardStatsError.value = error.response?.data?.message || '获取统计数据失败'
+      dashboardStatsError.value = error.response?.data?.detail || error.response?.data?.message || error.message || '获取统计数据失败'
     } finally {
       dashboardStatsLoading.value = false
     }

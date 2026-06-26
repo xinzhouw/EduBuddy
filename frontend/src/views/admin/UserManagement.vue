@@ -97,14 +97,14 @@
         :total="adminStore.userList.total"
         layout="total, sizes, prev, pager, next"
         style="margin-top: 20px; text-align: right"
-        @change="handleSearch"
+        @pagination="handleSearch"
       />
     </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAdminStore } from '@/stores/admin'
 import { ElMessage } from 'element-plus'
@@ -116,6 +116,10 @@ const searchText = ref('')
 const roleFilter = ref('')
 const currentPage = ref(1)
 const pageSize = ref(20)
+
+onMounted(() => {
+  handleSearch()
+})
 
 const getRoleLabel = (role: string) => {
   const roleMap = {
@@ -165,9 +169,6 @@ const handleDeleteUser = async (userId: number) => {
 const handleViewDetail = (userId: number) => {
   router.push(`/admin/users/${userId}`)
 }
-
-// 初始化加载
-handleSearch()
 </script>
 
 <style scoped>
