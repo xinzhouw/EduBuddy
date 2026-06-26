@@ -56,52 +56,53 @@
           :data="adminStore.userList.items"
           :loading="adminStore.userListLoading"
           stripe
-          style="width: 100%"
-          max-height="600"
+          style="width: 100%; height: 100%"
           @selection-change="handleSelectionChange"
         >
         <el-table-column type="selection" width="50" />
         <el-table-column prop="id" label="ID" width="60" />
-        <el-table-column prop="email" label="邮箱" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="nickname" label="昵称" width="120" />
-        <el-table-column prop="role" label="角色" width="100">
+        <el-table-column prop="email" label="邮箱" min-width="150" show-overflow-tooltip />
+        <el-table-column prop="nickname" label="昵称" min-width="100" />
+        <el-table-column prop="role" label="角色" width="80">
           <template #default="{ row }">
-            <el-tag>{{ getRoleLabel(row.role) }}</el-tag>
+            <el-tag size="small">{{ getRoleLabel(row.role) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="grade" label="年级" width="80" />
-        <el-table-column prop="login_count" label="登录次数" width="100" align="right" />
-        <el-table-column prop="last_login" label="最后登录" width="160">
+        <el-table-column prop="grade" label="年级" width="70" />
+        <el-table-column prop="login_count" label="登录次数" width="90" align="right" />
+        <el-table-column prop="last_login" label="最后登录" min-width="140">
           <template #default="{ row }">
-            {{ formatTime(row.last_login) }}
+            <span style="font-size: 12px">{{ formatTime(row.last_login) }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="is_active" label="状态" width="80">
+        <el-table-column prop="is_active" label="状态" width="70" align="center">
           <template #default="{ row }">
             <el-switch
               :model-value="row.is_active"
               @change="handleToggleStatus(row)"
+              size="small"
             />
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" min-width="130" fixed="right">
           <template #default="{ row }">
             <el-button
               type="primary"
               link
               size="small"
               @click="handleViewDetail(row.id)"
+              style="padding: 4px 8px"
             >
-              查看详情
+              详情
             </el-button>
             <el-popconfirm
               title="确定删除该用户吗？"
-              confirm-button-text="确定"
+              confirm-button-text="删除"
               cancel-button-text="取消"
               @confirm="handleDeleteUser(row.id)"
             >
               <template #reference>
-                <el-button type="danger" link size="small">删除</el-button>
+                <el-button type="danger" link size="small" style="padding: 4px 8px">删除</el-button>
               </template>
             </el-popconfirm>
           </template>
@@ -134,7 +135,7 @@ const adminStore = useAdminStore()
 const searchText = ref('')
 const roleFilter = ref('')
 const currentPage = ref(1)
-const pageSize = ref(20)
+const pageSize = ref(50)  // 默认每页显示 50 个用户
 const selectedUsers = ref<any[]>([])
 
 onMounted(() => {
@@ -247,9 +248,21 @@ const handleViewDetail = (userId: number) => {
 
 .table-container {
   flex: 1;
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   border: 1px solid #ebeef5;
   border-radius: 4px;
+  min-height: 400px;
+}
+
+:deep(.table-container .el-table) {
+  height: 100%;
+}
+
+:deep(.table-container .el-table__body-wrapper) {
+  height: calc(100% - 46px);
+  overflow-y: auto;
 }
 
 .search-group {
