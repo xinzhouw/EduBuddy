@@ -2,13 +2,15 @@ export interface LoginErrorInfo {
   title: string
   message: string
   suggestion: string | null
+  showForgotPasswordLink?: boolean
 }
 
 export const LOGIN_ERROR_MESSAGES: Record<string, LoginErrorInfo> = {
   INVALID_CREDENTIALS: {
     title: '登录失败',
     message: '邮箱或密码错误，请检查后重试',
-    suggestion: '如果忘记密码，可以尝试重置密码'
+    suggestion: null,
+    showForgotPasswordLink: true
   },
   ACCOUNT_DISABLED: {
     title: '账户已禁用',

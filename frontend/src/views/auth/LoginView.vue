@@ -46,6 +46,11 @@
           >
             {{ retryCountdown > 0 ? `登 录 (${retryCountdown}s)` : '登 录' }}
           </el-button>
+          <div class="text-center mt-4">
+            <RouterLink to="/forgot-password" class="text-blue-500 hover:text-blue-600 text-sm font-medium">
+              忘记密码？
+            </RouterLink>
+          </div>
         </el-form>
 
         <!-- 错误对话框 -->
@@ -68,6 +73,13 @@
             <p v-if="errorSuggestion" class="text-sm text-gray-600">
               💡 {{ errorSuggestion }}
             </p>
+
+            <!-- 忘记密码链接 -->
+            <div v-if="showForgotPasswordLink" class="text-center mt-4">
+              <RouterLink to="/forgot-password" class="text-blue-500 hover:text-blue-600 text-sm font-medium">
+                → 前往重置密码
+              </RouterLink>
+            </div>
           </div>
 
           <template #footer>
@@ -103,6 +115,7 @@ const errorDialogVisible = ref(false)
 const errorTitle = ref('')
 const errorMessage = ref('')
 const errorSuggestion = ref<string | null>(null)
+const showForgotPasswordLink = ref(false)
 const retryCountdown = ref(0)
 const countdownInterval = ref<NodeJS.Timeout | null>(null)
 const shouldDisableAutocomplete = ref(false)
@@ -146,6 +159,7 @@ function showErrorDialog(errorCode: string, retryAfter?: number) {
   errorTitle.value = errorInfo.title
   errorMessage.value = errorInfo.message
   errorSuggestion.value = errorInfo.suggestion
+  showForgotPasswordLink.value = errorInfo.showForgotPasswordLink || false
   errorDialogVisible.value = true
 
   // 如果是速率限制错误，启动倒计时
