@@ -66,7 +66,12 @@ def register(data: UserRegister, db: Session = Depends(get_db)):
 @router.post("/login")
 def login(data: UserLogin, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == data.email, User.is_active == True).first()
-    if not user or not verify_password(data.password, user.password):
+    if user and verify_password(data.password, user.password):
+        # Valid credentials
+        pass
+    else:
+        # Always return the same error message regardless of whether email exists or password is wrong
+        # This prevents user enumeration attacks
         raise HTTPException(status_code=401, detail="邮箱或密码错误")
     # 更新最后登录日期（用于每日建议触发逻辑）
     user.last_login_date = date.today()
@@ -118,7 +123,7 @@ def change_password_post(
     """修改密码"""
     # 验证旧密码
     if not verify_password(req.old_password, user.password):
-        raise HTTPException(status_code=400, detail="旧密码错误")
+        raise HTTPException(status_code=401, detail="旧密码错误")
 
     # 不能与旧密码相同
     if req.old_password == req.new_password:
