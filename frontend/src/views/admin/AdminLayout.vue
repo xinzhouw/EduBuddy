@@ -34,7 +34,9 @@
           </el-menu>
         </el-aside>
         <el-main>
-          <router-view />
+          <div class="main-content">
+            <router-view />
+          </div>
         </el-main>
       </el-container>
     </el-container>
@@ -129,7 +131,15 @@ const handleLogout = () => {
   flex-direction: column;
 }
 
-:deep(.el-main > div) {
+.main-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.main-content :deep(> div) {
   width: 100%;
   height: 100%;
   overflow: hidden;
