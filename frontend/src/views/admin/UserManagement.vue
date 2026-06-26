@@ -252,7 +252,8 @@ const handleToggleStatus = async (row: any) => {
     ElMessage.success(`已${row.is_active ? '禁用' : '启用'}用户`)
     await handleSearch()
   } else {
-    ElMessage.error(adminStore.userListError || '操作失败')
+    const errorMsg = adminStore.userListError || '操作失败'
+    ElMessage.error(typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg))
   }
 }
 
@@ -262,7 +263,8 @@ const handleDeleteUser = async (userId: number) => {
     ElMessage.success('用户已删除')
     await handleSearch()
   } else {
-    ElMessage.error(adminStore.userListError || '删除失败')
+    const errorMsg = adminStore.userListError || '删除失败'
+    ElMessage.error(typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg))
   }
 }
 

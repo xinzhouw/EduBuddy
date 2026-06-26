@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import Optional
@@ -6,8 +6,12 @@ from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
 from app.services.admin_service import AdminService
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/admin", tags=["管理后台"])
+
+class ToggleStatusRequest(BaseModel):
+    is_active: bool
 
 def require_admin(current_user: User = Depends(get_current_user)):
     """验证用户是否为管理员"""
@@ -42,12 +46,12 @@ def get_user_detail(
 @router.put("/users/{user_id}/status")
 def toggle_user_status(
     user_id: int,
-    is_active: bool,
+    request: ToggleStatusRequest,
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
     """启用/禁用用户"""
-    if not AdminService.toggle_user_status(db, user_id, is_active):
+    if not AdminService.toggle_user_status(db, user_id, request.is_active):
         raise HTTPException(status_code=400, detail="无法修改此用户")
     return {"code": 200, "data": {"success": True}}
 

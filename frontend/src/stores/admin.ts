@@ -70,7 +70,8 @@ export const useAdminStore = defineStore('admin', () => {
       await adminUserAPI.toggleUserStatus(userId, is_active)
       return true
     } catch (error: any) {
-      userListError.value = error.response?.data?.detail || error.response?.data?.message || error.message || '修改用户状态失败'
+      const msg = error.response?.data?.detail || error.response?.data?.message || error.message || '修改用户状态失败'
+      userListError.value = typeof msg === 'string' ? msg : JSON.stringify(msg)
       return false
     }
   }
@@ -81,7 +82,8 @@ export const useAdminStore = defineStore('admin', () => {
       await adminUserAPI.deleteUser(userId)
       return true
     } catch (error: any) {
-      userListError.value = error.response?.data?.detail || error.response?.data?.message || error.message || '删除用户失败'
+      const msg = error.response?.data?.detail || error.response?.data?.message || error.message || '删除用户失败'
+      userListError.value = typeof msg === 'string' ? msg : JSON.stringify(msg)
       return false
     }
   }
