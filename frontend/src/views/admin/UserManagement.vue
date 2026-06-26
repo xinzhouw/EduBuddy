@@ -36,6 +36,21 @@
         style="margin-bottom: 20px"
       />
       <el-empty v-if="!adminStore.userListLoading && !adminStore.userList.items.length" description="暂无用户数据" />
+      <div class="batch-actions" v-if="selectedUsers.length">
+        <span>已选择 {{ selectedUsers.length }} 个用户</span>
+        <el-popconfirm
+          title="确定要删除选中的用户吗？此操作不可撤销。"
+          confirm-button-text="确定删除"
+          cancel-button-text="取消"
+          @confirm="handleBatchDelete"
+        >
+          <template #reference>
+            <el-button type="danger" size="small">批量删除</el-button>
+          </template>
+        </el-popconfirm>
+        <el-button size="small" @click="selectedUsers = []">取消选择</el-button>
+      </div>
+
       <div v-if="adminStore.userList.items.length" class="table-container">
         <el-table
           :data="adminStore.userList.items"
@@ -43,7 +58,9 @@
           stripe
           style="width: 100%"
           max-height="600"
+          @selection-change="handleSelectionChange"
         >
+        <el-table-column type="selection" width="50" />
         <el-table-column prop="id" label="ID" width="60" />
         <el-table-column prop="email" label="邮箱" min-width="180" show-overflow-tooltip />
         <el-table-column prop="nickname" label="昵称" width="120" />
@@ -118,10 +135,43 @@ const searchText = ref('')
 const roleFilter = ref('')
 const currentPage = ref(1)
 const pageSize = ref(20)
+const selectedUsers = ref<any[]>([])
 
 onMounted(() => {
   handleSearch()
 })
+
+const handleSelectionChange = (selection: any[]) => {
+  selectedUsers.value = selection
+}
+
+const handleBatchDelete = async () => {
+  if (!selectedUsers.value.length) {
+    ElMessage.warning('请先选择要删除的用户')
+    return
+  }
+
+  let successCount = 0
+  let failCount = 0
+
+  for (const user of selectedUsers.value) {
+    const success = await adminStore.deleteUser(user.id)
+    if (success) {
+      successCount++
+    } else {
+      failCount++
+    }
+  }
+
+  selectedUsers.value = []
+
+  if (successCount > 0) {
+    ElMessage.success(`成功删除 ${successCount} 个用户${failCount > 0 ? `，失败 ${failCount} 个` : ''}`)
+    await handleSearch()
+  } else {
+    ElMessage.error('删除用户失败，请重试')
+  }
+}
 
 const getRoleLabel = (role: string) => {
   const roleMap = {
@@ -221,6 +271,22 @@ const handleViewDetail = (userId: number) => {
 
 .items-center {
   align-items: center;
+}
+
+.batch-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 12px 16px;
+  margin-bottom: 15px;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+  border-left: 4px solid #409eff;
+}
+
+.batch-actions span {
+  color: #606266;
+  font-weight: 500;
 }
 
 :deep(.el-pagination) {
