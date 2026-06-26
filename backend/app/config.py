@@ -34,6 +34,12 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 15  # 访问令牌有效期 (分钟)
     refresh_token_expire_days: int = 7  # 刷新令牌有效期 (天)
 
+    # Cookie 配置
+    cookie_access_token_name: str = "access_token"
+    cookie_secure: bool = False  # 生产环境应设置为 True
+    cookie_httponly: bool = True
+    cookie_samesite: str = "lax"
+
     class Config:
         env_file = ".env"
 

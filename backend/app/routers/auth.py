@@ -1,5 +1,7 @@
+import json
 from datetime import datetime, timedelta, date
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from jose import jwt
 from app.database import get_db
@@ -97,13 +99,31 @@ def register(data: UserRegister, db: Session = Depends(get_db), request: Request
     db.refresh(user)
     access_token = create_token(user.id, "access")
     refresh_token = create_token(user.id, "refresh")
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer",
-        "expires_in": settings.access_token_expire_minutes * 60,
-        "user": UserOut.model_validate(user),
-    }
+
+    # 创建 JSON 响应
+    user_data = UserOut.model_validate(user)
+    response = JSONResponse(
+        status_code=200,
+        content={
+            "access_token": access_token,  # 仍在响应中（向后兼容）
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+            "expires_in": settings.access_token_expire_minutes * 60,
+            "user": json.loads(user_data.model_dump_json()),
+        }
+    )
+
+    # 设置 httpOnly cookie
+    response.set_cookie(
+        key=settings.cookie_access_token_name,
+        value=access_token,
+        max_age=settings.access_token_expire_minutes * 60,
+        secure=settings.cookie_secure,
+        httponly=settings.cookie_httponly,
+        samesite=settings.cookie_samesite,
+    )
+
+    return response
 
 
 @router.post("/login")
@@ -135,17 +155,35 @@ def login(data: UserLogin, db: Session = Depends(get_db), request: Request = Non
     db.commit()
     access_token = create_token(user.id, "access")
     refresh_token = create_token(user.id, "refresh")
-    return {
-        "code": 200,
-        "message": "登录成功",
-        "data": TokenData(
-            access_token=access_token,
-            refresh_token=refresh_token,
-            token_type="bearer",
-            expires_in=settings.access_token_expire_minutes * 60,
-            user=UserOut.model_validate(user),
-        ),
-    }
+
+    # 创建 JSON 响应
+    user_data = UserOut.model_validate(user)
+    response = JSONResponse(
+        status_code=200,
+        content={
+            "code": 200,
+            "message": "登录成功",
+            "data": {
+                "access_token": access_token,  # 仍在响应中（向后兼容）
+                "refresh_token": refresh_token,
+                "token_type": "bearer",
+                "expires_in": settings.access_token_expire_minutes * 60,
+                "user": json.loads(user_data.model_dump_json()),
+            },
+        }
+    )
+
+    # 设置 httpOnly cookie
+    response.set_cookie(
+        key=settings.cookie_access_token_name,
+        value=access_token,
+        max_age=settings.access_token_expire_minutes * 60,
+        secure=settings.cookie_secure,
+        httponly=settings.cookie_httponly,
+        samesite=settings.cookie_samesite,
+    )
+
+    return response
 
 
 @router.get("/me")

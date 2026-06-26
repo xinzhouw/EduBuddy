@@ -14,8 +14,23 @@ security = HTTPBearer()
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
+    request: Request = None,
 ) -> User:
-    token = credentials.credentials
+    # 尝试从 Authorization header 获取令牌
+    token = None
+    if credentials:
+        token = credentials.credentials
+    # 回退：从 Cookie 读取令牌（如果 header 中没有）
+    elif request and settings.cookie_access_token_name in request.cookies:
+        token = request.cookies[settings.cookie_access_token_name]
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="未提供认证令牌",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Token无效或已过期",
