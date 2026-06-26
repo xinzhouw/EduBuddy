@@ -1,6 +1,7 @@
 import logging
 from app.database import SessionLocal
 from app.services.admin_service import AdminService
+from app.utils.rate_limiter import get_rate_limiter
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +16,15 @@ def cleanup_old_audit_logs():
     finally:
         db.close()
 
+def cleanup_rate_limiter_entries():
+    """清理过期的速率限制条目"""
+    try:
+        limiter = get_rate_limiter()
+        deleted = limiter.cleanup_expired_entries(max_age_seconds=3600)  # 1 小时
+        logger.info(f"Cleaned up {deleted} expired rate limiter entries")
+    except Exception as e:
+        logger.error(f"Error cleaning up rate limiter entries: {e}")
+
 def start_scheduler():
     """启动定时任务调度器"""
     try:
@@ -22,12 +32,20 @@ def start_scheduler():
         from apscheduler.triggers.cron import CronTrigger
 
         scheduler = AsyncIOScheduler()
-        # 每天凌晨 2 点执行清理
+        # 每天凌晨 2 点执行审计日志清理
         scheduler.add_job(
             cleanup_old_audit_logs,
             CronTrigger(hour=2, minute=0),
             id="cleanup_old_logs",
             name="Cleanup old audit logs",
+            replace_existing=True
+        )
+        # 每小时执行速率限制条目清理
+        scheduler.add_job(
+            cleanup_rate_limiter_entries,
+            CronTrigger(minute=0),
+            id="cleanup_rate_limiter",
+            name="Cleanup rate limiter entries",
             replace_existing=True
         )
 

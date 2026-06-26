@@ -1,14 +1,15 @@
 from datetime import datetime, timedelta, date
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from jose import jwt
 from app.database import get_db
 from app.config import get_settings
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, require_rate_limit, get_client_ip
 from app.models.user import User
 from app.security import hash_password, verify_password
 from app.schemas.auth import UserRegister, UserLogin, UserOut, TokenData, UserUpdate, PasswordChange, PasswordStrengthResponse, ChangePasswordRequest, PasswordValidateRequest
 from app.utils.password_validator import validate_password_strength, check_password_validity
+from app.utils.rate_limiter import check_rate_limit_for_endpoint
 
 router = APIRouter(prefix="/api/auth", tags=["认证"])
 settings = get_settings()
@@ -24,13 +25,23 @@ def create_token(user_id: int) -> str:
 
 
 @router.post("/password/validate")
-def validate_password_endpoint(req: PasswordValidateRequest):
+def validate_password_endpoint(req: PasswordValidateRequest, request: Request):
     """
     实时检查密码强度
 
     不检查已注册密码或其他业务逻辑，仅返回技术强度评分。
     前端用此 API 提供实时反馈。
     """
+    # 检查速率限制
+    ip_address = get_client_ip(request)
+    allowed, _, retry_after = check_rate_limit_for_endpoint(ip_address, "password_validate")
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail=f"请求过于频繁，请在 {retry_after} 秒后重试",
+            headers={"Retry-After": str(retry_after)},
+        )
+
     if not req.password:
         raise HTTPException(status_code=400, detail="密码参数缺失")
     result = validate_password_strength(req.password)
@@ -42,7 +53,18 @@ def validate_password_endpoint(req: PasswordValidateRequest):
 
 
 @router.post("/register")
-def register(data: UserRegister, db: Session = Depends(get_db)):
+def register(data: UserRegister, db: Session = Depends(get_db), request: Request = None):
+    # 检查速率限制
+    if request:
+        ip_address = get_client_ip(request)
+        allowed, _, retry_after = check_rate_limit_for_endpoint(ip_address, "register")
+        if not allowed:
+            raise HTTPException(
+                status_code=429,
+                detail=f"请求过于频繁，请在 {retry_after} 秒后重试",
+                headers={"Retry-After": str(retry_after)},
+            )
+
     if db.query(User).filter(User.email == data.email).first():
         raise HTTPException(status_code=400, detail="该邮箱已被注册")
     # 检查密码强度（注册时强制）
@@ -64,7 +86,18 @@ def register(data: UserRegister, db: Session = Depends(get_db)):
 
 
 @router.post("/login")
-def login(data: UserLogin, db: Session = Depends(get_db)):
+def login(data: UserLogin, db: Session = Depends(get_db), request: Request = None):
+    # 检查速率限制
+    if request:
+        ip_address = get_client_ip(request)
+        allowed, _, retry_after = check_rate_limit_for_endpoint(ip_address, "login")
+        if not allowed:
+            raise HTTPException(
+                status_code=429,
+                detail=f"请求过于频繁，请在 {retry_after} 秒后重试",
+                headers={"Retry-After": str(retry_after)},
+            )
+
     user = db.query(User).filter(User.email == data.email, User.is_active == True).first()
     if user and verify_password(data.password, user.password):
         # Valid credentials
