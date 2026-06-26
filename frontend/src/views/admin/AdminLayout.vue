@@ -67,6 +67,21 @@ const handleLogout = () => {
 <style scoped>
 .admin-layout {
   height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+:deep(.el-container) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+:deep(.el-container > .el-container) {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
 }
 
 .el-header {
@@ -75,6 +90,7 @@ const handleLogout = () => {
   padding: 0 20px;
   display: flex;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .header-content {
@@ -93,11 +109,14 @@ const handleLogout = () => {
 
 .admin-sidebar {
   background-color: #545c64 !important;
+  flex-shrink: 0;
+  overflow-y: auto;
 }
 
-.el-main {
+:deep(.el-main) {
   background-color: #f5f7fa;
   padding: 20px;
-  overflow-y: auto;
+  overflow: auto;
+  flex: 1;
 }
 </style>

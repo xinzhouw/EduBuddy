@@ -157,7 +157,6 @@ const handleReset = () => {
 
 <style scoped>
 .audit-logs {
-  padding: 20px;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -168,6 +167,14 @@ const handleReset = () => {
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+  border: none;
+  box-shadow: none;
+}
+
+:deep(.el-card__header) {
+  flex-shrink: 0;
+  border-bottom: 1px solid #ebeef5;
+  padding: 15px 20px;
 }
 
 :deep(.el-card__body) {
@@ -175,6 +182,7 @@ const handleReset = () => {
   flex-direction: column;
   flex: 1;
   overflow: hidden;
+  padding: 0 20px;
 }
 
 .table-container {
@@ -184,8 +192,7 @@ const handleReset = () => {
   overflow: hidden;
   border: 1px solid #ebeef5;
   border-radius: 4px;
-  min-height: 300px;
-  max-height: calc(100vh - 400px);
+  margin: 0 20px;
 }
 
 :deep(.table-container .el-table) {
@@ -198,7 +205,9 @@ const handleReset = () => {
 
 :deep(.el-pagination) {
   flex-shrink: 0;
-  padding: 16px 0 0 0;
+  padding: 15px 20px 20px 20px;
+  text-align: right;
+  margin: 0 -20px -20px -20px;
 }
 
 .filter-group {

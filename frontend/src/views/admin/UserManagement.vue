@@ -265,17 +265,32 @@ const handleViewDetail = (userId: number) => {
 
 <style scoped>
 .user-management {
-  padding: 20px;
   height: 100%;
   display: flex;
   flex-direction: column;
 }
 
-.card-container {
+:deep(.el-card) {
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+  border: none;
+  box-shadow: none;
+}
+
+:deep(.el-card__header) {
+  flex-shrink: 0;
+  border-bottom: 1px solid #ebeef5;
+  padding: 15px 20px;
+}
+
+.card-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  margin: 0 20px;
 }
 
 :deep(.el-card__body) {
@@ -308,7 +323,8 @@ const handleViewDetail = (userId: number) => {
 
 :deep(.el-pagination) {
   flex-shrink: 0;
-  padding: 16px 0 0 0;
+  padding: 15px 20px 20px 20px;
+  text-align: right;
 }
 
 .search-group {
