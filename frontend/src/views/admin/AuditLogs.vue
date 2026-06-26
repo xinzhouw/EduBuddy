@@ -91,14 +91,13 @@
         :total="adminStore.auditLogs.total"
         layout="total, sizes, prev, pager, next"
         style="margin-top: 20px; text-align: right"
-        @pagination="handleSearch"
       />
     </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useAdminStore } from '@/stores/admin'
 
 const adminStore = useAdminStore()
@@ -110,6 +109,10 @@ const currentPage = ref(1)
 const pageSize = ref(20)
 
 onMounted(() => {
+  handleSearch()
+})
+
+watch([currentPage, pageSize], () => {
   handleSearch()
 })
 

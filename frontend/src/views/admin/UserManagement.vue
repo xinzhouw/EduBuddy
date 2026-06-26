@@ -124,14 +124,13 @@
         :total="adminStore.userList.total"
         layout="total, sizes, prev, pager, next"
         style="margin-top: 20px; text-align: right"
-        @pagination="handleSearch"
       />
     </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAdminStore } from '@/stores/admin'
 import { ElMessage } from 'element-plus'
@@ -147,6 +146,10 @@ const selectedUsers = ref<any[]>([])
 const isLoadingAll = ref(false)
 
 onMounted(() => {
+  handleSearch()
+})
+
+watch([currentPage, pageSize], () => {
   handleSearch()
 })
 
