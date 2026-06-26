@@ -156,8 +156,6 @@ function showErrorDialog(errorCode: string, retryAfter?: number) {
 }
 
 function disableLoginButtonWithCountdown(seconds: number) {
-  loading.value = true
-
   if (countdownInterval.value) {
     clearInterval(countdownInterval.value)
   }

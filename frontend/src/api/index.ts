@@ -52,6 +52,8 @@ api.interceptors.response.use(
       if (window.location.pathname !== '/login') {
         window.location.href = '/login'
       }
+    } else if (isPublicPath(error.config?.url)) {
+      // 对于登录/注册等公开路由，跳过自动错误提示，由调用方负责 UI
     } else if (status !== 422) {
       ElMessage.error(message)
     }
