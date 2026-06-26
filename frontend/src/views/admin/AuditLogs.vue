@@ -39,7 +39,16 @@
         </div>
       </template>
 
+      <el-alert
+        v-if="adminStore.auditLogsError"
+        :title="`错误：${adminStore.auditLogsError}`"
+        type="error"
+        closable
+        style="margin-bottom: 20px"
+      />
+      <el-empty v-if="!adminStore.auditLogsLoading && !adminStore.auditLogs.items.length" description="暂无审计日志" />
       <el-table
+        v-if="adminStore.auditLogs.items.length"
         :data="adminStore.auditLogs.items"
         :loading="adminStore.auditLogsLoading"
         stripe

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from datetime import datetime
+from typing import Optional
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
@@ -18,8 +19,8 @@ def require_admin(current_user: User = Depends(get_current_user)):
 def get_users(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    search: str = Query(None),
-    role: str = Query(None),
+    search: Optional[str] = Query(None),
+    role: Optional[str] = Query(None),
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
@@ -65,10 +66,10 @@ def delete_user(
 def get_audit_logs(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
-    user_id: int = Query(None),
-    feature: str = Query(None),
-    start_date: datetime = Query(None),
-    end_date: datetime = Query(None),
+    user_id: Optional[int] = Query(None),
+    feature: Optional[str] = Query(None),
+    start_date: Optional[datetime] = Query(None),
+    end_date: Optional[datetime] = Query(None),
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):

@@ -103,7 +103,13 @@ async function handleLogin() {
     loading.value = true
     try {
       await authStore.login(form.email, form.password)
-      router.push('/')
+      // 根据角色跳转到不同页面
+      const role = authStore.user?.role
+      if (role === 'admin') {
+        router.push('/admin/dashboard')
+      } else {
+        router.push('/')
+      }
     } catch {
     } finally {
       loading.value = false

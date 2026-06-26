@@ -1,5 +1,12 @@
 <template>
   <div class="admin-dashboard">
+    <el-alert
+      v-if="adminStore.dashboardStatsError"
+      :title="`错误：${adminStore.dashboardStatsError}`"
+      type="error"
+      closable
+      style="margin-bottom: 20px"
+    />
     <el-row :gutter="20" class="mb-5">
       <el-col :xs="24" :sm="12" :md="8">
         <el-card class="stat-card">

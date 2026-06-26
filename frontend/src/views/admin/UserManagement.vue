@@ -28,7 +28,16 @@
         </div>
       </template>
 
+      <el-alert
+        v-if="adminStore.userListError"
+        :title="`错误：${adminStore.userListError}`"
+        type="error"
+        closable
+        style="margin-bottom: 20px"
+      />
+      <el-empty v-if="!adminStore.userListLoading && !adminStore.userList.items.length" description="暂无用户数据" />
       <el-table
+        v-if="adminStore.userList.items.length"
         :data="adminStore.userList.items"
         :loading="adminStore.userListLoading"
         stripe
