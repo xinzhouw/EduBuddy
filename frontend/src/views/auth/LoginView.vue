@@ -200,8 +200,8 @@ async function handleLogin() {
       }
     } catch (error: any) {
       loading.value = false
-      const errorCode = error.response?.data?.error_code || 'NETWORK_ERROR'
-      const retryAfter = error.response?.data?.retry_after
+      const errorCode = error.response?.data?.detail?.error_code || 'NETWORK_ERROR'
+      const retryAfter = error.response?.data?.detail?.retry_after
       showErrorDialog(errorCode, retryAfter)
     }
   })
