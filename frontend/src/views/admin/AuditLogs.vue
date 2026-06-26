@@ -46,8 +46,9 @@
         closable
         style="margin-bottom: 20px"
       />
-      <el-empty v-if="!adminStore.auditLogsLoading && !adminStore.auditLogs.items.length" description="暂无审计日志" />
-      <div v-if="adminStore.auditLogs.items.length" class="table-container">
+      <div class="content-wrapper">
+        <el-empty v-if="!adminStore.auditLogsLoading && !adminStore.auditLogs.items.length" description="暂无审计日志" />
+        <div v-if="adminStore.auditLogs.items.length" class="table-container">
         <el-table
           :data="adminStore.auditLogs.items"
           :loading="adminStore.auditLogsLoading"
@@ -81,6 +82,8 @@
           </template>
         </el-table-column>
         </el-table>
+      </div>
+        </div>
       </div>
 
       <el-pagination
@@ -180,6 +183,13 @@ const handleReset = () => {
   padding: 0;
 }
 
+.content-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .table-container {
   flex: 1;
   display: flex;
@@ -200,6 +210,14 @@ const handleReset = () => {
   text-align: right;
   border-top: 1px solid #ebeef5;
   background-color: #fff;
+}
+
+:deep(.el-empty) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
 }
 
 .filter-group {

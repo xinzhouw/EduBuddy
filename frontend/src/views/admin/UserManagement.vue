@@ -40,7 +40,6 @@
         closable
         style="margin-bottom: 20px"
       />
-      <el-empty v-if="!adminStore.userListLoading && !adminStore.userList.items.length" description="暂无用户数据" />
       <div class="batch-actions" v-if="selectedUsers.length">
         <span>已选择 {{ selectedUsers.length }} 个用户</span>
         <el-popconfirm
@@ -56,7 +55,9 @@
         <el-button size="small" @click="selectedUsers = []">取消选择</el-button>
       </div>
 
-      <div v-if="adminStore.userList.items.length" class="table-container">
+      <div class="content-wrapper">
+        <el-empty v-if="!adminStore.userListLoading && !adminStore.userList.items.length" description="暂无用户数据" />
+        <div v-if="adminStore.userList.items.length" class="table-container">
         <el-table
           :data="adminStore.userList.items"
           :loading="adminStore.userListLoading"
@@ -114,6 +115,8 @@
           </template>
         </el-table-column>
         </el-table>
+      </div>
+        </div>
       </div>
 
       <el-pagination
@@ -288,6 +291,13 @@ const handleViewDetail = (userId: number) => {
   padding: 0;
 }
 
+.content-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .batch-actions {
   display: flex;
   align-items: center;
@@ -298,6 +308,14 @@ const handleViewDetail = (userId: number) => {
   border-radius: 4px;
   border-left: 4px solid #409eff;
   flex-shrink: 0;
+}
+
+:deep(.el-empty) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
 }
 
 .batch-actions span {
