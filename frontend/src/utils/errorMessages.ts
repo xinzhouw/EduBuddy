@@ -12,7 +12,7 @@ export const LOGIN_ERROR_MESSAGES: Record<string, LoginErrorInfo> = {
   },
   ACCOUNT_DISABLED: {
     title: '账户已禁用',
-    message: '你的账户已被禁用，无法登录',
+    message: '邮箱或密码错误，请检查后重试',
     suggestion: '请联系管理员或客服获取帮助'
   },
   ACCOUNT_LOCKED: {

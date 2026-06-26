@@ -166,6 +166,7 @@ function disableLoginButtonWithCountdown(seconds: number) {
     retryCountdown.value--
     if (retryCountdown.value <= 0) {
       clearInterval(countdownInterval.value!)
+      countdownInterval.value = null
       loading.value = false
       retryCountdown.value = 0
     }
@@ -179,6 +180,7 @@ function closeErrorDialog() {
 onBeforeUnmount(() => {
   if (countdownInterval.value) {
     clearInterval(countdownInterval.value)
+    countdownInterval.value = null
   }
 })
 
