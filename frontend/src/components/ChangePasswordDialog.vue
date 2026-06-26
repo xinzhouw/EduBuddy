@@ -4,7 +4,6 @@
     title="修改密码"
     width="400px"
     @close="handleDialogClose"
-    @open="onDialogOpen"
   >
     <el-form :model="form" ref="formRef">
       <!-- 旧密码 -->
@@ -86,16 +85,6 @@ async function handleDialogClose() {
   await resetForm()
 }
 
-async function onDialogOpen() {
-  // 对话框打开时清空自动填充的密码
-  await nextTick()
-  const oldPasswordInput = document.querySelector('input[placeholder="请输入旧密码"]') as HTMLInputElement
-  if (oldPasswordInput) {
-    oldPasswordInput.value = ''
-    oldPasswordInput.dispatchEvent(new Event('input', { bubbles: true }))
-  }
-}
-
 async function handleSubmit() {
   // 验证旧密码非空
   if (!form.value.oldPassword) {
@@ -131,10 +120,22 @@ async function handleSubmit() {
   }
 }
 
+async function clearAutofill() {
+  // 等待浏览器密码管理器的自动填充完成
+  await new Promise(resolve => setTimeout(resolve, 100))
+
+  const oldPasswordInput = document.querySelector('input[placeholder="请输入旧密码"]') as HTMLInputElement
+  if (oldPasswordInput && oldPasswordInput.value) {
+    oldPasswordInput.value = ''
+    oldPasswordInput.dispatchEvent(new Event('input', { bubbles: true }))
+    form.value.oldPassword = ''
+  }
+}
+
 defineExpose({
   async open() {
-    await resetForm()
     visible.value = true
+    await clearAutofill()
   },
   close() {
     visible.value = false
