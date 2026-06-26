@@ -28,7 +28,6 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = res.data.user
     localStorage.setItem('token', res.data.access_token)
     localStorage.setItem('user', JSON.stringify(res.data.user))
-    ElMessage.success('登录成功')
   }
 
   async function register(data: { email: string; password: string; nickname: string; grade: string; role?: string }) {
