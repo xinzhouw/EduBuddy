@@ -54,6 +54,7 @@
           stripe
           size="small"
           style="width: 100%"
+          max-height="400"
         >
         <el-table-column prop="id" label="ID" width="60" />
         <el-table-column prop="user_id" label="用户 ID" width="80" />
@@ -178,9 +179,26 @@ const handleReset = () => {
 
 .table-container {
   flex: 1;
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   border: 1px solid #ebeef5;
   border-radius: 4px;
+  min-height: 300px;
+  max-height: calc(100vh - 400px);
+}
+
+:deep(.table-container .el-table) {
+  height: auto;
+}
+
+:deep(.table-container .el-table__body-wrapper) {
+  overflow-y: auto;
+}
+
+:deep(.el-pagination) {
+  flex-shrink: 0;
+  padding: 16px 0 0 0;
 }
 
 .filter-group {
