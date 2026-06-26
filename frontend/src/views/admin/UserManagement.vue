@@ -61,7 +61,8 @@
           :data="adminStore.userList.items"
           :loading="adminStore.userListLoading"
           stripe
-          style="width: 100%; height: 100%"
+          style="width: 100%"
+          max-height="400"
           @selection-change="handleSelectionChange"
         >
         <el-table-column type="selection" width="50" />
@@ -282,6 +283,7 @@ const handleViewDetail = (userId: number) => {
   flex-direction: column;
   flex: 1;
   overflow: hidden;
+  padding-bottom: 0;
 }
 
 .table-container {
@@ -291,7 +293,8 @@ const handleViewDetail = (userId: number) => {
   overflow: hidden;
   border: 1px solid #ebeef5;
   border-radius: 4px;
-  min-height: 400px;
+  min-height: 300px;
+  max-height: calc(100vh - 400px);
 }
 
 :deep(.table-container .el-table) {
@@ -299,8 +302,13 @@ const handleViewDetail = (userId: number) => {
 }
 
 :deep(.table-container .el-table__body-wrapper) {
-  height: calc(100% - 46px);
+  height: calc(100% - 46px) !important;
   overflow-y: auto;
+}
+
+:deep(.el-pagination) {
+  flex-shrink: 0;
+  padding: 16px 0 0 0;
 }
 
 .search-group {
