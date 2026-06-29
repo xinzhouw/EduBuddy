@@ -122,16 +122,20 @@ def register(data: UserRegister, db: Session = Depends(get_db), request: Request
     access_token = create_token(user.id, "access")
     refresh_token = create_token(user.id, "refresh")
 
-    # 创建 JSON 响应
+    # 创建 JSON 响应（与登录接口保持一致的结构）
     user_data = UserOut.model_validate(user)
     response = JSONResponse(
         status_code=200,
         content={
-            "access_token": access_token,  # 仍在响应中（向后兼容）
-            "refresh_token": refresh_token,
-            "token_type": "bearer",
-            "expires_in": settings.access_token_expire_minutes * 60,
-            "user": json.loads(user_data.model_dump_json()),
+            "code": 200,
+            "message": "注册成功",
+            "data": {
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "token_type": "bearer",
+                "expires_in": settings.access_token_expire_minutes * 60,
+                "user": json.loads(user_data.model_dump_json()),
+            },
         }
     )
 

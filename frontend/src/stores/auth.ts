@@ -24,15 +24,21 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function login(email: string, password: string) {
     const res: any = await authApi.login({ email, password })
-    token.value = res.data.access_token
-    user.value = res.data.user
-    localStorage.setItem('token', res.data.access_token)
-    localStorage.setItem('user', JSON.stringify(res.data.user))
+    const authData = res.data
+    token.value = authData.access_token
+    user.value = authData.user
+    localStorage.setItem('token', authData.access_token)
+    localStorage.setItem('user', JSON.stringify(authData.user))
   }
 
   async function register(data: { email: string; password: string; nickname: string; grade: string; role?: string }) {
-    await authApi.register(data)
-    ElMessage.success('注册成功，请登录')
+    const res: any = await authApi.register(data)
+    const authData = res.data
+    token.value = authData.access_token
+    user.value = authData.user
+    localStorage.setItem('token', authData.access_token)
+    localStorage.setItem('user', JSON.stringify(authData.user))
+    ElMessage.success('注册成功')
   }
 
   async function fetchMe() {
