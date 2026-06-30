@@ -194,9 +194,17 @@ async function handleRegister() {
       // 在跳转前清空所有敏感数据
       await clearSensitiveData()
 
-      // 注册成功后直接跳转到首页（而不是登录页）
+      // 注册成功后根据角色跳转到对应的首页
       // 因为用户已经自动登录
-      router.push('/')
+      const role = form.role
+      let redirectPath = '/'
+      if (role === 'admin') {
+        redirectPath = '/admin/dashboard'
+      } else if (role === 'teacher' || role === 'parent') {
+        redirectPath = '/monitor'
+      }
+
+      router.push(redirectPath)
     } catch (error) {
       console.error('[Register] Registration failed:', error)
     } finally {

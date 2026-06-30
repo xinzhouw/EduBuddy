@@ -290,16 +290,40 @@ async function handleLogin() {
     if (!valid) return
     loading.value = true
     try {
+      console.log('[Login] 开始登录流程', { email: form.email })
       await authStore.login(form.email, form.password)
+
+      console.log('[Login] 登录成功，当前状态:', {
+        token: authStore.token ? authStore.token.substring(0, 30) + '...' : null,
+        user: authStore.user,
+        isAuthenticated: authStore.isAuthenticated
+      })
+
       // 登录成功，显示成功消息并跳转
       ElMessage.success('登录成功')
       const role = authStore.user?.role
+      console.log('[Login] 用户角色:', role)
+
+      // 根据角色跳转到对应的首页
+      let redirectPath = '/'
       if (role === 'admin') {
-        router.push('/admin/dashboard')
+        redirectPath = '/admin/dashboard'
+        console.log('[Login] 跳转到 /admin/dashboard')
+      } else if (role === 'teacher' || role === 'parent') {
+        redirectPath = '/monitor'
+        console.log('[Login] 跳转到 /monitor')
       } else {
-        router.push('/')
+        console.log('[Login] 跳转到 /')
       }
+
+      router.push(redirectPath)
     } catch (error: any) {
+      console.error('[Login] 登录失败:', error)
+      console.error('[Login] 错误详情:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      })
       loading.value = false
       const errorCode = error.response?.data?.detail?.error_code || 'NETWORK_ERROR'
       const retryAfter = error.response?.data?.detail?.retry_after

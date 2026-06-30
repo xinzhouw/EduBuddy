@@ -8,6 +8,9 @@ import router from './router'
 import './style.css'
 import { hydrateDynamicFigures } from './utils/dynamicFigures'
 
+// 🔍 Debug marker - 确保新版本被加载
+console.log('%c🔍 [MAIN] EduBuddy 前端应用初始化成功 - 新版本已加载', 'color: blue; font-size: 14px; font-weight: bold')
+
 const app = createApp(App)
 
 // 注册 Element Plus 图标

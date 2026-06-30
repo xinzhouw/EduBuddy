@@ -31,7 +31,17 @@ api.interceptors.request.use((config) => {
 
 // 响应拦截器：统一错误处理
 api.interceptors.response.use(
-  (response) => response.data,
+  (response) => {
+    if (response.config.url?.includes('/auth/login') || response.config.url?.includes('/auth/register')) {
+      console.log('[API] Auth endpoint response:', {
+        url: response.config.url,
+        status: response.status,
+        dataKeys: Object.keys(response.data),
+        hasNestedData: !!response.data.data
+      })
+    }
+    return response.data
+  },
   (error) => {
     // 请求被主动取消（如未登录时拦截），静默忽略，不弹任何提示
     if (axios.isCancel?.(error) || error.code === 'ERR_CANCELED' || error.name === 'CanceledError') {
