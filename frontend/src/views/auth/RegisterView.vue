@@ -193,8 +193,12 @@ async function handleRegister() {
       await authStore.register(payload)
       // 在跳转前清空所有敏感数据
       await clearSensitiveData()
-      router.push('/login')
-    } catch {
+
+      // 注册成功后直接跳转到首页（而不是登录页）
+      // 因为用户已经自动登录
+      router.push('/')
+    } catch (error) {
+      console.error('[Register] Registration failed:', error)
     } finally {
       loading.value = false
     }
