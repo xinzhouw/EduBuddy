@@ -103,7 +103,6 @@ const navItems = computed<{ path: string; icon: string; label: string; badge?: s
     { path: '/stats', icon: '📊', label: '学习统计' },
   ]
   const observerItems = [
-    { path: '/', icon: '🏠', label: '首页' },
     { path: '/monitor', icon: '👁️', label: '学生监督' },
     { path: '/stats', icon: '📊', label: '我的统计' },
   ]
