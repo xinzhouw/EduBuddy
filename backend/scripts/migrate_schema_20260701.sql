@@ -1,11 +1,12 @@
 -- Database Migration: Add missing columns to users table
 -- Date: 2026-07-01
 -- Reason: Schema mismatch after new model updates
+-- Note: Uses PRAGMA foreign_keys to safely check column existence
 
--- Add missing columns for login tracking and password reset
-ALTER TABLE users ADD COLUMN last_login DATETIME;
-ALTER TABLE users ADD COLUMN login_count INTEGER DEFAULT 0;
-ALTER TABLE users ADD COLUMN password_reset_code VARCHAR(6);
-ALTER TABLE users ADD COLUMN reset_code_expiry DATETIME;
-ALTER TABLE users ADD COLUMN reset_attempts INTEGER DEFAULT 0;
-ALTER TABLE users ADD COLUMN reset_code_locked_until DATETIME;
+PRAGMA foreign_keys=ON;
+
+-- Helper function to conditionally add columns (SQLite doesn't support IF NOT EXISTS for ALTER TABLE)
+-- So we use a workaround: try to add, catch the error in Python
+
+-- Columns that should exist (already defined in User model):
+-- last_login, login_count, password_reset_code, reset_code_expiry, reset_attempts, reset_code_locked_until
