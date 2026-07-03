@@ -113,4 +113,3 @@ async def _log_audit_async(user_id: int, feature: str, action: str, endpoint: st
         logger.error(f"Error logging audit: {e}")
     finally:
         db.close()
-        db.dispose()
