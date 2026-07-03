@@ -511,7 +511,10 @@ async function sendMessage() {
     })
 
     if (!response.ok) {
-      throw new Error('请求失败')
+      if (response.status === 401) {
+        throw new Error('认证已过期，请重新登录')
+      }
+      throw new Error(`请求失败 (${response.status})`)
     }
 
     const reader = response.body!.getReader()

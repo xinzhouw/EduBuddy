@@ -18,6 +18,7 @@ export interface User {
 
 export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(localStorage.getItem('token'))
+  const refreshToken = ref<string | null>(localStorage.getItem('refresh_token'))
   const user = ref<User | null>(JSON.parse(localStorage.getItem('user') || 'null'))
 
   const isAuthenticated = computed(() => !!token.value)
@@ -51,10 +52,12 @@ export const useAuthStore = defineStore('auth', () => {
       }
 
       token.value = authData.access_token
+      refreshToken.value = authData.refresh_token
       user.value = authData.user
 
       console.log('[Auth Store] 保存到 localStorage')
       localStorage.setItem('token', authData.access_token)
+      localStorage.setItem('refresh_token', authData.refresh_token)
       localStorage.setItem('user', JSON.stringify(authData.user))
 
       console.log('[Auth Store] 登录成功完成', {
@@ -72,8 +75,10 @@ export const useAuthStore = defineStore('auth', () => {
     const res: any = await authApi.register(data)
     const authData = res.data
     token.value = authData.access_token
+    refreshToken.value = authData.refresh_token
     user.value = authData.user
     localStorage.setItem('token', authData.access_token)
+    localStorage.setItem('refresh_token', authData.refresh_token)
     localStorage.setItem('user', JSON.stringify(authData.user))
     ElMessage.success('注册成功')
   }
@@ -86,10 +91,12 @@ export const useAuthStore = defineStore('auth', () => {
 
   function logout() {
     token.value = null
+    refreshToken.value = null
     user.value = null
     localStorage.removeItem('token')
+    localStorage.removeItem('refresh_token')
     localStorage.removeItem('user')
   }
 
-  return { token, user, isAuthenticated, login, register, fetchMe, logout }
+  return { token, refreshToken, user, isAuthenticated, login, register, fetchMe, logout }
 })

@@ -1,6 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import QueuePool
 from app.config import get_settings
 import os
 
@@ -13,6 +14,11 @@ os.makedirs(os.path.dirname(db_path) if os.path.dirname(db_path) else ".", exist
 engine = create_engine(
     settings.database_url,
     connect_args={"check_same_thread": False},
+    poolclass=QueuePool,
+    pool_size=10,
+    max_overflow=20,
+    pool_timeout=30,
+    pool_recycle=3600,
     echo=False,
 )
 

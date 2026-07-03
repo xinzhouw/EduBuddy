@@ -7,6 +7,9 @@ export const authApi = {
   login: (data: { email: string; password: string }) =>
     api.post('/auth/login', data),
 
+  refreshToken: (refreshToken: string) =>
+    api.post('/auth/refresh', { refresh_token: refreshToken }),
+
   getMe: () => api.get('/auth/me'),
 
   updateMe: (data: { nickname?: string; grade?: string; phone?: string; gender?: string; age?: number }) =>

@@ -39,4 +39,7 @@ RUN mkdir -p uploads data
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# 启动脚本：先运行迁移，再启动应用
+COPY scripts/entrypoint.sh /app/
+RUN chmod +x /app/entrypoint.sh
+ENTRYPOINT ["/app/entrypoint.sh"]
