@@ -249,6 +249,66 @@ class AIService:
         ):
             yield delta
 
+    async def chat_stream_with_images(
+        self,
+        question: str,
+        subject: str,
+        grade: str,
+        images: list = None,
+        history: list = None,
+        rag_context: str = "",
+    ) -> AsyncGenerator[str, None]:
+        """
+        流式对话，支持图片分析
+
+        流程：
+        1. 并行执行 OCR + Vision API
+        2. 融合结果
+        3. 构造增强提示词
+        4. 调用 chat_stream()
+        """
+        from app.services.image_service import image_service
+
+        if not images:
+            # 无图片，直接调用 chat_stream
+            async for chunk in self.chat_stream(question, subject, grade, history, rag_context):
+                yield chunk
+            return
+
+        try:
+            # 1. 提取图片路径
+            image_paths = [img.file_path for img in images]
+
+            # 2. 并行执行 OCR + Vision
+            ocr_results, vision_results = await asyncio.gather(
+                image_service.batch_ocr(image_paths),
+                image_service.batch_vision(image_paths),
+            )
+
+            # 3. 融合结果
+            merged_analysis = image_service.merge_analysis_results(ocr_results, vision_results)
+
+            # 4. 构造增强提示词
+            enhanced_prompt = image_service.build_enhanced_prompt(question, merged_analysis)
+
+            # 5. 合并 RAG 上下文
+            enhanced_context = rag_context
+            if rag_context:
+                enhanced_context = rag_context + "\n" + enhanced_prompt
+            else:
+                enhanced_context = enhanced_prompt
+
+            # 6. 调用 chat_stream 进行流式对话
+            async for chunk in self.chat_stream(
+                enhanced_prompt, subject, grade, history, enhanced_context
+            ):
+                yield chunk
+
+        except Exception as e:
+            print(f"图片分析失败: {e}")
+            # 降级：如果图片分析失败，仍尝试用原问题对话
+            async for chunk in self.chat_stream(question, subject, grade, history, rag_context):
+                yield chunk
 
     async def generate_quiz(
         self,
