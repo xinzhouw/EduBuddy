@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Index
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from app.database import Base
 
 
@@ -40,6 +41,9 @@ class ChatSession(Base):
     created_at = Column(DateTime, nullable=False, server_default=func.now())
     updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
 
+    # 关系
+    images = relationship("ChatImage", back_populates="session", cascade="all, delete-orphan")
+
 
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
@@ -51,6 +55,9 @@ class ChatMessage(Base):
     content = Column(Text, nullable=False)
     feedback = Column(String(20), nullable=True)  # 'thumbs_up' / 'thumbs_down'
     feedback_reason = Column(String(50), nullable=True)
+    image_ids = Column(Text, nullable=True)  # JSON array: ["img_001", "img_002"]
+    image_ocr_text = Column(Text, nullable=True)  # OCR 提取的文字
+    image_vision_desc = Column(Text, nullable=True)  # Vision API 的描述
     created_at = Column(DateTime, nullable=False, server_default=func.now())
 
     __table_args__ = (
