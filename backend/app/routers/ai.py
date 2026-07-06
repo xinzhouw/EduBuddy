@@ -1,6 +1,6 @@
 import uuid
 import json
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, File, Form, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -10,8 +10,10 @@ from app.dependencies import get_current_user
 from app.models.user import User
 from app.models.note import ChatSession, ChatMessage
 from app.models.wrong_item import WrongItem
+from app.models.image import ChatImage
 from app.services.ai_service import ai_service
 from app.services.rag_service import rag_service
+from app.services.image_service import image_service
 from app.services.meta_service import meta_service, build_meta_context
 from app.services.review_service import get_initial_review_date
 
@@ -39,12 +41,39 @@ class AddToWrongBookRequest(BaseModel):
 
 @router.post("/chat")
 async def chat(
-    data: ChatRequest,
+    session_id: Optional[str] = Form(None),
+    question: str = Form(...),
+    subject: str = Form("数学"),
+    images: List[UploadFile] = File(default=[]),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # 获取或创建会话
-    session_id = data.session_id
+    """
+    AI 问答（支持图片上传）
+
+    请求：multipart/form-data
+    - session_id: 会话 ID（可选）
+    - question: 问题文本
+    - subject: 学科
+    - images: 图片文件数组（最多 5 张）
+    """
+    # 1. 验证和保存图片
+    image_objs = []
+    if images:
+        try:
+            valid, error = await image_service.validate_files(images)
+            if not valid:
+                raise HTTPException(status_code=400, detail=error)
+
+            if not session_id:
+                session_id = str(uuid.uuid4())
+
+            image_ids = await image_service.save_images(images, current_user.id, session_id, db)
+            image_objs = db.query(ChatImage).filter(ChatImage.id.in_(image_ids)).all()
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"图片保存失败: {str(e)}")
+
+    # 2. 获取或创建会话
     if session_id:
         session = db.query(ChatSession).filter(
             ChatSession.id == session_id, ChatSession.user_id == current_user.id
@@ -53,65 +82,75 @@ async def chat(
             raise HTTPException(status_code=404, detail="会话不存在")
     else:
         session_id = str(uuid.uuid4())
-        title = data.question[:50] if len(data.question) > 0 else "新对话"
-        session = ChatSession(id=session_id, user_id=current_user.id, title=title, subject=data.subject)
+        title = question[:50] if len(question) > 0 else "新对话"
+        session = ChatSession(id=session_id, user_id=current_user.id, title=title, subject=subject)
         db.add(session)
         db.commit()
 
-    # 获取历史消息（最近10条）- 直接升序获取，避免反向操作
+    # 3. 获取历史消息（最近10条）
     history_msgs = db.query(ChatMessage).filter(
         ChatMessage.session_id == session_id
     ).order_by(ChatMessage.created_at.asc()).limit(10).all()
     history = [{"role": m.role, "content": m.content} for m in history_msgs]
 
-    # 保存用户消息
+    # 4. 保存用户消息（含图片）
     user_msg = ChatMessage(
         session_id=session_id,
         user_id=current_user.id,
         role="user",
-        content=data.question,
+        content=question,
+        image_ids=json.dumps([img.id for img in image_objs]) if image_objs else None,
     )
     db.add(user_msg)
     db.commit()
 
-    # 提前读取 current_user 的属性，避免 StreamingResponse 中 Session 关闭后 DetachedInstanceError
+    # 5. 读取用户信息（避免 DetachedInstanceError）
     user_id = current_user.id
     user_grade = current_user.grade
 
-    # 应用元信息上下文：当用户询问「本应用功能 / 知识库收录的科目教材 / 教材章节目录」时，
-    # 注入应用自身知识，使 AI 能正确回答这类问题（不属于元信息类则为空字符串）。
+    # 6. 构建上下文
     meta_context = build_meta_context(
-        question=data.question,
-        subject=data.subject if data.subject != "全部" else None,
+        question=question,
+        subject=subject if subject != "全部" else None,
         grade=user_grade if user_grade else None,
     )
 
-    # RAG 检索：从教材知识库中召回相关内容（知识库不可用时自动降级为空字符串）
     rag_context = rag_service.build_context_prompt(
-        query=data.question,
-        subject=data.subject if data.subject != "全部" else None,
+        query=question,
+        subject=subject if subject != "全部" else None,
         grade=user_grade if user_grade else None,
         top_k=4,
     )
 
-    # 合并上下文（元信息优先注入，确保功能/知识库类问题能被正确回答）
     combined_context = (meta_context or "") + (rag_context or "")
 
 
-    # 收集完整回复以便保存
+    # 7. 流式对话（如有图片则使用增强版本）
     full_response = []
     message_id_holder = []
 
     async def generate():
-        async for chunk in ai_service.chat_stream(
-            question=data.question,
-            subject=data.subject,
-            grade=user_grade,
-            history=history,
-            rag_context=combined_context,
-        ):
-            full_response.append(chunk)
-            yield f"data: {json.dumps({'type': 'content', 'delta': chunk}, ensure_ascii=False)}\n\n"
+        if image_objs:
+            async for chunk in ai_service.chat_stream_with_images(
+                question=question,
+                subject=subject,
+                grade=user_grade,
+                images=image_objs,
+                history=history,
+                rag_context=combined_context,
+            ):
+                full_response.append(chunk)
+                yield f"data: {json.dumps({'type': 'content', 'delta': chunk}, ensure_ascii=False)}\n\n"
+        else:
+            async for chunk in ai_service.chat_stream(
+                question=question,
+                subject=subject,
+                grade=user_grade,
+                history=history,
+                rag_context=combined_context,
+            ):
+                full_response.append(chunk)
+                yield f"data: {json.dumps({'type': 'content', 'delta': chunk}, ensure_ascii=False)}\n\n"
 
         # 保存AI回复
         full_content = "".join(full_response)
