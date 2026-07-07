@@ -23,3 +23,10 @@ chromadb>=0.5.0
 sentence-transformers>=2.7.0
 geoip2>=4.7.0
 apscheduler>=3.10.0
+
+# AI 问答图片上传：OCR（可选，不安装时自动降级为仅 Vision API）
+# PaddleOCR 体积较大，仅在需要文字提取增强时安装：
+#   pip install "paddleocr>=2.8.0" "pdf2image>=1.16.0"
+# 未安装时 ImageService 仅用 GPT-4o Vision API 分析图片，功能仍可用。
+# paddleocr>=2.8.0
+# pdf2image>=1.16.0
