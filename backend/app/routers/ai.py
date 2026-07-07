@@ -57,23 +57,7 @@ async def chat(
     - subject: 学科
     - images: 图片文件数组（最多 5 张）
     """
-    # 1. 验证和保存图片
-    image_objs = []
-    if images:
-        try:
-            valid, error = await image_service.validate_files(images)
-            if not valid:
-                raise HTTPException(status_code=400, detail=error)
-
-            if not session_id:
-                session_id = str(uuid.uuid4())
-
-            image_ids = await image_service.save_images(images, current_user.id, session_id, db)
-            image_objs = db.query(ChatImage).filter(ChatImage.id.in_(image_ids)).all()
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=f"图片保存失败: {str(e)}")
-
-    # 2. 获取或创建会话
+    # 1. 先获取或创建会话（必须在存图之前：图片外键引用会话，且旧逻辑会误判新 session 为“不存在”导致 404）
     if session_id:
         session = db.query(ChatSession).filter(
             ChatSession.id == session_id, ChatSession.user_id == current_user.id
@@ -86,6 +70,21 @@ async def chat(
         session = ChatSession(id=session_id, user_id=current_user.id, title=title, subject=subject)
         db.add(session)
         db.commit()
+
+    # 2. 验证并保存图片（此时 session 已存在，session_id 有效）
+    image_objs = []
+    if images:
+        try:
+            valid, error = await image_service.validate_files(images)
+            if not valid:
+                raise HTTPException(status_code=400, detail=error)
+
+            image_ids = await image_service.save_images(images, current_user.id, session_id, db)
+            image_objs = db.query(ChatImage).filter(ChatImage.id.in_(image_ids)).all()
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"图片保存失败: {str(e)}")
 
     # 3. 获取历史消息（最近10条）
     history_msgs = db.query(ChatMessage).filter(
@@ -104,9 +103,10 @@ async def chat(
     db.add(user_msg)
     db.commit()
 
-    # 5. 读取用户信息（避免 DetachedInstanceError）
+    # 5. 读取用户信息 + 图片路径（提前取出普通值，避免 StreamingResponse 中 Session 关闭后 DetachedInstanceError）
     user_id = current_user.id
     user_grade = current_user.grade
+    image_paths = [img.file_path for img in image_objs]
 
     # 6. 构建上下文
     meta_context = build_meta_context(
@@ -130,12 +130,12 @@ async def chat(
     message_id_holder = []
 
     async def generate():
-        if image_objs:
+        if image_paths:
             async for chunk in ai_service.chat_stream_with_images(
                 question=question,
                 subject=subject,
                 grade=user_grade,
-                images=image_objs,
+                image_paths=image_paths,
                 history=history,
                 rag_context=combined_context,
             ):

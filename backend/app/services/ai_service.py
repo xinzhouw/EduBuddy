@@ -254,12 +254,16 @@ class AIService:
         question: str,
         subject: str,
         grade: str,
-        images: list = None,
+        image_paths: list = None,
         history: list = None,
         rag_context: str = "",
     ) -> AsyncGenerator[str, None]:
         """
         流式对话，支持图片分析
+
+        Args:
+            image_paths: 图片文件的相对路径列表（普通字符串，调用方需在 Session
+                关闭前从 ORM 提取，避免 StreamingResponse 中的 DetachedInstanceError）
 
         流程：
         1. 并行执行 OCR + Vision API
@@ -269,17 +273,14 @@ class AIService:
         """
         from app.services.image_service import image_service
 
-        if not images:
+        if not image_paths:
             # 无图片，直接调用 chat_stream
             async for chunk in self.chat_stream(question, subject, grade, history, rag_context):
                 yield chunk
             return
 
         try:
-            # 1. 提取图片路径
-            image_paths = [img.file_path for img in images]
-
-            # 2. 并行执行 OCR + Vision
+            # 1. 并行执行 OCR + Vision
             ocr_results, vision_results = await asyncio.gather(
                 image_service.batch_ocr(image_paths),
                 image_service.batch_vision(image_paths),
