@@ -36,5 +36,5 @@ def get_db():
 
 
 def init_db():
-    from app.models import user, note, quiz, wrong_item, study_plan, document, homework, relation, advice, audit_log  # noqa
+    from app.models import user, note, quiz, wrong_item, study_plan, document, homework, relation, advice, audit_log, image  # noqa
     Base.metadata.create_all(bind=engine)
