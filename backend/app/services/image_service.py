@@ -7,7 +7,7 @@ from typing import List, Tuple, Optional
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
 from app.models.image import ChatImage
-from app.config import settings
+from app.config import get_settings
 from concurrent.futures import ThreadPoolExecutor
 
 try:
@@ -19,7 +19,7 @@ except ImportError:
 ALLOWED_TYPES = {"jpg", "jpeg", "png", "pdf"}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 DEFAULT_MAX_COUNT = 5
-UPLOAD_DIR = settings.upload_dir or "./uploads"
+UPLOAD_DIR = get_settings().upload_dir or "./uploads"
 
 # 全局 OCR 实例
 _ocr_instance = None
