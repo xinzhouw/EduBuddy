@@ -348,3 +348,66 @@ async def retrieve_from_knowledge_base(
             "results": results,
         }
     }
+
+
+@router.get("/chat/{session_id}/images")
+def get_session_images(
+    session_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """获取会话中的所有图片"""
+    from app.schemas.image import ImageResponse
+
+    # 验证会话属主
+    session = db.query(ChatSession).filter(
+        ChatSession.id == session_id, ChatSession.user_id == current_user.id
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="会话不存在")
+
+    # 查询图片（排除已软删除的）
+    images = db.query(ChatImage).filter(
+        ChatImage.session_id == session_id,
+        ChatImage.deleted_at.is_(None),
+    ).order_by(ChatImage.created_at.desc()).all()
+
+    return {
+        "code": 200,
+        "data": [ImageResponse.model_validate(img).model_dump(mode="json") for img in images],
+    }
+
+
+@router.delete("/chat/images/{image_id}")
+def delete_image(
+    image_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """删除图片（需权限检查）"""
+    from datetime import datetime
+    import os
+    from app.config import get_settings
+
+    image = db.query(ChatImage).filter(ChatImage.id == image_id).first()
+    if not image:
+        raise HTTPException(status_code=404, detail="图片不存在")
+
+    # 权限检查：只能删除自己的图片
+    if image.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="无权删除他人的图片")
+
+    # 软删除数据库记录
+    image.deleted_at = datetime.utcnow()
+    db.commit()
+
+    # 同时删除磁盘上的文件
+    upload_dir = get_settings().upload_dir or "./uploads"
+    file_path = os.path.join(upload_dir, image.file_path)
+    if os.path.exists(file_path):
+        try:
+            os.remove(file_path)
+        except Exception as e:
+            print(f"删除文件失败: {e}")
+
+    return {"code": 200, "message": "图片已删除"}
