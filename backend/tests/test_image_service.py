@@ -88,6 +88,42 @@ class TestMergeAnalysisResults:
         assert "【图片 2】" in merged
 
 
+class TestBuildImageParts:
+    """PDF 必须被渲染为图片块，而非以 image/pdf 直接下发（Vision 无法读取 PDF）。"""
+
+    def setup_method(self):
+        self.svc = ImageService()
+
+    def test_png_single_part(self, tmp_path):
+        from PIL import Image
+        p = tmp_path / "a.png"
+        Image.new("RGB", (10, 10), "white").save(p)
+        parts = self.svc._build_image_parts(str(p), "png")
+        assert len(parts) == 1
+        assert parts[0]["image_url"]["url"].startswith("data:image/png;base64,")
+
+    def test_jpg_uses_jpeg_mime(self, tmp_path):
+        from PIL import Image
+        p = tmp_path / "a.jpg"
+        Image.new("RGB", (10, 10), "white").save(p)
+        parts = self.svc._build_image_parts(str(p), "jpg")
+        assert parts[0]["image_url"]["url"].startswith("data:image/jpeg;base64,")
+
+    def test_pdf_rendered_to_png_parts(self, tmp_path):
+        import fitz
+        p = tmp_path / "doc.pdf"
+        doc = fitz.open()
+        doc.new_page().insert_text((72, 100), "hello pdf", fontsize=12)
+        doc.new_page().insert_text((72, 100), "page two", fontsize=12)
+        doc.save(str(p))
+        doc.close()
+        parts = self.svc._build_image_parts(str(p), "pdf")
+        # 两页 → 两个 PNG 图片块，绝不出现 image/pdf
+        assert len(parts) == 2
+        for part in parts:
+            assert part["image_url"]["url"].startswith("data:image/png;base64,")
+
+
 class TestBuildEnhancedPrompt:
     def setup_method(self):
         self.svc = ImageService()

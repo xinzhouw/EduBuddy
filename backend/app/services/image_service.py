@@ -181,15 +181,64 @@ class ImageService:
         results = await asyncio.gather(*tasks)
         return results
 
+    # PDF 渲染上限：最多取前 N 页，避免超大 PDF 撑爆请求
+    PDF_MAX_PAGES = 5
+
+    @staticmethod
+    def _build_image_parts(image_path: str, ext: str) -> List[dict]:
+        """
+        将文件转换为 Vision API 可接受的 image_url 内容块列表。
+
+        - 图片（jpg/jpeg/png）：单个块，使用对应的 image/* MIME。
+        - PDF：用 PyMuPDF 逐页渲染为 PNG（Vision 无法直接读取 PDF），
+          每页一个块，最多 PDF_MAX_PAGES 页。PyMuPDF 不可用时返回空列表。
+        """
+        parts: List[dict] = []
+
+        if ext == "pdf":
+            try:
+                import fitz  # PyMuPDF
+            except ImportError:
+                print("PDF 需要 PyMuPDF(fitz) 支持，但未安装；跳过 Vision 分析")
+                return []
+            try:
+                doc = fitz.open(image_path)
+                # 2x 缩放提升清晰度，利于识别公式/小字
+                matrix = fitz.Matrix(2, 2)
+                for page_index in range(min(len(doc), ImageService.PDF_MAX_PAGES)):
+                    page = doc.load_page(page_index)
+                    pix = page.get_pixmap(matrix=matrix)
+                    png_bytes = pix.tobytes("png")
+                    b64 = base64.b64encode(png_bytes).decode("utf-8")
+                    parts.append({
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/png;base64,{b64}"},
+                    })
+                doc.close()
+            except Exception as e:
+                print(f"PDF 渲染失败: {e}")
+                return []
+            return parts
+
+        # 普通图片
+        with open(image_path, "rb") as f:
+            image_base64 = base64.b64encode(f.read()).decode("utf-8")
+        mime_type = "image/jpeg" if ext in ("jpg", "jpeg") else f"image/{ext}"
+        parts.append({
+            "type": "image_url",
+            "image_url": {"url": f"data:{mime_type};base64,{image_base64}"},
+        })
+        return parts
+
     async def analyze_with_vision(self, image_path: str) -> str:
         """
-        使用 GPT-4o Vision API 分析图片
+        使用 Vision API 分析图片；PDF 会先逐页渲染为图片。
 
         Args:
-            image_path: 图片路径
+            image_path: 图片路径（相对 UPLOAD_DIR 或绝对路径）
 
         Returns:
-            图片分析描述
+            图片分析描述；失败或无法解析时返回空字符串
         """
         try:
             from app.services.ai_service import ai_service
@@ -201,37 +250,31 @@ class ImageService:
             if not os.path.exists(image_path):
                 return ""
 
-            # 读取图片并转为 base64
-            with open(image_path, "rb") as f:
-                image_data = f.read()
-            image_base64 = base64.b64encode(image_data).decode("utf-8")
-
-            # 确定图片类型
             ext = image_path.split(".")[-1].lower()
-            mime_type = f"image/{ext}" if ext != "jpg" else "image/jpeg"
 
-            # 调用 Vision API
+            # 在线程池中做可能较重的文件读取 / PDF 渲染，避免阻塞事件循环
+            loop = asyncio.get_event_loop()
+            image_parts = await loop.run_in_executor(
+                _thread_pool, self._build_image_parts, image_path, ext
+            )
+            if not image_parts:
+                return ""
+
+            content = [
+                {
+                    "type": "text",
+                    "text": "请详细描述这些学科试题图片中的所有内容。包括：题目文字、图表、公式、图像等。要尽可能完整和准确。若为多页，请按页依次描述。",
+                },
+                *image_parts,
+            ]
+
             response = await ai_service.client.chat.completions.create(
                 model=ai_service.model,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": "请详细描述这张学科试题图片中的所有内容。包括：题目文字、图表、公式、图像等。要尽可能完整和准确。",
-                            },
-                            {
-                                "type": "image_url",
-                                "image_url": {"url": f"data:{mime_type};base64,{image_base64}"},
-                            },
-                        ],
-                    }
-                ],
-                timeout=30,
+                messages=[{"role": "user", "content": content}],
+                timeout=60,
             )
 
-            return response.choices[0].message.content
+            return response.choices[0].message.content or ""
         except asyncio.TimeoutError:
             print("Vision API 超时")
             return ""
