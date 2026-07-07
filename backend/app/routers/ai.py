@@ -232,6 +232,28 @@ def get_messages(
         ChatMessage.session_id == session_id
     ).order_by(ChatMessage.created_at.asc()).all()
 
+    # 预取本会话所有未删除图片，构建 id -> 静态 URL 映射，供带图消息回显
+    image_map = {
+        img.id: f"/uploads/{img.file_path}"
+        for img in db.query(ChatImage).filter(
+            ChatImage.session_id == session_id,
+            ChatImage.deleted_at.is_(None),
+        ).all()
+    }
+
+    def build_images(m: ChatMessage):
+        if not m.image_ids:
+            return []
+        try:
+            ids = json.loads(m.image_ids)
+        except (json.JSONDecodeError, TypeError):
+            return []
+        return [
+            {"id": iid, "url": image_map[iid]}
+            for iid in ids
+            if iid in image_map
+        ]
+
     return {"code": 200, "data": [
         {
             "id": m.id,
@@ -239,6 +261,7 @@ def get_messages(
             "content": m.content,
             "feedback": m.feedback,
             "created_at": m.created_at.isoformat(),
+            "images": build_images(m),
         }
         for m in messages
     ]}

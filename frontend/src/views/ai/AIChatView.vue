@@ -109,10 +109,27 @@
           <!-- 消息内容 -->
           <div class="max-w-xs sm:max-w-2xl">
             <!-- 用户消息：支持 LaTeX 渲染（保留换行） -->
-            <div v-if="msg.role === 'user'"
-              class="px-3 sm:px-4 py-2 sm:py-3 rounded-2xl text-xs sm:text-sm leading-relaxed bg-blue-500 text-white rounded-tr-sm user-message-content"
-              v-html="renderUserMessage(msg.content)">
-            </div>
+            <template v-if="msg.role === 'user'">
+              <!-- 用户上传的试题图片 -->
+              <div v-if="msg.uploadedImages && msg.uploadedImages.length > 0"
+                class="flex flex-wrap gap-2 justify-end mb-1">
+                <el-image
+                  v-for="(img, ii) in msg.uploadedImages"
+                  :key="ii"
+                  :src="img.url"
+                  :preview-src-list="msg.uploadedImages.map(u => u.url)"
+                  :initial-index="ii"
+                  fit="cover"
+                  class="w-20 h-20 rounded-lg border border-blue-200 cursor-pointer"
+                  preview-teleported
+                />
+              </div>
+              <!-- 用户文字（可能为空，仅图片时不渲染气泡） -->
+              <div v-if="msg.content && msg.content.trim()"
+                class="px-3 sm:px-4 py-2 sm:py-3 rounded-2xl text-xs sm:text-sm leading-relaxed bg-blue-500 text-white rounded-tr-sm user-message-content"
+                v-html="renderUserMessage(msg.content)">
+              </div>
+            </template>
             <!-- AI 消息：Markdown + LaTeX 富文本渲染 + 图片 -->
             <div v-else :data-msg-key="msg.id || msg.tempId" class="ai-message-content px-3 sm:px-4 py-2 sm:py-3 rounded-2xl rounded-tl-sm bg-gray-100 text-gray-800 text-xs sm:text-sm">
 
@@ -214,21 +231,42 @@
 
       <!-- 输入区 -->
       <div class="border-t border-gray-100 pt-2 sm:pt-3 px-2 sm:px-0 shrink-0">
+        <!-- 图片上传区（可折叠） -->
+        <div v-if="showImageUpload" class="mb-2">
+          <ImageUploadArea
+            ref="imageUploadRef"
+            :max-count="5"
+            :max-size-m-b="10"
+            @images-selected="handleImagesSelected"
+          />
+        </div>
+        <!-- 已选图片数量提示 -->
+        <div v-if="selectedImages.length > 0 && !showImageUpload" class="mb-2 text-xs text-gray-500">
+          已选择 {{ selectedImages.length }} 张图片，将随下一条消息发送
+        </div>
         <!-- 实时 LaTeX 预览区（有内容时显示） -->
         <div v-if="inputText.trim()" class="mb-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-xl text-xs sm:text-sm text-gray-700 leading-relaxed input-preview-content"
           v-html="renderUserMessage(inputText)">
         </div>
         <div class="flex gap-2 items-end">
+          <el-button
+            :type="showImageUpload || selectedImages.length ? 'primary' : 'default'"
+            @click="showImageUpload = !showImageUpload"
+            size="small"
+            class="shrink-0"
+            title="上传试题图片"
+            :icon="Picture"
+          />
           <el-input
             v-model="inputText"
             type="textarea"
             :rows="2"
-            placeholder="输入问题..."
+            placeholder="输入问题，或上传试题图片..."
             class="flex-1 text-xs sm:text-sm"
             @keydown.enter.exact.prevent="sendMessage"
             resize="none"
           />
-          <el-button type="primary" @click="sendMessage" :disabled="!inputText.trim() || isLoading" size="small" class="shrink-0">
+          <el-button type="primary" @click="sendMessage" :disabled="(!inputText.trim() && selectedImages.length === 0) || isLoading" size="small" class="shrink-0">
             发送
           </el-button>
         </div>
@@ -254,9 +292,13 @@ import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { aiApi } from '@/api/ai'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Picture } from '@element-plus/icons-vue'
 import { renderMessage, renderLatexOnly } from '@/utils/markdown'
 import { searchEducationalImages } from '@/utils/imageSearch'
 import SessionDrawer from '@/components/shared/SessionDrawer.vue'
+import ImageUploadArea from '@/components/shared/ImageUploadArea.vue'
+import { buildChatFormData } from '@/api/image'
+import { isPictureFile, getImagePreviewUrl } from '@/utils/imageUpload'
 import { setupLongPressCopyGesture } from '@/utils/touchGestures'
 
 
@@ -275,6 +317,12 @@ interface ImageBlock {
   images: ImageItem[]
 }
 
+/** 用户随消息上传的试题图片（区别于 AI 配图 ImageBlock） */
+interface UploadedImage {
+  id?: string
+  url: string
+}
+
 interface ChatMessage {
   id?: number
   tempId?: number
@@ -284,6 +332,7 @@ interface ChatMessage {
   feedback?: string
   imageBlocks?: ImageBlock[]
   pendingImageKeywords?: string[]
+  uploadedImages?: UploadedImage[]
 }
 
 // ===================== 图片标记处理 =====================
@@ -332,6 +381,17 @@ const isLoading = ref(false)
 const messagesEl = ref<HTMLElement>()
 const copiedMsgId = ref<number | null>(null)
 const exportingMsgId = ref<number | null>(null)
+
+// ===================== 图片上传状态 =====================
+/** 当前已选择、待随下一条消息发送的试题图片 */
+const selectedImages = ref<File[]>([])
+/** 是否展开图片上传区 */
+const showImageUpload = ref(false)
+const imageUploadRef = ref<InstanceType<typeof ImageUploadArea> | null>(null)
+
+function handleImagesSelected(files: File[]) {
+  selectedImages.value = files
+}
 
 /** 历史会话左侧列表的学科过滤（'全部' 或具体学科名） */
 const filterSubject = ref('全部')
@@ -446,12 +506,14 @@ async function loadSession(sessionId: string) {
 
   try {
     const res: any = await aiApi.getMessages(sessionId)
-    const rawMsgs: ChatMessage[] = res.data || []
+    const rawMsgs: any[] = res.data || []
     // 历史消息加载后也需要搜索图片
     messages.value = rawMsgs.map(m => ({
       ...m,
       imageBlocks: [],
       pendingImageKeywords: [],
+      // 后端返回的 images: [{id, url}] 映射为用户上传图回显
+      uploadedImages: Array.isArray(m.images) ? m.images : [],
     }))
     // 缓存该会话的消息
     messagesCacheMap.value.set(sessionId, messages.value)
@@ -475,12 +537,25 @@ function newChat() {
 // ===================== 发送消息 =====================
 async function sendMessage() {
   const text = inputText.value.trim()
-  if (!text || isLoading.value) return
+  const imagesToSend = selectedImages.value.slice()
+  // 允许"仅图片"或"图片+文字"，但不允许两者皆空
+  if ((!text && imagesToSend.length === 0) || isLoading.value) return
 
-  // 添加用户消息
-  const userMsg: ChatMessage = { tempId: Date.now(), role: 'user', content: text }
+  // 添加用户消息（含本地图片预览，立即回显）
+  const userMsg: ChatMessage = {
+    tempId: Date.now(),
+    role: 'user',
+    content: text,
+    uploadedImages: imagesToSend
+      .filter(isPictureFile)
+      .map((f) => ({ url: getImagePreviewUrl(f) })),
+  }
   messages.value.push(userMsg)
   inputText.value = ''
+  // 清空图片选择与上传区
+  selectedImages.value = []
+  showImageUpload.value = false
+  imageUploadRef.value?.clear()
   await scrollToBottom()
 
   // 创建 AI 回复占位
@@ -497,17 +572,19 @@ async function sendMessage() {
 
   try {
     const token = authStore.token
+    // 后端 /api/ai/chat 使用 multipart 表单参数（Form/File），
+    // 因此统一用 FormData 发送（无图片时 images 字段为空）。
+    // 注意：不要手动设置 Content-Type，需由浏览器自动带上 multipart boundary。
+    const body = buildChatFormData({
+      sessionId: currentSessionId.value,
+      question: text || '请解读并解答图片中的题目',
+      subject: selectedSubject.value,
+      images: imagesToSend,
+    })
     const response = await fetch('/api/ai/chat', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        session_id: currentSessionId.value,
-        question: text,
-        subject: selectedSubject.value,
-      }),
+      headers: { Authorization: `Bearer ${token}` },
+      body,
     })
 
     if (!response.ok) {
