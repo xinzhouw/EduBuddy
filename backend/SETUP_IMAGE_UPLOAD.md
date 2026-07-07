@@ -33,9 +33,8 @@ pip install "paddleocr>=2.8.0" "pdf2image>=1.16.0"
 ```bash
 cd backend
 ./venv/bin/python -c "
+import importlib.util
 from app.database import engine
-from migrations import _001 if False else None
-import importlib.util, pathlib
 spec = importlib.util.spec_from_file_location('m', 'migrations/001_add_chat_images_table.py')
 m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
 m.migrate_up(engine)
