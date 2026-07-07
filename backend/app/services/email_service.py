@@ -33,8 +33,10 @@ class EmailService:
             )
             msg.attach(MIMEText(body, "plain", "utf-8"))
 
-            with smtplib.SMTP(self.settings.smtp_server, self.settings.smtp_port) as server:
-                server.starttls()
+            server_class = smtplib.SMTP_SSL if self.settings.smtp_port == 465 else smtplib.SMTP
+            with server_class(self.settings.smtp_server, self.settings.smtp_port) as server:
+                if self.settings.smtp_port != 465:
+                    server.starttls()
                 server.login(self.settings.smtp_username, self.settings.smtp_password)
                 server.sendmail(self.settings.smtp_from_email, email, msg.as_string())
 

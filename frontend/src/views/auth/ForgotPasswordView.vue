@@ -98,7 +98,7 @@
           <el-button
             type="text"
             class="w-full mt-4"
-            @click="step = 1"
+            @click="handleBack"
           >
             返回
           </el-button>
@@ -195,6 +195,9 @@ async function handleSendCode() {
     try {
       await authApi.forgotPassword(form.email)
       ElMessage.success('验证码已发送到邮箱')
+      form.code = ''
+      form.newPassword = ''
+      form.confirmPassword = ''
       step.value = 2
     } catch (error: any) {
       errorMessage.value = error.response?.data?.detail?.message || '发送验证码失败'
@@ -223,5 +226,13 @@ async function handleResetPassword() {
       loading.value = false
     }
   })
+}
+
+function handleBack() {
+  form.code = ''
+  form.newPassword = ''
+  form.confirmPassword = ''
+  resetFormRef.value?.clearValidate()
+  step.value = 1
 }
 </script>
