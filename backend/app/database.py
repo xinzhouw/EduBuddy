@@ -38,3 +38,30 @@ def get_db():
 def init_db():
     from app.models import user, note, quiz, wrong_item, study_plan, document, homework, relation, advice, audit_log, image  # noqa
     Base.metadata.create_all(bind=engine)
+    _apply_lightweight_migrations()
+
+
+def _apply_lightweight_migrations():
+    """幂等地为已存在的表补充新增列。
+
+    create_all 只创建缺失的表，不会给已存在的表加列。对于给现有表新增字段
+    （如 chat_messages 的图片相关列），需在此显式 ALTER，保证已有部署重启即升级。
+    """
+    from sqlalchemy import text
+
+    # (表名, 列名, 列类型) —— 新增列在此登记
+    column_additions = [
+        ("chat_messages", "image_ids", "TEXT"),
+        ("chat_messages", "image_ocr_text", "TEXT"),
+        ("chat_messages", "image_vision_desc", "TEXT"),
+    ]
+
+    with engine.connect() as conn:
+        for table, column, col_type in column_additions:
+            existing = {
+                row[1]
+                for row in conn.execute(text(f"PRAGMA table_info({table})")).fetchall()
+            }
+            if existing and column not in existing:
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
+        conn.commit()
