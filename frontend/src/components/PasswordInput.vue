@@ -1,18 +1,18 @@
 <template>
   <div class="password-group">
-    <!-- 密码输入框 -->
+    <!-- Password input field -->
     <el-input
       v-model="password"
       type="password"
-      placeholder="请输入密码"
+      :placeholder="$t('auth.enter_password')"
       :show-password="true"
       @input="handlePasswordChange"
       autocomplete="new-password"
     />
 
-    <!-- 实时反馈（仅当输入时显示）-->
+    <!-- Live feedback (shown only when typing) -->
     <div v-if="password" class="feedback">
-      <!-- 强度进度条 -->
+      <!-- Strength progress bar -->
       <div class="strength-container">
         <el-progress
           :percentage="validation.score"
@@ -24,7 +24,7 @@
         </span>
       </div>
 
-      <!-- 缺陷列表 -->
+      <!-- Issue list -->
       <div v-if="validation.issues.length" class="issues">
         <div v-for="issue in validation.issues" :key="issue" class="issue">
           <span class="icon">❌</span>
@@ -32,10 +32,10 @@
         </div>
       </div>
 
-      <!-- 成功标记 -->
+      <!-- Success indicator -->
       <div v-else class="success">
         <span class="icon">✅</span>
-        <span>密码符合要求</span>
+        <span>{{ $t('common.success') }}</span>
       </div>
     </div>
   </div>
@@ -43,8 +43,11 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { validatePasswordStrength, type PasswordValidationResult } from '@/utils/passwordValidator'
 import { debounce } from 'lodash-es'
+
+const { t } = useI18n()
 
 const password = ref('')
 const validation = ref<PasswordValidationResult>({
@@ -55,9 +58,9 @@ const validation = ref<PasswordValidationResult>({
 
 const strengthLabel = computed(() => {
   const labels = {
-    weak: '弱',
-    medium: '中等',
-    strong: '强'
+    weak: t('common.failed'),
+    medium: t('quiz.difficulty_medium'),
+    strong: t('common.success')
   }
   return labels[validation.value.strength]
 })
@@ -80,7 +83,7 @@ const handlePasswordChange = debounce(async () => {
   validation.value = await validatePasswordStrength(password.value)
 }, 300)
 
-// 外部可调用此方法获取当前密码值或重置状态
+// Exposed for parent components to get password value or reset state
 defineExpose({
   get password() {
     return password.value

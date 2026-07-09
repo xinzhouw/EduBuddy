@@ -1,6 +1,6 @@
 <template>
   <div class="image-upload-area">
-    <!-- 错误提示 -->
+    <!-- Error message -->
     <el-alert
       v-if="errorMessage"
       :title="errorMessage"
@@ -11,7 +11,7 @@
       class="mb-3"
     />
 
-    <!-- 上传区域（拖拽和点击） -->
+    <!-- Upload area (drag and click) -->
     <div
       class="upload-box"
       :class="{ dragging: isDragging }"
@@ -29,11 +29,11 @@
         style="display: none"
       />
       <el-icon class="upload-icon"><UploadFilled /></el-icon>
-      <p class="upload-text">拖拽或点击上传试题图片</p>
-      <p class="upload-hint">支持 JPG、PNG、PDF，最多 5 张，单个 10MB</p>
+      <p class="upload-text">{{ $t('homework.upload_click') }}</p>
+      <p class="upload-hint">{{ $t('docs.file_types_hint') }}</p>
     </div>
 
-    <!-- 图片预览网格 -->
+    <!-- Image preview grid -->
     <div v-if="selectedFiles.length > 0" class="image-preview-grid mt-4">
       <div v-for="(file, index) in selectedFiles" :key="index" class="image-item">
         <div class="image-preview">
@@ -46,7 +46,7 @@
             <el-icon><Document /></el-icon>
             <span>PDF</span>
           </div>
-          <button class="delete-btn" @click.stop="removeImage(index)" title="删除">
+          <button class="delete-btn" @click.stop="removeImage(index)" :title="$t('common.delete')">
             ✕
           </button>
         </div>
@@ -59,12 +59,15 @@
 
 <script setup lang="ts">
 import { ref, watch, onBeforeUnmount } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { UploadFilled, Document } from '@element-plus/icons-vue';
 import {
   validateImageFiles,
   getImagePreviewUrl,
   isPictureFile,
 } from '@/utils/imageUpload';
+
+const { t } = useI18n();
 
 const props = withDefaults(
   defineProps<{
@@ -87,7 +90,7 @@ const errorMessage = ref('');
 const selectedFiles = ref<File[]>([]);
 const previewUrls = ref<string[]>([]);
 
-// 每当选中文件变化，重建预览 URL 并释放旧的，避免内存泄漏
+// Rebuild preview URLs and release old ones whenever selected files change, to prevent memory leaks
 watch(
   selectedFiles,
   (files) => {
@@ -107,7 +110,7 @@ const handleFileSelect = (event: Event) => {
   const target = event.target as HTMLInputElement;
   const files = Array.from(target.files || []);
   processFiles(files);
-  // 允许重复选择同一文件
+  // Allow reselecting the same file
   target.value = '';
 };
 
@@ -124,7 +127,7 @@ const processFiles = (files: File[]) => {
   });
 
   if (imageFiles.length === 0) {
-    errorMessage.value = '请选择图片或 PDF 文件';
+    errorMessage.value = t('quiz.unsupported_file');
     return;
   }
 
@@ -134,7 +137,7 @@ const processFiles = (files: File[]) => {
   });
 
   if (!validation.valid) {
-    errorMessage.value = validation.error || '验证失败';
+    errorMessage.value = validation.error || t('common.failed');
     return;
   }
 
@@ -158,7 +161,7 @@ const formatFileSize = (bytes: number): string => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 };
 
-/** 供父组件在发送成功后清空已选图片。 */
+/** Clear selected images, called by parent after successful send. */
 const clear = () => {
   selectedFiles.value = [];
   emit('images-selected', []);

@@ -34,7 +34,7 @@
       </div>
     </div>
 
-    <!-- 导航菜单 -->
+    <!-- Navigation menu -->
     <nav class="flex-1 px-3 py-5 space-y-0.5 overflow-y-auto">
       <RouterLink
         v-for="item in navItems"
@@ -51,7 +51,7 @@
       </RouterLink>
     </nav>
 
-    <!-- 底部用户信息（点击进入个人资料） -->
+    <!-- Bottom user info (click to enter profile) -->
     <div class="border-t border-slate-700/50 p-3">
       <RouterLink
         to="/profile"
@@ -62,12 +62,12 @@
           {{ authStore.user?.nickname?.[0]?.toUpperCase() || 'U' }}
         </div>
         <div class="flex-1 min-w-0">
-          <p class="text-sm font-semibold text-slate-200 truncate">{{ authStore.user?.nickname || '同学' }}</p>
-          <p class="text-xs text-slate-400">{{ authStore.user?.grade || '学生' }} · 个人资料</p>
+          <p class="text-sm font-semibold text-slate-200 truncate">{{ authStore.user?.nickname || $t('auth.student') }}</p>
+          <p class="text-xs text-slate-400">{{ authStore.user?.grade || $t('auth.student') }} · {{ $t('navigation.profile') }}</p>
         </div>
         <button @click.prevent.stop="logout"
           class="text-slate-500 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
-          title="退出登录">
+          :title="$t('auth.logout')">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -81,35 +81,37 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 
-// 根据用户角色动态生成导航菜单
+// Generate navigation menu dynamically based on user role
 const navItems = computed<{ path: string; icon: string; label: string; badge?: string | number }[]>(() => {
   const role = authStore.user?.role || 'student'
   const studentItems = [
-    { path: '/', icon: '🏠', label: '首页' },
-    { path: '/ai', icon: '🤖', label: 'AI 问答' },
-    { path: '/homework', icon: '✍️', label: 'AI 批改作业' },
-    { path: '/notes', icon: '📝', label: '笔记' },
-    { path: '/quiz', icon: '📚', label: '练习题' },
-    { path: '/wrong-book', icon: '❌', label: '错题本' },
-    { path: '/plan', icon: '📅', label: '学习计划' },
-    { path: '/docs', icon: '📄', label: '文档' },
-    { path: '/reading-buddy', icon: '📖', label: '读书郎' },
-    { path: '/stats', icon: '📊', label: '学习统计' },
+    { path: '/', icon: '🏠', label: t('navigation.home') },
+    { path: '/ai', icon: '🤖', label: t('navigation.ai_chat') },
+    { path: '/homework', icon: '✍️', label: t('navigation.homework_grading') },
+    { path: '/notes', icon: '📝', label: t('navigation.notes') },
+    { path: '/quiz', icon: '📚', label: t('navigation.quiz') },
+    { path: '/wrong-book', icon: '❌', label: t('navigation.wrong_book') },
+    { path: '/plan', icon: '📅', label: t('navigation.study_plan') },
+    { path: '/docs', icon: '📄', label: t('navigation.docs') },
+    { path: '/reading-buddy', icon: '📖', label: t('navigation.reading_buddy') },
+    { path: '/stats', icon: '📊', label: t('navigation.learning_stats') },
   ]
   const observerItems = [
-    { path: '/monitor', icon: '👁️', label: '学生监督' },
-    { path: '/stats', icon: '📊', label: '我的统计' },
+    { path: '/monitor', icon: '👁️', label: t('navigation.monitor') },
+    { path: '/stats', icon: '📊', label: t('navigation.my_stats') },
   ]
   const adminItems = [
-    { path: '/admin/dashboard', icon: '📊', label: '管理后台' },
-    { path: '/admin/users', icon: '👥', label: '用户管理' },
-    { path: '/admin/audit-logs', icon: '📋', label: '审计日志' },
+    { path: '/admin/dashboard', icon: '📊', label: t('navigation.admin') },
+    { path: '/admin/users', icon: '👥', label: t('navigation.user_management') },
+    { path: '/admin/audit-logs', icon: '📋', label: t('navigation.audit_logs') },
   ]
   if (role === 'admin') {
     return adminItems

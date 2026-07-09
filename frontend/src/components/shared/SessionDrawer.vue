@@ -1,8 +1,8 @@
 <template>
-  <!-- 移动端会话列表抽屉（底部弹出） -->
+  <!-- Mobile session list drawer (slides up from bottom) -->
   <el-drawer
     :model-value="modelValue"
-    :title="'历史对话'"
+    :title="$t('ai_chat.history_title')"
     direction="btt"
     :size="350"
     :destroy-on-close="true"
@@ -12,15 +12,15 @@
     @close="$emit('close')"
   >
     <div class="space-y-3 h-full flex flex-col">
-      <!-- 新对话按钮 -->
+      <!-- New chat button -->
       <el-button type="primary" size="small" class="w-full" @click="handleNewChat">
-        + 新对话
+        {{ $t('ai_chat.new_chat') }}
       </el-button>
 
-      <!-- 学科过滤 -->
+      <!-- Subject filter -->
       <div class="flex flex-wrap gap-1">
         <button
-          v-for="s in ['全部', ...subjects]"
+          v-for="s in ['', ...subjects]"
           :key="s"
           @click="handleFilterSubject(s)"
           class="text-xs px-2 py-0.5 rounded-full border transition-colors"
@@ -28,18 +28,18 @@
             ? 'bg-blue-500 text-white border-blue-500'
             : 'bg-white text-gray-500 border-gray-200'"
         >
-          {{ s }}
+          {{ s || $t('ai_chat.filter_all') }}
         </button>
       </div>
 
-      <!-- 会话列表 -->
+      <!-- Session list -->
       <div class="flex-1 overflow-y-auto space-y-1">
         <div v-if="filteredSessions.length === 0" class="text-center py-8 text-gray-400 text-sm">
-          暂无历史对话
+          {{ $t('ai_chat.no_history') }}
         </div>
 
-        <!-- 按学科分组 -->
-        <template v-if="filterSubject === '全部'">
+        <!-- Grouped by subject -->
+        <template v-if="filterSubject === ''">
           <template v-for="(group, subject) in groupedSessions" :key="subject">
             <div class="flex items-center gap-1 px-1 pt-2 pb-0.5">
               <span class="text-xs font-semibold text-gray-400 uppercase">{{ subject }}</span>
@@ -53,18 +53,18 @@
               :class="currentSessionId === s.id ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-600'"
             >
               <p class="font-medium truncate">{{ s.title }}</p>
-              <p class="text-xs text-gray-400">{{ s.message_count }} 条</p>
+              <p class="text-xs text-gray-400">{{ s.message_count }} {{ $t('ai_chat.message_count_unit') }}</p>
               <button
                 @click.stop="handleDeleteSession(s)"
                 class="hidden group-hover:block text-red-500 text-xs mt-1"
               >
-                删除
+                {{ $t('common.delete') }}
               </button>
             </button>
           </template>
         </template>
 
-        <!-- 单一学科显示 -->
+        <!-- Single subject display -->
         <template v-else>
           <button
             v-for="s in filteredSessions"
@@ -74,12 +74,12 @@
             :class="currentSessionId === s.id ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-600'"
           >
             <p class="font-medium truncate">{{ s.title }}</p>
-            <p class="text-xs text-gray-400">{{ s.subject }} · {{ s.message_count }} 条</p>
+            <p class="text-xs text-gray-400">{{ s.subject }} · {{ s.message_count }} {{ $t('ai_chat.message_count_unit') }}</p>
             <button
               @click.stop="handleDeleteSession(s)"
               class="hidden group-hover:block text-red-500 text-xs mt-1"
             >
-              删除
+              {{ $t('common.delete') }}
             </button>
           </button>
         </template>
@@ -113,7 +113,7 @@ const emit = defineEmits<{
   'filter-subject': [subject: string]
 }>()
 
-const filterSubject = ref('全部')
+const filterSubject = ref('')
 
 const groupedSessions = computed(() => {
   const groups: Record<string, Session[]> = {}
@@ -125,7 +125,7 @@ const groupedSessions = computed(() => {
 })
 
 const filteredSessions = computed(() => {
-  if (!filterSubject.value || filterSubject.value === '全部') {
+  if (!filterSubject.value) {
     return props.sessions
   }
   return props.sessions.filter(s => s.subject === filterSubject.value)
