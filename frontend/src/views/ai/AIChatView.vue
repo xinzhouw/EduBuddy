@@ -338,7 +338,7 @@ interface ChatMessage {
 
 // ===================== Image marker processing =====================
 
-/** 从 AI 回复内容中提取所有 [[IMAGE:关键词]] 标记的关键词列表 */
+/** Extract the list of all [[IMAGE:keyword]] marker keywords from AI reply content */
 function extractImageKeywords(content: string): string[] {
   const pattern = /\[\[IMAGE:([^\]]+)\]\]/gi
   const keywords: string[] = []
@@ -353,8 +353,8 @@ function extractImageKeywords(content: string): string[] {
 }
 
 /**
- * 渲染消息内容：将 [[IMAGE:xxx]] 标记替换为"图片占位锚点"
- * 实际图片由 imageBlocks 数据驱动渲染，此处只去掉标记文字避免显示在正文中
+ * Render message content: replace [[IMAGE:xxx]] markers with placeholder anchors.
+ * Actual images are driven by imageBlocks data; here we just strip the marker text.
  */
 function renderMessageWithImagePlaceholders(content: string): string {
   // Strip [[IMAGE:...]] markers (images rendered by imageBlocks section below)
@@ -960,9 +960,9 @@ function msgToPlainText(content: string): string {
   let text = content
   // Remove image markers
   text = text.replace(/\[\[IMAGE:[^\]]*\]\]/gi, '')
-  // 块级公式 $$...$$ → translated placeholder
+  // Block-level formulas $$...$$ → spoken placeholder
   text = text.replace(/\$\$[\s\S]*?\$\$/g, t('ai_chat.tts_math_formula'))
-  // 行内公式 $...$ → translated placeholder
+  // Inline formulas $...$ → spoken placeholder
   text = text.replace(/\$[^$\n]+\$/g, t('ai_chat.tts_math_formula'))
   // Markdown headings
   text = text.replace(/^#{1,6}\s+/gm, '')
