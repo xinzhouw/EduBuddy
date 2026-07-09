@@ -795,7 +795,7 @@
     "pitch_label": "Pitch",
     "volume_label": "Volume",
     "text_ready": "Text ready",
-    "text_ready_info": "{n} chars, approx. {min} min",
+    "text_ready_info": "{n} chars, approx. {min}",
     "no_text_hint": "Enter text or upload a file on the left first",
     "start_reading": "Start Reading",
     "pause_reading": "Pause",
@@ -811,7 +811,11 @@
     "char_label": "({n} chars)",
     "clear_text": "Clear",
     "extract_failed": "Text processing failed, please try again",
-    "file_extract_failed": "File recognition failed, please check the file format or try again"
+    "file_extract_failed": "File recognition failed, please check the file format or try again",
+    "seconds_short": "s",
+    "minutes_short": "min",
+    "no_audio_stream": "Unable to access audio stream.\n\nSuggestions:\n① When clicking 'Start Recording', select 'Entire Screen' and check 'Share system audio'\n② Or use a system audio recording tool to capture speaker output",
+    "record_init_failed": "Recording initialization failed, please check browser permission settings"
   },
   "monitor": {
     "teacher_title": "Class Student Monitor",

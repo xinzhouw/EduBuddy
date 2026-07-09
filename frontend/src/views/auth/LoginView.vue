@@ -1,39 +1,39 @@
 <template>
   <div class="min-h-screen flex">
-    <!-- 左侧品牌区 -->
+    <!-- Left brand section -->
     <div class="hidden lg:flex w-1/2 bg-gradient-to-br from-blue-500 to-blue-700 flex-col items-center justify-center p-12 text-white">
       <div class="text-center">
         <div class="text-7xl mb-6">📚</div>
         <h1 class="text-4xl font-bold mb-4">EduBuddy</h1>
-        <p class="text-xl text-blue-100 mb-8">AI 驱动的个性化学习助手</p>
+        <p class="text-xl text-blue-100 mb-8">{{ $t('auth.ai_tagline') }}</p>
         <div class="grid grid-cols-2 gap-4 text-sm text-blue-100">
-          <div class="flex items-center gap-2"><span>🤖</span><span>AI 即时解题</span></div>
-          <div class="flex items-center gap-2"><span>📝</span><span>智能笔记管理</span></div>
-          <div class="flex items-center gap-2"><span>📚</span><span>练习题生成</span></div>
-          <div class="flex items-center gap-2"><span>❌</span><span>错题间隔复习</span></div>
+          <div class="flex items-center gap-2"><span>🤖</span><span>{{ $t('auth.feature_ai') }}</span></div>
+          <div class="flex items-center gap-2"><span>📝</span><span>{{ $t('auth.feature_notes_ai') }}</span></div>
+          <div class="flex items-center gap-2"><span>📚</span><span>{{ $t('auth.feature_quiz_gen') }}</span></div>
+          <div class="flex items-center gap-2"><span>❌</span><span>{{ $t('auth.feature_review') }}</span></div>
         </div>
       </div>
     </div>
 
-    <!-- 右侧登录表单 -->
+    <!-- Right login form -->
     <div class="flex-1 flex items-center justify-center p-4 sm:p-8">
       <div class="w-full max-w-md">
-        <!-- 移动端 Logo -->
+        <!-- Mobile logo -->
         <div class="lg:hidden text-center mb-6">
           <div class="text-5xl mb-2">📚</div>
           <h1 class="text-2xl font-bold text-gray-900">EduBuddy</h1>
         </div>
 
         <div class="text-center mb-6 sm:mb-8">
-          <h2 class="text-xl sm:text-2xl font-bold text-gray-900">欢迎回来！</h2>
-          <p class="text-gray-500 mt-2 text-sm sm:text-base">登录你的 EduBuddy 账号</p>
+          <h2 class="text-xl sm:text-2xl font-bold text-gray-900">{{ $t('auth.welcome_back') }}</h2>
+          <p class="text-gray-500 mt-2 text-sm sm:text-base">{{ $t('auth.login_subtitle') }}</p>
         </div>
 
         <el-form :model="form" :rules="rules" ref="formRef" @submit.prevent="handleLogin" class="space-y-4">
           <el-form-item prop="email">
             <el-input
               v-model="form.email"
-              placeholder="邮箱地址"
+              :placeholder="$t('auth.email')"
               size="large"
               type="email"
               prefix-icon="Message"
@@ -45,7 +45,7 @@
           <el-form-item prop="password">
             <el-input
               v-model="form.password"
-              placeholder="密码"
+              :placeholder="$t('auth.password')"
               size="large"
               type="password"
               show-password
@@ -65,7 +65,7 @@
             @click="handleLogin"
             :disabled="retryCountdown > 0"
           >
-            {{ retryCountdown > 0 ? `登 录 (${retryCountdown}s)` : '登 录' }}
+            {{ retryCountdown > 0 ? `${$t('auth.login')} (${retryCountdown}s)` : $t('auth.login') }}
           </el-button>
 
           <div class="text-center pt-2">
@@ -74,12 +74,12 @@
               class="text-blue-500 hover:text-blue-600 text-sm font-medium inline-flex items-center gap-1 transition-colors"
             >
               <span>🔑</span>
-              <span>忘记密码？</span>
+              <span>{{ $t('auth.forgot_password') }}?</span>
             </RouterLink>
           </div>
         </el-form>
 
-        <!-- 错误对话框 -->
+        <!-- Error dialog -->
         <el-dialog
           v-model="errorDialogVisible"
           :title="errorTitle"
@@ -104,23 +104,23 @@
           </template>
 
           <div class="space-y-4">
-            <!-- 主要错误消息 -->
+            <!-- Main error message -->
             <p class="text-gray-700 text-base leading-relaxed">{{ errorMessage }}</p>
 
-            <!-- 倒计时提示 -->
+            <!-- Countdown hint -->
             <div v-if="retryCountdown > 0" class="bg-amber-50 border border-amber-200 rounded-lg p-4">
               <div class="flex items-center gap-3">
                 <div class="text-2xl">⏳</div>
                 <div class="flex-1">
-                  <p class="text-sm font-semibold text-amber-900">请稍候</p>
+                  <p class="text-sm font-semibold text-amber-900">{{ $t('auth.please_wait') }}</p>
                   <p class="text-sm text-amber-700">
-                    <span class="font-bold text-lg text-amber-600">{{ retryCountdown }}</span> 秒后重试
+                    {{ $t('auth.retry_after', { n: retryCountdown }) }}
                   </p>
                 </div>
               </div>
             </div>
 
-            <!-- 建议操作 -->
+            <!-- Suggested action -->
             <div v-if="errorSuggestion" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div class="flex gap-3">
                 <span class="text-xl">💡</span>
@@ -128,7 +128,7 @@
               </div>
             </div>
 
-            <!-- 忘记密码链接 -->
+            <!-- Forgot password link -->
             <div v-if="showForgotPasswordLink" class="pt-2">
               <RouterLink
                 to="/forgot-password"
@@ -136,7 +136,7 @@
                 class="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg text-blue-600 hover:text-blue-700 text-sm font-medium transition-all w-full justify-center"
               >
                 <span>🔑</span>
-                <span>前往重置密码</span>
+                <span>{{ $t('auth.go_reset_password') }}</span>
               </RouterLink>
             </div>
           </div>
@@ -149,22 +149,22 @@
                 @click="closeErrorDialog"
                 class="flex-1"
               >
-                关闭
+                {{ $t('common.close') }}
               </el-button>
               <el-button
                 type="primary"
                 @click="closeErrorDialog"
                 :class="{ 'flex-1': showForgotPasswordLink, 'w-full': !showForgotPasswordLink }"
               >
-                确定
+                {{ $t('common.confirm') }}
               </el-button>
             </div>
           </template>
         </el-dialog>
 
         <p class="text-center text-gray-500 mt-6 text-xs sm:text-sm">
-          还没有账号？
-          <RouterLink to="/register" class="text-blue-500 hover:text-blue-600 font-medium">立即注册</RouterLink>
+          {{ $t('auth.no_account') }}
+          <RouterLink to="/register" class="text-blue-500 hover:text-blue-600 font-medium">{{ $t('auth.go_register') }}</RouterLink>
         </p>
       </div>
     </div>
@@ -178,7 +178,9 @@ import { useAuthStore } from '@/stores/auth'
 import { ElMessage } from 'element-plus'
 import type { FormInstance } from 'element-plus'
 import { LOGIN_ERROR_MESSAGES } from '@/utils/errorMessages'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
@@ -192,6 +194,7 @@ const showForgotPasswordLink = ref(false)
 const retryCountdown = ref(0)
 const countdownInterval = ref<NodeJS.Timeout | null>(null)
 const shouldDisableAutocomplete = ref(false)
+const currentErrorCode = ref('')
 
 const form = reactive({ email: '', password: '' })
 
@@ -223,8 +226,8 @@ onMounted(async () => {
   }
 })
 const rules = {
-  email: [{ required: true, message: '请输入邮箱', trigger: 'blur' }, { type: 'email', message: '邮箱格式不正确', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
+  email: [{ required: true, message: t('auth.enter_email'), trigger: 'blur' }, { type: 'email', message: t('auth.invalid_email_format'), trigger: 'blur' }],
+  password: [{ required: true, message: t('auth.enter_password'), trigger: 'blur' }],
 }
 
 function showErrorDialog(errorCode: string, retryAfter?: number) {
@@ -233,9 +236,10 @@ function showErrorDialog(errorCode: string, retryAfter?: number) {
   errorMessage.value = errorInfo.message
   errorSuggestion.value = errorInfo.suggestion
   showForgotPasswordLink.value = errorInfo.showForgotPasswordLink || false
+  currentErrorCode.value = errorCode
   errorDialogVisible.value = true
 
-  // 如果是速率限制错误，启动倒计时
+  // If rate limit error, start countdown
   if (errorCode === 'RATE_LIMIT_EXCEEDED' && retryAfter) {
     retryCountdown.value = retryAfter
     disableLoginButtonWithCountdown(retryAfter)
@@ -265,16 +269,16 @@ function closeErrorDialog() {
 const getEmojiByErrorCode = computed(() => {
   if (retryCountdown.value > 0) return '⏱️'
   if (showForgotPasswordLink.value) return '🔑'
-  if (errorTitle.value.includes('禁用')) return '🔒'
-  if (errorTitle.value.includes('锁定')) return '🔐'
+  if (currentErrorCode.value.includes('DISABLED')) return '🔒'
+  if (currentErrorCode.value.includes('LOCKED')) return '🔐'
   return '⚠️'
 })
 
 const getIconByErrorCode = computed(() => {
   if (retryCountdown.value > 0) return 'text-amber-500'
   if (showForgotPasswordLink.value) return 'text-blue-500'
-  if (errorTitle.value.includes('禁用')) return 'text-red-500'
-  if (errorTitle.value.includes('锁定')) return 'text-red-500'
+  if (currentErrorCode.value.includes('DISABLED')) return 'text-red-500'
+  if (currentErrorCode.value.includes('LOCKED')) return 'text-red-500'
   return 'text-gray-500'
 })
 
@@ -290,36 +294,34 @@ async function handleLogin() {
     if (!valid) return
     loading.value = true
     try {
-      console.log('[Login] 开始登录流程', { email: form.email })
+      console.log('[Login] Starting login flow', { email: form.email })
       await authStore.login(form.email, form.password)
 
-      console.log('[Login] 登录成功，当前状态:', {
+      console.log('[Login] Login successful, current state:', {
         token: authStore.token ? authStore.token.substring(0, 30) + '...' : null,
         user: authStore.user,
         isAuthenticated: authStore.isAuthenticated
       })
 
-      // 登录成功，显示成功消息并跳转
-      ElMessage.success('登录成功')
+      ElMessage.success(t('auth.login_success'))
       const role = authStore.user?.role
-      console.log('[Login] 用户角色:', role)
+      console.log('[Login] User role:', role)
 
-      // 根据角色跳转到对应的首页
       let redirectPath = '/'
       if (role === 'admin') {
         redirectPath = '/admin/dashboard'
-        console.log('[Login] 跳转到 /admin/dashboard')
+        console.log('[Login] Redirecting to /admin/dashboard')
       } else if (role === 'teacher' || role === 'parent') {
         redirectPath = '/monitor'
-        console.log('[Login] 跳转到 /monitor')
+        console.log('[Login] Redirecting to /monitor')
       } else {
-        console.log('[Login] 跳转到 /')
+        console.log('[Login] Redirecting to /')
       }
 
       router.push(redirectPath)
     } catch (error: any) {
-      console.error('[Login] 登录失败:', error)
-      console.error('[Login] 错误详情:', {
+      console.error('[Login] Login failed:', error)
+      console.error('[Login] Error details:', {
         status: error.response?.status,
         data: error.response?.data,
         message: error.message

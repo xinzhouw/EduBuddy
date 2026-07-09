@@ -4,20 +4,20 @@
       <div class="text-center mb-8">
         <div class="text-5xl mb-2">📚</div>
         <h1 class="text-3xl font-bold text-gray-900">EduBuddy</h1>
-        <p class="text-gray-500 mt-2">重置密码</p>
+        <p class="text-gray-500 mt-2">{{ $t('auth.reset_password') }}</p>
       </div>
 
       <div class="bg-white rounded-lg shadow-md p-8">
-        <!-- 步骤 1: 输入邮箱 -->
+        <!-- Step 1: Enter email -->
         <div v-if="step === 1">
-          <h2 class="text-xl font-bold text-gray-900 mb-4">输入你的邮箱地址</h2>
-          <p class="text-gray-600 text-sm mb-6">我们会向你的邮箱发送验证码</p>
+          <h2 class="text-xl font-bold text-gray-900 mb-4">{{ $t('auth.step1_title') }}</h2>
+          <p class="text-gray-600 text-sm mb-6">{{ $t('auth.step1_hint') }}</p>
 
           <el-form :model="form" :rules="rules" ref="formRef">
             <el-form-item prop="email">
               <el-input
                 v-model="form.email"
-                placeholder="邮箱地址"
+                :placeholder="$t('auth.email')"
                 size="large"
                 type="email"
                 prefix-icon="Message"
@@ -32,28 +32,28 @@
               :loading="loading"
               @click="handleSendCode"
             >
-              {{ loading ? '正在发送...' : '发送验证码' }}
+              {{ loading ? $t('auth.sending') : $t('auth.send_code') }}
             </el-button>
           </el-form>
 
           <p class="text-center text-gray-500 mt-6 text-xs sm:text-sm">
-            已有账号？
-            <RouterLink to="/login" class="text-blue-500 hover:text-blue-600 font-medium">返回登录</RouterLink>
+            {{ $t('auth.has_account') }}
+            <RouterLink to="/login" class="text-blue-500 hover:text-blue-600 font-medium">{{ $t('auth.back_to_login') }}</RouterLink>
           </p>
         </div>
 
-        <!-- 步骤 2: 输入验证码和新密码 -->
+        <!-- Step 2: Enter code and new password -->
         <div v-if="step === 2">
-          <h2 class="text-xl font-bold text-gray-900 mb-4">重置密码</h2>
+          <h2 class="text-xl font-bold text-gray-900 mb-4">{{ $t('auth.reset_password') }}</h2>
           <p class="text-gray-600 text-sm mb-6">
-            验证码已发送至 <span class="font-semibold">{{ form.email }}</span>
+            {{ $t('auth.code_sent_to') }} <span class="font-semibold">{{ form.email }}</span>
           </p>
 
           <el-form :model="form" :rules="resetRules" ref="resetFormRef">
             <el-form-item prop="code">
               <el-input
                 v-model="form.code"
-                placeholder="6位验证码"
+                :placeholder="$t('auth.code_placeholder')"
                 size="large"
                 maxlength="6"
                 prefix-icon="Key"
@@ -64,7 +64,7 @@
             <el-form-item prop="newPassword">
               <el-input
                 v-model="form.newPassword"
-                placeholder="新密码"
+                :placeholder="$t('auth.new_password')"
                 size="large"
                 type="password"
                 show-password
@@ -75,7 +75,7 @@
             <el-form-item prop="confirmPassword">
               <el-input
                 v-model="form.confirmPassword"
-                placeholder="确认密码"
+                :placeholder="$t('auth.confirm_password')"
                 size="large"
                 type="password"
                 show-password
@@ -91,7 +91,7 @@
               :loading="loading"
               @click="handleResetPassword"
             >
-              {{ loading ? '正在重置...' : '重置密码' }}
+              {{ loading ? $t('auth.resetting') : $t('auth.reset_password') }}
             </el-button>
           </el-form>
 
@@ -100,19 +100,19 @@
             class="w-full mt-4"
             @click="handleBack"
           >
-            返回
+            {{ $t('common.back') }}
           </el-button>
         </div>
 
         <!-- 步骤 3: 成功 -->
         <div v-if="step === 3" class="text-center">
           <div class="text-6xl mb-4">✅</div>
-          <h2 class="text-xl font-bold text-gray-900 mb-2">密码重置成功</h2>
-          <p class="text-gray-600 mb-6">你可以用新密码登录了</p>
+          <h2 class="text-xl font-bold text-gray-900 mb-2">{{ $t('auth.step3_title') }}</h2>
+          <p class="text-gray-600 mb-6">{{ $t('auth.step3_hint') }}</p>
 
           <RouterLink to="/login">
             <el-button type="primary" size="large" class="w-full h-11">
-              返回登录
+              {{ $t('auth.back_to_login') }}
             </el-button>
           </RouterLink>
         </div>
@@ -121,13 +121,13 @@
       <!-- 错误提示 -->
       <el-dialog
         v-model="errorDialogVisible"
-        title="错误"
+        :title="$t('common.error')"
         width="90%"
       >
         <p class="text-gray-700">{{ errorMessage }}</p>
         <template #footer>
           <el-button type="primary" @click="errorDialogVisible = false">
-            确定
+            {{ $t('common.confirm') }}
           </el-button>
         </template>
       </el-dialog>
@@ -141,7 +141,9 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { FormInstance } from 'element-plus'
 import { authApi } from '@/api/auth'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const router = useRouter()
 const formRef = ref<FormInstance>()
 const resetFormRef = ref<FormInstance>()
@@ -159,26 +161,26 @@ const form = reactive({
 
 const rules = {
   email: [
-    { required: true, message: '请输入邮箱', trigger: 'blur' },
-    { type: 'email', message: '邮箱格式不正确', trigger: 'blur' }
+    { required: true, message: t('auth.enter_email'), trigger: 'blur' },
+    { type: 'email', message: t('auth.invalid_email_format'), trigger: 'blur' }
   ]
 }
 
 const resetRules = {
   code: [
-    { required: true, message: '请输入验证码', trigger: 'blur' },
-    { min: 6, max: 6, message: '验证码为6位', trigger: 'blur' }
+    { required: true, message: t('auth.enter_code'), trigger: 'blur' },
+    { min: 6, max: 6, message: t('auth.code_6_digits'), trigger: 'blur' }
   ],
   newPassword: [
-    { required: true, message: '请输入新密码', trigger: 'blur' },
-    { min: 8, message: '密码至少8个字符', trigger: 'blur' }
+    { required: true, message: t('auth.enter_new_password'), trigger: 'blur' },
+    { min: 8, message: t('auth.password_min_8'), trigger: 'blur' }
   ],
   confirmPassword: [
-    { required: true, message: '请确认密码', trigger: 'blur' },
+    { required: true, message: t('auth.enter_confirm_password'), trigger: 'blur' },
     {
       validator: (rule, value, callback) => {
         if (value !== form.newPassword) {
-          callback(new Error('两次输入密码不一致'))
+          callback(new Error(t('auth.password_mismatch')))
         } else {
           callback()
         }
@@ -194,13 +196,13 @@ async function handleSendCode() {
     loading.value = true
     try {
       await authApi.forgotPassword(form.email)
-      ElMessage.success('验证码已发送到邮箱')
+      ElMessage.success(t('auth.code_sent_success'))
       form.code = ''
       form.newPassword = ''
       form.confirmPassword = ''
       step.value = 2
     } catch (error: any) {
-      errorMessage.value = error.response?.data?.detail?.message || '发送验证码失败'
+      errorMessage.value = error.response?.data?.detail?.message || t('auth.send_code_failed')
       errorDialogVisible.value = true
     } finally {
       loading.value = false
@@ -215,12 +217,12 @@ async function handleResetPassword() {
     try {
       await authApi.resetPassword(form.email, form.code, form.newPassword)
       step.value = 3
-      ElMessage.success('密码重置成功，请登录')
+      ElMessage.success(t('auth.reset_success'))
       setTimeout(() => {
         router.push('/login')
       }, 2000)
     } catch (error: any) {
-      errorMessage.value = error.response?.data?.detail?.message || '重置密码失败'
+      errorMessage.value = error.response?.data?.detail?.message || t('auth.reset_failed')
       errorDialogVisible.value = true
     } finally {
       loading.value = false

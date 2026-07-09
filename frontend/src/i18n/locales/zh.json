@@ -795,7 +795,7 @@
     "pitch_label": "音调",
     "volume_label": "音量",
     "text_ready": "文本已就绪",
-    "text_ready_info": "共 {n} 字，预计约 {min} 分钟",
+    "text_ready_info": "共 {n} 字，预计约 {min}",
     "no_text_hint": "请先在左侧输入文本或上传文件",
     "start_reading": "开始朗读",
     "pause_reading": "暂停",
@@ -811,7 +811,11 @@
     "char_label": "（{n} 字）",
     "clear_text": "清除",
     "extract_failed": "文本处理失败，请重试",
-    "file_extract_failed": "文件识别失败，请检查文件格式或重试"
+    "file_extract_failed": "文件识别失败，请检查文件格式或重试",
+    "seconds_short": "秒",
+    "minutes_short": "分钟",
+    "no_audio_stream": "无法获取音频流。\n\n建议：\n① 点击「开始录制」时选择「整个屏幕」并勾选「分享系统音频」\n② 或使用系统录音软件录制外放声音",
+    "record_init_failed": "录制初始化失败，请检查浏览器权限设置"
   },
   "monitor": {
     "teacher_title": "班级学生监督",
