@@ -104,7 +104,7 @@
           </el-button>
         </div>
 
-        <!-- 步骤 3: 成功 -->
+        <!-- Step 3: Success -->
         <div v-if="step === 3" class="text-center">
           <div class="text-6xl mb-4">✅</div>
           <h2 class="text-xl font-bold text-gray-900 mb-2">{{ $t('auth.step3_title') }}</h2>
@@ -118,7 +118,7 @@
         </div>
       </div>
 
-      <!-- 错误提示 -->
+      <!-- Error dialog -->
       <el-dialog
         v-model="errorDialogVisible"
         :title="$t('common.error')"
@@ -148,7 +148,7 @@ const router = useRouter()
 const formRef = ref<FormInstance>()
 const resetFormRef = ref<FormInstance>()
 const loading = ref(false)
-const step = ref(1) // 1: 输入邮箱, 2: 输入验证码和密码, 3: 成功
+const step = ref(1) // 1: enter email, 2: enter code and password, 3: success
 const errorDialogVisible = ref(false)
 const errorMessage = ref('')
 
