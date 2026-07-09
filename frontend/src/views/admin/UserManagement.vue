@@ -143,7 +143,7 @@ const adminStore = useAdminStore()
 const searchText = ref('')
 const roleFilter = ref('')
 const currentPage = ref(1)
-const pageSize = ref(50)  // 默认每页显示 50 个用户
+const pageSize = ref(50)  // default page size: 50 users per page
 const selectedUsers = ref<any[]>([])
 const isLoadingAll = ref(false)
 
@@ -194,23 +194,23 @@ const handleBatchDelete = async () => {
 const handleLoadAll = async () => {
   isLoadingAll.value = true
   try {
-    // 计算需要加载的总页数
+    // Calculate total pages to load
     const total = adminStore.userList.total
-    const pageSizeTemp = 100  // 临时使用最大页码大小
+    const pageSizeTemp = 100  // use max page size temporarily
     const totalPages = Math.ceil(total / pageSizeTemp)
 
     if (totalPages === 1) {
-      // 只需加载一页
+      // Only need to load one page
       await adminStore.fetchUserList(1, pageSizeTemp, searchText.value || undefined, roleFilter.value || undefined)
       ElMessage.success(t('admin.load_all_success', { n: total }))
     } else {
-      // 加载所有页，然后合并结果
+      // Load all pages then merge results
       let allUsers: any[] = []
       for (let page = 1; page <= totalPages; page++) {
         await adminStore.fetchUserList(page, pageSizeTemp, searchText.value || undefined, roleFilter.value || undefined)
         allUsers = allUsers.concat(adminStore.userList.items)
       }
-      // 手动更新显示为"加载全部"后的结果
+      // Update display after loading all
       currentPage.value = 1
       pageSize.value = 100
       await adminStore.fetchUserList(1, 100, searchText.value || undefined, roleFilter.value || undefined)
