@@ -1,51 +1,51 @@
 <template>
   <div class="user-detail">
-    <el-button @click="$router.back" class="mb-3">← 返回</el-button>
+    <el-button @click="$router.back" class="mb-3">← {{ $t('common.back') }}</el-button>
 
     <el-row :gutter="20" class="mb-5">
       <el-col :xs="24" :md="8">
         <el-card v-loading="adminStore.userDetailLoading">
           <template #header>
-            <span>用户信息</span>
+            <span>{{ $t('admin.user_detail_title') }}</span>
           </template>
           <div v-if="adminStore.userDetail" class="user-info">
             <div class="info-item">
-              <span class="label">邮箱：</span>
+              <span class="label">{{ $t('admin.label_email') }}</span>
               <span>{{ adminStore.userDetail.email }}</span>
             </div>
             <div class="info-item">
-              <span class="label">昵称：</span>
+              <span class="label">{{ $t('admin.label_nickname') }}</span>
               <span>{{ adminStore.userDetail.nickname }}</span>
             </div>
             <div class="info-item">
-              <span class="label">角色：</span>
+              <span class="label">{{ $t('admin.label_role') }}</span>
               <el-tag>{{ getRoleLabel(adminStore.userDetail.role) }}</el-tag>
             </div>
             <div class="info-item">
-              <span class="label">年级：</span>
+              <span class="label">{{ $t('admin.label_grade') }}</span>
               <span>{{ adminStore.userDetail.grade || '-' }}</span>
             </div>
             <div class="info-item">
-              <span class="label">状态：</span>
+              <span class="label">{{ $t('admin.label_status') }}</span>
               <el-switch
                 :model-value="adminStore.userDetail.is_active"
                 @change="handleToggleStatus"
               />
             </div>
             <div class="info-item">
-              <span class="label">创建时间：</span>
+              <span class="label">{{ $t('admin.label_created_at') }}</span>
               <span>{{ formatTime(adminStore.userDetail.created_at) }}</span>
             </div>
             <div class="info-item">
-              <span class="label">最后登录：</span>
+              <span class="label">{{ $t('admin.label_last_login') }}</span>
               <span>{{ formatTime(adminStore.userDetail.last_login) }}</span>
             </div>
             <div class="info-item">
-              <span class="label">总登录次数：</span>
+              <span class="label">{{ $t('admin.label_total_logins') }}</span>
               <span>{{ adminStore.userDetail.login_count }}</span>
             </div>
             <div class="info-item">
-              <span class="label">最近7天登录：</span>
+              <span class="label">{{ $t('admin.label_recent_logins') }}</span>
               <span>{{ adminStore.userDetail.login_7d }}</span>
             </div>
           </div>
@@ -55,11 +55,11 @@
       <el-col :xs="24" :md="16">
         <el-card>
           <template #header>
-            <span>最近30天功能使用统计</span>
+            <span>{{ $t('admin.feature_stats_title') }}</span>
           </template>
           <el-empty
             v-if="!adminStore.userDetail?.feature_stats.length"
-            description="暂无数据"
+            :description="$t('admin.no_data')"
           />
           <div v-else id="feature-stats-chart" style="height: 300px"></div>
         </el-card>
@@ -69,23 +69,23 @@
     <el-card>
       <template #header>
         <div class="flex justify-between items-center">
-          <span>活动日志</span>
+          <span>{{ $t('admin.activity_log_title') }}</span>
           <div>
             <el-select
               v-model="logFilter.feature"
-              placeholder="筛选功能"
+              :placeholder="$t('admin.filter_feature')"
               clearable
               style="width: 150px; margin-right: 10px"
               @change="handleFetchLogs"
             >
-              <el-option label="AI 对话" value="ai_chat" />
-              <el-option label="笔记" value="notes" />
-              <el-option label="错题" value="wrong_book" />
-              <el-option label="测试" value="quiz" />
-              <el-option label="学习计划" value="study_plan" />
-              <el-option label="作业" value="homework" />
+              <el-option :label="$t('admin.feature_ai_chat')" value="ai_chat" />
+              <el-option :label="$t('admin.feature_notes')" value="notes" />
+              <el-option :label="$t('admin.feature_wrong_book')" value="wrong_book" />
+              <el-option :label="$t('admin.feature_quiz')" value="quiz" />
+              <el-option :label="$t('admin.feature_study_plan')" value="study_plan" />
+              <el-option :label="$t('admin.feature_homework')" value="homework" />
             </el-select>
-            <el-button @click="handleFetchLogs">刷新</el-button>
+            <el-button @click="handleFetchLogs">{{ $t('common.refresh') }}</el-button>
           </div>
         </div>
       </template>
@@ -96,22 +96,22 @@
         stripe
         size="small"
       >
-        <el-table-column prop="timestamp" label="时间" width="160">
+        <el-table-column prop="timestamp" :label="$t('admin.time_col')" width="160">
           <template #default="{ row }">
             {{ formatTime(row.timestamp) }}
           </template>
         </el-table-column>
-        <el-table-column prop="feature" label="功能" width="100">
+        <el-table-column prop="feature" :label="$t('admin.feature_col')" width="100">
           <template #default="{ row }">
             <el-tag>{{ getFeatureLabel(row.feature) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="action" label="操作" width="80" />
-        <el-table-column prop="endpoint" label="端点" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="ip_address" label="IP 地址" width="120" />
-        <el-table-column prop="city" label="城市" width="100" />
-        <el-table-column prop="country" label="国家" width="100" />
-        <el-table-column prop="status_code" label="状态码" width="80" align="center" />
+        <el-table-column prop="action" :label="$t('common.actions')" width="80" />
+        <el-table-column prop="endpoint" :label="$t('admin.endpoint_col')" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="ip_address" :label="$t('admin.ip_col')" width="120" />
+        <el-table-column prop="city" :label="$t('admin.city_col')" width="100" />
+        <el-table-column prop="country" :label="$t('admin.country_col')" width="100" />
+        <el-table-column prop="status_code" :label="$t('admin.status_code_col')" width="80" align="center" />
       </el-table>
 
       <el-pagination
@@ -130,10 +130,12 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAdminStore } from '@/stores/admin'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 
+const { t } = useI18n()
 const route = useRoute()
 const adminStore = useAdminStore()
 const userId = parseInt(route.params.id as string)
@@ -143,28 +145,28 @@ const logPage = ref(1)
 const logPageSize = ref(20)
 
 const getRoleLabel = (role: string) => {
-  const roleMap = {
-    student: '学生',
-    teacher: '教师',
-    parent: '家长',
-    admin: '管理员'
+  const roleMap: Record<string, string> = {
+    student: t('auth.student'),
+    teacher: t('auth.teacher'),
+    parent: t('auth.parent'),
+    admin: t('auth.admin')
   }
-  return roleMap[role as keyof typeof roleMap] || role
+  return roleMap[role] || role
 }
 
 const getFeatureLabel = (feature: string) => {
-  const featureMap = {
-    ai_chat: 'AI 对话',
-    notes: '笔记',
-    wrong_book: '错题',
-    quiz: '测试',
-    study_plan: '学习计划',
-    homework: '作业',
-    monitor: '监护',
-    auth: '认证',
-    admin: '管理'
+  const featureMap: Record<string, string> = {
+    ai_chat: t('admin.feature_ai_chat'),
+    notes: t('admin.feature_notes'),
+    wrong_book: t('admin.feature_wrong_book'),
+    quiz: t('admin.feature_quiz'),
+    study_plan: t('admin.feature_study_plan'),
+    homework: t('admin.feature_homework'),
+    monitor: t('admin.feature_monitor'),
+    auth: t('admin.feature_auth'),
+    admin: t('admin.feature_admin')
   }
-  return featureMap[feature as keyof typeof featureMap] || feature
+  return featureMap[feature] || feature
 }
 
 const formatTime = (time: string | null) => {
@@ -175,9 +177,9 @@ const formatTime = (time: string | null) => {
 const handleToggleStatus = async (value: boolean) => {
   const success = await adminStore.toggleUserStatus(userId, value)
   if (success) {
-    ElMessage.success('用户状态已更新')
+    ElMessage.success(t('admin.update_status_success'))
   } else {
-    ElMessage.error('更新失败')
+    ElMessage.error(t('admin.update_status_failed'))
   }
 }
 

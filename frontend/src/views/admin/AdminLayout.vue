@@ -3,10 +3,10 @@
     <el-container>
       <el-header>
         <div class="header-content">
-          <span>EduBuddy 管理后台</span>
+          <span>{{ $t('admin.header_title') }}</span>
           <div class="user-info">
             <span>{{ authStore.user?.nickname }}</span>
-            <el-button type="text" @click="handleLogout">退出</el-button>
+            <el-button type="text" @click="handleLogout">{{ $t('admin.logout_btn') }}</el-button>
           </div>
         </div>
       </el-header>
@@ -21,15 +21,15 @@
           >
             <el-menu-item index="/admin/dashboard">
               <el-icon><Monitor /></el-icon>
-              <span>仪表板</span>
+              <span>{{ $t('navigation.dashboard') }}</span>
             </el-menu-item>
             <el-menu-item index="/admin/users">
               <el-icon><User /></el-icon>
-              <span>用户管理</span>
+              <span>{{ $t('navigation.user_management') }}</span>
             </el-menu-item>
             <el-menu-item index="/admin/audit-logs">
               <el-icon><Document /></el-icon>
-              <span>审计日志</span>
+              <span>{{ $t('navigation.audit_logs') }}</span>
             </el-menu-item>
           </el-menu>
         </el-aside>
@@ -46,8 +46,11 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { Monitor, User, Document } from '@element-plus/icons-vue'
+
+const { t } = useI18n()
 
 const router = useRouter()
 const authStore = useAuthStore()
