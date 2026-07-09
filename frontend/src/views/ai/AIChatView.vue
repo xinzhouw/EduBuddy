@@ -1,13 +1,13 @@
 <template>
   <div class="flex h-full gap-3 sm:gap-4 overflow-hidden" style="height: calc(100vh - 160px)">
-    <!-- 历史会话列表（PC 端固定，移动端改为按钮触发抽屉） -->
+    <!-- History sessions (PC: fixed sidebar, mobile: drawer triggered by button) -->
     <div class="hidden md:flex w-64 shrink-0 card flex-col gap-2 overflow-hidden">
       <div class="flex items-center justify-between">
         <h3 class="font-semibold text-gray-700 text-sm">{{ $t('ai_chat.history_title') }}</h3>
         <button @click="newChat" class="text-blue-500 text-sm hover:text-blue-600">{{ $t('ai_chat.new_chat') }}</button>
       </div>
 
-      <!-- 学科过滤标签 -->
+      <!-- Subject filter tabs -->
       <div class="flex flex-wrap gap-1">
         <button
           v-for="(k, idx) in filterKeys"
@@ -23,15 +23,15 @@
       <div class="flex-1 overflow-y-auto space-y-1">
         <div v-if="filteredSessions.length === 0" class="text-center py-8 text-gray-400 text-sm">{{ $t('ai_chat.no_history') }}</div>
 
-        <!-- 按学科分组显示 -->
+        <!-- Group by subject -->
         <template v-if="filterSubject === 'all'">
           <template v-for="(group, subject) in groupedSessions" :key="subject">
-            <!-- 学科分组标题 -->
+            <!-- Subject group header -->
             <div class="flex items-center gap-1 px-1 pt-2 pb-0.5">
               <span class="text-xs font-semibold text-gray-400 uppercase tracking-wide">{{ subject }}</span>
               <span class="text-xs text-gray-300">({{ group.length }})</span>
             </div>
-            <!-- 该学科下的会话 -->
+            <!-- Sessions in this subject group -->
             <div v-for="s in group" :key="s.id"
               @click="loadSession(s.id)"
               class="session-item group p-2.5 rounded-lg cursor-pointer text-sm transition-colors relative"
@@ -48,7 +48,7 @@
           </template>
         </template>
 
-        <!-- 单一学科过滤后显示 -->
+        <!-- Single subject filter view -->
         <template v-else>
           <div v-for="s in filteredSessions" :key="s.id"
             @click="loadSession(s.id)"
@@ -67,11 +67,11 @@
       </div>
     </div>
 
-    <!-- 聊天区域 -->
+    <!-- Chat area -->
     <div class="flex-1 card flex flex-col overflow-hidden">
-      <!-- 学科选择 + 移动端会话按钮 -->
+      <!-- Subject selector + mobile session button -->
       <div class="flex items-center gap-2 sm:gap-3 pb-3 border-b border-gray-100 shrink-0 flex-wrap">
-        <!-- 移动端：会话列表按钮 -->
+        <!-- Mobile: session list button -->
         <button
           @click="showSessionDrawer = true"
           class="md:hidden px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
@@ -92,7 +92,7 @@
         <span v-if="!isNewChat" class="text-xs text-gray-400 hidden sm:inline">{{ $t('ai_chat.history_locked_hint') }}</span>
       </div>
 
-      <!-- 消息区域 -->
+      <!-- Message area -->
       <div ref="messagesEl" class="flex-1 overflow-y-auto py-2 sm:py-4 space-y-2 sm:space-y-4 px-2 sm:px-4">
         <div v-if="messages.length === 0" class="flex flex-col items-center justify-center h-full text-gray-400">
           <span class="text-4xl sm:text-5xl mb-2 sm:mb-4">🤖</span>
@@ -102,15 +102,15 @@
 
         <div v-for="msg in messages" :key="msg.id || msg.tempId" class="flex gap-2 sm:gap-3"
           :class="msg.role === 'user' ? 'justify-end' : 'justify-start'">
-          <!-- AI 头像（移动端隐藏） -->
+          <!-- AI avatar (hidden on mobile) -->
           <div v-if="msg.role === 'assistant'" class="hidden sm:flex w-8 h-8 bg-blue-500 rounded-full items-center justify-center text-white text-sm shrink-0 mt-1">
             🤖
           </div>
-          <!-- 消息内容 -->
+          <!-- Message content -->
           <div class="max-w-xs sm:max-w-2xl">
-            <!-- 用户消息：支持 LaTeX 渲染（保留换行） -->
+            <!-- User message: supports LaTeX rendering (preserves newlines) -->
             <template v-if="msg.role === 'user'">
-              <!-- 用户上传的试题图片 -->
+              <!-- User uploaded problem images -->
               <div v-if="msg.uploadedImages && msg.uploadedImages.length > 0"
                 class="flex flex-wrap gap-2 justify-end mb-1">
                 <el-image
@@ -124,18 +124,18 @@
                   preview-teleported
                 />
               </div>
-              <!-- 用户文字（可能为空，仅图片时不渲染气泡） -->
+              <!-- User text (may be empty when image-only, no bubble rendered) -->
               <div v-if="msg.content && msg.content.trim()"
                 class="px-3 sm:px-4 py-2 sm:py-3 rounded-2xl text-xs sm:text-sm leading-relaxed bg-blue-500 text-white rounded-tr-sm user-message-content"
                 v-html="renderUserMessage(msg.content)">
               </div>
             </template>
-            <!-- AI 消息：Markdown + LaTeX 富文本渲染 + 图片 -->
+            <!-- AI message: Markdown + LaTeX rich text rendering + images -->
             <div v-else :data-msg-key="msg.id || msg.tempId" class="ai-message-content px-3 sm:px-4 py-2 sm:py-3 rounded-2xl rounded-tl-sm bg-gray-100 text-gray-800 text-xs sm:text-sm">
 
               <div class="markdown-body" v-dyn-figures v-html="renderMessageWithImagePlaceholders(msg.content)"></div>
               <span v-if="msg.streaming" class="typing-cursor"></span>
-              <!-- 图片展示区：已搜索完的图片 -->
+              <!-- Image display area: fully loaded images -->
               <template v-if="!msg.streaming && msg.imageBlocks && msg.imageBlocks.length > 0">
                 <div v-for="(block, bi) in msg.imageBlocks" :key="bi" class="mt-3">
                   <div class="image-block-label text-xs text-gray-500 mb-1.5 flex items-center gap-1">
@@ -167,7 +167,7 @@
                   <div v-else class="text-xs text-gray-400 italic">{{ $t('ai_chat.no_image_found') }}</div>
                 </div>
               </template>
-              <!-- 流式输出中：显示正在搜索的图片占位 -->
+              <!-- Streaming: show image search placeholders -->
               <template v-if="msg.streaming && msg.pendingImageKeywords && msg.pendingImageKeywords.length > 0">
                 <div v-for="kw in msg.pendingImageKeywords" :key="kw" class="mt-3">
                   <div class="image-loading-placeholder">
@@ -176,7 +176,7 @@
                 </div>
               </template>
             </div>
-            <!-- AI 回复操作按钮 -->
+            <!-- AI reply action buttons -->
             <div v-if="msg.role === 'assistant' && !msg.streaming && msg.id" class="flex gap-2 mt-1.5 ml-1">
               <button @click="copyMessage(msg)" class="text-xs text-gray-400 hover:text-blue-500 transition-colors">
                 {{ copiedMsgId === (msg.id || msg.tempId) ? '✓ ' + $t('ai_chat.copied_btn') : '📋 ' + $t('ai_chat.copy_btn') }}
@@ -187,7 +187,7 @@
               <button @click="exportPdf(msg)" :disabled="exportingMsgId !== null" class="text-xs text-gray-400 hover:text-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                 {{ exportingMsgId === (msg.id || msg.tempId) ? $t('ai_chat.exporting') : '📄 ' + $t('ai_chat.export_pdf') }}
               </button>
-              <!-- 语音朗读按钮：仅语文、英语学科显示 -->
+              <!-- TTS button: only shown for Chinese/English subjects -->
               <template v-if="isTtsSubject">
                 <template v-if="ttsState === 'idle' || ttsActiveMsgId !== (msg.id || msg.tempId)">
                   <button @click="startSpeech(msg)" class="text-xs text-gray-400 hover:text-indigo-500 transition-colors">
@@ -209,13 +209,13 @@
               </template>
             </div>
           </div>
-          <!-- 用户头像 -->
+          <!-- User avatar -->
           <div v-if="msg.role === 'user'" class="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-white text-sm shrink-0 mt-1">
             👤
           </div>
         </div>
 
-        <!-- AI 思考中 -->
+        <!-- AI thinking indicator -->
         <div v-if="isLoading" class="flex gap-3">
           <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm">🤖</div>
           <div class="bg-gray-100 px-4 py-3 rounded-2xl rounded-tl-sm">
@@ -229,9 +229,9 @@
         </div>
       </div>
 
-      <!-- 输入区 -->
+      <!-- Input area -->
       <div class="border-t border-gray-100 pt-2 sm:pt-3 px-2 sm:px-0 shrink-0">
-        <!-- 图片上传区（可折叠） -->
+        <!-- Image upload area (collapsible) -->
         <div v-show="showImageUpload" class="mb-2">
           <ImageUploadArea
             ref="imageUploadRef"
@@ -240,11 +240,11 @@
             @images-selected="handleImagesSelected"
           />
         </div>
-        <!-- 已选图片数量提示 -->
+        <!-- Selected image count hint -->
         <div v-if="selectedImages.length > 0 && !showImageUpload" class="mb-2 text-xs text-gray-500">
           {{ $t('ai_chat.images_selected', { n: selectedImages.length }) }}
         </div>
-        <!-- 实时 LaTeX 预览区（有内容时显示） -->
+        <!-- Real-time LaTeX preview (shown when input has content) -->
         <div v-if="inputText.trim()" class="mb-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-xl text-xs sm:text-sm text-gray-700 leading-relaxed input-preview-content"
           v-html="renderUserMessage(inputText)">
         </div>
@@ -273,7 +273,7 @@
       </div>
     </div>
 
-    <!-- 移动端会话列表抽屉（移动端专用） -->
+    <!-- Mobile session list drawer (mobile only) -->
     <SessionDrawer
       v-model="showSessionDrawer"
       :sessions="sessions"
@@ -303,7 +303,7 @@ import { isPictureFile, getImagePreviewUrl } from '@/utils/imageUpload'
 import { setupLongPressCopyGesture } from '@/utils/touchGestures'
 
 
-// ===================== 类型定义 =====================
+// ===================== Type definitions =====================
 interface ImageItem {
   url: string
   thumbnail: string
@@ -318,7 +318,7 @@ interface ImageBlock {
   images: ImageItem[]
 }
 
-/** 用户随消息上传的试题图片（区别于 AI 配图 ImageBlock） */
+/** Problem images uploaded by user with messages (distinct from AI-fetched ImageBlock) */
 interface UploadedImage {
   id?: string
   url: string
@@ -336,7 +336,7 @@ interface ChatMessage {
   uploadedImages?: UploadedImage[]
 }
 
-// ===================== 图片标记处理 =====================
+// ===================== Image marker processing =====================
 
 /** 从 AI 回复内容中提取所有 [[IMAGE:关键词]] 标记的关键词列表 */
 function extractImageKeywords(content: string): string[] {
@@ -357,20 +357,20 @@ function extractImageKeywords(content: string): string[] {
  * 实际图片由 imageBlocks 数据驱动渲染，此处只去掉标记文字避免显示在正文中
  */
 function renderMessageWithImagePlaceholders(content: string): string {
-  // 先去掉 [[IMAGE:...]] 标记（图片由下方的 imageBlocks 区域展示）
+  // Strip [[IMAGE:...]] markers (images rendered by imageBlocks section below)
   const cleaned = content.replace(/\[\[IMAGE:[^\]]*\]\]/gi, '')
   return renderMessage(cleaned)
 }
 
 /**
- * 渲染用户消息：支持 LaTeX 公式，同时保留换行（将 \n 转为 <br>）
+ * Render user message: supports LaTeX formulas while preserving newlines (\n → <br>).
  */
 function renderUserMessage(content: string): string {
   const withLatex = renderLatexOnly(content)
   return withLatex.replace(/\n/g, '<br>')
 }
 
-// ===================== 状态 =====================
+// ===================== State =====================
 const { t } = useI18n()
 const authStore = useAuthStore()
 const subjectKeys = ['math', 'physics', 'chemistry', 'biology', 'chinese', 'english', 'history', 'geography', 'politics']
@@ -387,10 +387,10 @@ const messagesEl = ref<HTMLElement>()
 const copiedMsgId = ref<number | null>(null)
 const exportingMsgId = ref<number | null>(null)
 
-// ===================== 图片上传状态 =====================
-/** 当前已选择、待随下一条消息发送的试题图片 */
+// ===================== Image upload state =====================
+/** Problem images currently selected, to be sent with next message */
 const selectedImages = ref<File[]>([])
-/** 是否展开图片上传区 */
+/** Whether the image upload area is expanded */
 const showImageUpload = ref(false)
 const imageUploadRef = ref<InstanceType<typeof ImageUploadArea> | null>(null)
 
@@ -398,26 +398,26 @@ function handleImagesSelected(files: File[]) {
   selectedImages.value = files
 }
 
-/** 历史会话左侧列表的学科过滤（'all' 或 subjectKey） */
+/** Subject filter for left session list ('all' or subjectKey) */
 const filterSubject = ref('all')
-/** 当前选中学科对应的 key */
+/** Key corresponding to the currently selected subject */
 const selectedSubjectKey = computed(() => {
   const idx = subjects.value.indexOf(selectedSubject.value)
   return idx !== -1 ? subjectKeys[idx] : 'math'
 })
 
-/** 移动端会话列表抽屉是否显示 */
+/** Whether the mobile session list drawer is visible */
 const showSessionDrawer = ref(false)
 
-/** 会话消息缓存：避免重复加载已读取的消息 */
+/** Message cache by session: avoids reloading already-fetched messages */
 const messagesCacheMap = ref<Map<string, ChatMessage[]>>(new Map())
 
-/** 是否为新会话（未绑定历史会话） */
+/** Whether this is a new chat (not bound to a history session) */
 const isNewChat = computed(() => currentSessionId.value === null)
 
-// ===================== 学科分组 & 过滤 =====================
+// ===================== Subject grouping & filtering =====================
 
-/** 按学科对会话分组（用于左侧列表"全部"视图） */
+/** Group sessions by subject (used for the "All" view in the left panel) */
 const groupedSessions = computed(() => {
   const groups: Record<string, any[]> = {}
   for (const s of sessions.value) {
@@ -428,15 +428,15 @@ const groupedSessions = computed(() => {
   return groups
 })
 
-/** 当前学科过滤后的会话列表 */
+/** Session list filtered by the current subject filter */
 const filteredSessions = computed(() => {
   if (filterSubject.value === 'all') return sessions.value
-  // filterSubject 存储 subjectKey，需转换为对应中文（后端存储的语言）进行比对
+  // filterSubject stores a subjectKey; translate to display label for backend-stored subject comparison
   const label = t('subjects.' + filterSubject.value)
   return sessions.value.filter(s => s.subject === label || s.subject === filterSubject.value)
 })
 
-/** 将 SessionDrawer 或 filter 按钮发出的学科值映射为 subjectKey 或 'all' */
+/** Map a subject value emitted by SessionDrawer or filter buttons to subjectKey or 'all' */
 function onFilterSubject(s: string) {
   if (!s || s === t('ai_chat.filter_all')) {
     filterSubject.value = 'all'
@@ -446,7 +446,7 @@ function onFilterSubject(s: string) {
   }
 }
 
-// ===================== 工具函数 =====================
+// ===================== Utility functions =====================
 async function scrollToBottom() {
   await nextTick()
   if (messagesEl.value) {
@@ -454,7 +454,7 @@ async function scrollToBottom() {
   }
 }
 
-/** 图片加载失败时隐藏破图 */
+/** Hide broken image element on load error */
 function onImgError(event: Event) {
   const img = event.target as HTMLImageElement
   if (img) {
@@ -462,13 +462,13 @@ function onImgError(event: Event) {
   }
 }
 
-// ===================== 图片搜索 =====================
-/** 为一条 AI 消息搜索所有 [[IMAGE:...]] 关键词对应的图片 */
+// ===================== Image search =====================
+/** Fetch images for all [[IMAGE:...]] keywords in an AI message */
 async function fetchImagesForMessage(msg: ChatMessage) {
   const keywords = extractImageKeywords(msg.content)
   if (keywords.length === 0) return
 
-  // 初始化 imageBlocks（loading 状态）
+  // Initialize imageBlocks (loading state)
   msg.imageBlocks = keywords.map(kw => ({
     keyword: kw,
     loading: true,
@@ -477,7 +477,7 @@ async function fetchImagesForMessage(msg: ChatMessage) {
   msg.pendingImageKeywords = []
   await scrollToBottom()
 
-  // 逐个关键词搜索（前端直接调用 Wikimedia API，无需后端中转）
+  // Search images per keyword (frontend calls Wikimedia API directly, no backend relay needed)
   for (let i = 0; i < keywords.length; i++) {
     const kw = keywords[i]
     try {
@@ -496,7 +496,7 @@ async function fetchImagesForMessage(msg: ChatMessage) {
   }
 }
 
-// ===================== 会话管理 =====================
+// ===================== Session management =====================
 async function loadSessions() {
   try {
     const res: any = await aiApi.getSessions()
@@ -506,18 +506,18 @@ async function loadSessions() {
 
 async function loadSession(sessionId: string) {
   currentSessionId.value = sessionId
-  // 找到该会话对应的学科，并锁定学科选择器
+  // Find the subject of this session and lock the subject selector
   const session = sessions.value.find(s => s.id === sessionId)
   if (session?.subject) {
     selectedSubject.value = session.subject
   }
 
-  // 检查缓存：如果该会话的消息已加载过，直接使用缓存
+  // Check cache: use cached messages if this session was already loaded
   if (messagesCacheMap.value.has(sessionId)) {
     const cachedMsgs = messagesCacheMap.value.get(sessionId)!
     messages.value = cachedMsgs
     await scrollToBottom()
-    // 为缓存中尚未加载图片的 AI 消息补充图片搜索
+    // Fetch images for cached AI messages that haven't loaded images yet
     for (const msg of messages.value) {
       if (msg.role === 'assistant' && (!msg.imageBlocks || msg.imageBlocks.length === 0)) {
         fetchImagesForMessage(msg)
@@ -529,18 +529,18 @@ async function loadSession(sessionId: string) {
   try {
     const res: any = await aiApi.getMessages(sessionId)
     const rawMsgs: any[] = res.data || []
-    // 历史消息加载后也需要搜索图片
+    // Also search images for historical messages after loading
     messages.value = rawMsgs.map(m => ({
       ...m,
       imageBlocks: [],
       pendingImageKeywords: [],
-      // 后端返回的 images: [{id, url}] 映射为用户上传图回显
+      // Map backend images: [{id, url}] to uploaded image previews
       uploadedImages: Array.isArray(m.images) ? m.images : [],
     }))
-    // 缓存该会话的消息
+    // Cache messages for this session
     messagesCacheMap.value.set(sessionId, messages.value)
     await scrollToBottom()
-    // 为每条历史 AI 消息加载图片（非阻塞）
+    // Load images for each historical AI message (non-blocking)
     for (const msg of messages.value) {
       if (msg.role === 'assistant') {
         fetchImagesForMessage(msg)
@@ -552,18 +552,18 @@ async function loadSession(sessionId: string) {
 function newChat() {
   currentSessionId.value = null
   messages.value = []
-  // 新建会话时恢复默认学科（可自由选择）
+  // Reset to default subject on new chat (user can freely choose)
   selectedSubject.value = t('subjects.math')
 }
 
-// ===================== 发送消息 =====================
+// ===================== Send message =====================
 async function sendMessage() {
   const text = inputText.value.trim()
   const imagesToSend = selectedImages.value.slice()
-  // 允许"仅图片"或"图片+文字"，但不允许两者皆空
+  // Allow image-only or image+text, but not both empty
   if ((!text && imagesToSend.length === 0) || isLoading.value) return
 
-  // 添加用户消息（含本地图片预览，立即回显）
+  // Add user message (with local image previews, shown immediately)
   const userMsg: ChatMessage = {
     tempId: Date.now(),
     role: 'user',
@@ -574,13 +574,13 @@ async function sendMessage() {
   }
   messages.value.push(userMsg)
   inputText.value = ''
-  // 清空图片选择与上传区
+  // Clear image selection and upload area
   selectedImages.value = []
   showImageUpload.value = false
   imageUploadRef.value?.clear()
   await scrollToBottom()
 
-  // 创建 AI 回复占位
+  // Create AI reply placeholder
   const aiMsg = ref<ChatMessage>({
     tempId: Date.now() + 1,
     role: 'assistant',
@@ -594,9 +594,9 @@ async function sendMessage() {
 
   try {
     const token = authStore.token
-    // 后端 /api/ai/chat 使用 multipart 表单参数（Form/File），
-    // 因此统一用 FormData 发送（无图片时 images 字段为空）。
-    // 注意：不要手动设置 Content-Type，需由浏览器自动带上 multipart boundary。
+    // Backend /api/ai/chat uses multipart form params (Form/File),
+    // so we always use FormData (images field is empty when no images).
+    // Do NOT set Content-Type manually — let the browser include the multipart boundary.
     const body = buildChatFormData({
       sessionId: currentSessionId.value,
       question: text || t('ai_chat.image_question_default'),
@@ -618,10 +618,10 @@ async function sendMessage() {
 
     const reader = response.body!.getReader()
     const decoder = new TextDecoder()
-    // 缓冲区：累积尚未构成完整一行的数据，避免 SSE 事件被 TCP 分包截断
+    // Buffer: accumulate partial data to avoid SSE events being split by TCP segmentation
     let buffer = ''
 
-    // 处理单条 SSE data 行
+    // Process a single SSE data line
     const handleLine = async (line: string) => {
       if (!line.startsWith('data: ')) return
       const payload = line.slice(6).trim()
@@ -630,12 +630,12 @@ async function sendMessage() {
       try {
         data = JSON.parse(payload)
       } catch {
-        // 不完整或非法 JSON，忽略（完整数据会在后续累积后重新解析）
+        // Incomplete or invalid JSON — ignore (full data will be reparsed after accumulation)
         return
       }
       if (data.type === 'content') {
         aiMsg.value.content += data.delta
-        // 实时更新正在出现的图片关键词（流式输出时显示搜索占位）
+        // Update pending image keywords in real time (show search placeholders during streaming)
         aiMsg.value.pendingImageKeywords = extractImageKeywords(aiMsg.value.content)
         await scrollToBottom()
       } else if (data.type === 'done') {
@@ -646,11 +646,11 @@ async function sendMessage() {
           const isFirstMessage = !currentSessionId.value
           currentSessionId.value = data.session_id
           if (isFirstMessage) {
-            // 新会话第一条消息发送完成后刷新会话列表
+            // Refresh session list after first message in a new session
             await loadSessions()
           }
         }
-        // AI 回复完成后，搜索图片（非阻塞）
+        // After AI reply is complete, search images (non-blocking)
         fetchImagesForMessage(aiMsg.value)
       }
     }
@@ -659,10 +659,10 @@ async function sendMessage() {
       const { done, value } = await reader.read()
       if (done) break
 
-      // stream: true 保证多字节 UTF-8 字符（如中文）跨 chunk 时不会被截断
+      // stream: true ensures multi-byte UTF-8 characters (e.g. Chinese) are not split across chunks
       buffer += decoder.decode(value, { stream: true })
 
-      // 仅处理已完整接收（以换行结尾）的行，剩余不完整部分保留在 buffer
+      // Only process fully received lines (ending with newline); incomplete data stays in buffer
       let newlineIndex: number
       while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
         const line = buffer.slice(0, newlineIndex)
@@ -671,7 +671,7 @@ async function sendMessage() {
       }
     }
 
-    // 处理流结束后缓冲区中残留的最后一行（可能没有结尾换行符）
+    // Process the last line remaining in the buffer after stream ends (may lack trailing newline)
     buffer += decoder.decode()
     if (buffer.trim()) {
       await handleLine(buffer)
@@ -686,8 +686,8 @@ async function sendMessage() {
   }
 }
 
-// ===================== 复制 =====================
-/** 复制 AI 回复内容（去除 [[IMAGE:...]] 标记后的原始 Markdown 文本） */
+// ===================== Copy =====================
+/** Copy AI reply content (raw Markdown text with [[IMAGE:...]] markers stripped) */
 async function copyMessage(msg: ChatMessage) {
   const text = msg.content.replace(/\[\[IMAGE:[^\]]*\]\]/gi, '').trim()
   if (!text) return
@@ -695,7 +695,7 @@ async function copyMessage(msg: ChatMessage) {
     if (navigator.clipboard && window.isSecureContext) {
       await navigator.clipboard.writeText(text)
     } else {
-      // 降级方案：非安全上下文（如 http）下使用 execCommand
+      // Fallback for non-secure contexts (e.g. http) where navigator.clipboard is unavailable
       const textarea = document.createElement('textarea')
       textarea.value = text
       textarea.style.position = 'fixed'
@@ -703,8 +703,8 @@ async function copyMessage(msg: ChatMessage) {
       document.body.appendChild(textarea)
       textarea.focus()
       textarea.select()
-      // execCommand 已弃用，但在非安全上下文（http）下 navigator.clipboard 不可用，
-      // 这是唯一可用的复制降级方案；用 as any 规避类型层的弃用告警。
+      // execCommand is deprecated, but it's the only fallback in non-secure (http) contexts
+      // where navigator.clipboard is unavailable; use 'as any' to suppress the type-level deprecation warning.
       ;(document as any).execCommand('copy')
       document.body.removeChild(textarea)
     }
@@ -720,8 +720,8 @@ async function copyMessage(msg: ChatMessage) {
   }
 }
 
-// ===================== 导出 PDF =====================
-/** HTML 转义，防止 XSS */
+// ===================== Export PDF =====================
+/** HTML-escape a string to prevent XSS */
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, '&amp;')
@@ -731,16 +731,16 @@ function escapeHtml(str: string): string {
 }
 
 /**
- * 将一条 AI 回答（含 Markdown、LaTeX 公式）导出为 PDF。
- * 参照作业批改的「新窗口打印」方案：在新窗口中写入带打印样式的 HTML，
- * 由浏览器原生打印对话框完成「另存为 PDF」，避免 html2canvas 的兼容性问题。
+ * Export an AI answer (with Markdown and LaTeX) as PDF.
+ * Uses the 'new window print' approach: write HTML with print styles to a new window,
+ * let the browser's native print dialog handle 'Save as PDF', avoiding html2canvas compatibility issues.
  */
 async function exportPdf(msg: ChatMessage) {
   if (exportingMsgId.value !== null) return
   const key = (msg.id || msg.tempId) ?? null
   if (key === null) return
 
-  // 去掉 [[IMAGE:...]] 标记后渲染 Markdown + LaTeX
+  // Strip [[IMAGE:...]] markers then render Markdown + LaTeX
   const cleaned = msg.content.replace(/\[\[IMAGE:[^\]]*\]\]/gi, '').trim()
   if (!cleaned) {
     ElMessage.error(t('ai_chat.export_no_content'))
@@ -797,10 +797,10 @@ async function exportPdf(msg: ChatMessage) {
   a { color: #2563eb; text-decoration: none; }
   svg { max-width: 100%; height: auto; }
   .footer { margin-top: 24px; padding-top: 10px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af; text-align: center; }
-  /* KaTeX 公式样式 */
+  /* KaTeX formula styles */
   .katex { font-size: 1em; }
   .katex-display { margin: 0.6em 0; }
-  /* 打印样式 */
+  /* Print styles */
   @media print {
     body { padding: 0; }
     .page { padding: 15mm 15mm; width: 100%; }
@@ -813,7 +813,7 @@ async function exportPdf(msg: ChatMessage) {
     margin: 0;
   }
 </style>
-<!-- 引入 KaTeX 样式（从 CDN 加载，保证公式正确渲染） -->
+<!-- Load KaTeX styles from CDN for correct formula rendering -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css" crossorigin="anonymous">
 </head>
 <body>
@@ -827,7 +827,7 @@ async function exportPdf(msg: ChatMessage) {
   </div>
   <div class="report-body">${reportHtml}</div>
   <div class="footer">${escapeHtml(t('ai_chat.pdf_footer', { date: dateStr }))}</div>
-  <!-- 自动打印按钮区域 -->
+  <!-- Auto-print button area -->
   <div class="no-print" style="position:fixed;bottom:20px;right:20px;display:flex;gap:10px;z-index:9999;">
     <button onclick="window.print()" style="padding:10px 24px;background:#2563eb;color:white;border:none;border-radius:8px;font-size:14px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.2);">
       🖨️ ${escapeHtml(t('ai_chat.pdf_print_btn'))}
@@ -838,7 +838,7 @@ async function exportPdf(msg: ChatMessage) {
   </div>
 </div>
 <script>
-  // 等待 KaTeX 和字体加载完成后自动弹出打印对话框
+  // Wait for KaTeX and fonts to load, then auto-open print dialog
   window.addEventListener('load', function() {
     setTimeout(function() { window.print(); }, 800);
   });
@@ -850,10 +850,10 @@ async function exportPdf(msg: ChatMessage) {
     if (!printWindow) {
       throw new Error(t('ai_chat.popup_blocked'))
     }
-    // 用 Blob URL 加载导出文档（替代已弃用的 document.write）
+    // Use Blob URL to load export document (replaces deprecated document.write)
     const blobUrl = URL.createObjectURL(new Blob([fullHtml], { type: 'text/html' }))
     printWindow.location.href = blobUrl
-    // 延时释放，确保新窗口已完成加载与打印
+    // Delay revoke to ensure the new window has finished loading and printing
     setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
 
     ElMessage.success(t('ai_chat.export_print_hint'))
@@ -865,7 +865,7 @@ async function exportPdf(msg: ChatMessage) {
 }
 
 
-// ===================== 反馈 & 错题本 =====================
+// ===================== Feedback & mistake notebook =====================
 async function handleFeedback(msg: ChatMessage, rating: string) {
 
 
@@ -912,25 +912,25 @@ async function confirmDeleteSession(session: any) {
   }
 }
 
-// ===================== 语音朗读（TTS）=====================
+// ===================== Text-to-Speech (TTS) =====================
 
-/** 支持语音朗读的学科 key */
+/** Subject keys that support TTS */
 const TTS_SUBJECT_KEYS = ['chinese', 'english']
 
-/** 当前学科是否支持 TTS */
+/** Whether the current subject supports TTS */
 const isTtsSubject = computed(() => TTS_SUBJECT_KEYS.includes(selectedSubjectKey.value))
 
-/** TTS 播放状态：idle / playing / paused */
+/** TTS playback state: idle / playing / paused */
 const ttsState = ref<'idle' | 'playing' | 'paused'>('idle')
 
-/** 当前正在朗读的消息 id（msg.id 或 msg.tempId） */
+/** ID of the message currently being read aloud (msg.id or msg.tempId) */
 const ttsActiveMsgId = ref<number | null>(null)
 
-/** 从浏览器语音列表中挑选最优语音（按学科 key）*/
+/** Pick the best available browser voice for the given subject key */
 function pickVoice(subjectKey: string): SpeechSynthesisVoice | null {
   const voices = window.speechSynthesis.getVoices()
   if (subjectKey === 'english') {
-    // 英语：优先 en-US，其次 en-GB，再次任意 en
+    // English: prefer en-US, then en-GB, then any en-* voice
     return (
       voices.find(v => v.lang === 'en-US') ||
       voices.find(v => v.lang === 'en-GB') ||
@@ -938,7 +938,7 @@ function pickVoice(subjectKey: string): SpeechSynthesisVoice | null {
       null
     )
   }
-  // 语文（中文）：优先 zh-CN，其次 zh-TW，再次任意 zh
+  // Chinese: prefer zh-CN, then zh-TW, then any zh-* voice
   return (
     voices.find(v => v.lang === 'zh-CN') ||
     voices.find(v => v.lang === 'zh-TW') ||
@@ -948,40 +948,40 @@ function pickVoice(subjectKey: string): SpeechSynthesisVoice | null {
 }
 
 /**
- * 将 AI 回复（Markdown + LaTeX）转为适合朗读的纯文本：
- * - 去除 [[IMAGE:...]] 标记
- * - 去除 Markdown 标题符号 #
- * - 去除加粗/斜体 ** / *
- * - 去除行内代码反引号
- * - 将 LaTeX 公式（$...$、$$...$$）替换为口播词
- * - 去除多余空行
+ * Convert AI reply (Markdown + LaTeX) to plain text suitable for TTS:
+ * - Remove [[IMAGE:...]] markers
+ * - Remove Markdown heading symbols (#)
+ * - Remove bold/italic markers (** / *)
+ * - Remove inline code backticks
+ * - Replace LaTeX formulas ($...$ and $$...$$) with spoken placeholders
+ * - Collapse excessive blank lines
  */
 function msgToPlainText(content: string): string {
   let text = content
-  // 去除图片标记
+  // Remove image markers
   text = text.replace(/\[\[IMAGE:[^\]]*\]\]/gi, '')
   // 块级公式 $$...$$ → translated placeholder
   text = text.replace(/\$\$[\s\S]*?\$\$/g, t('ai_chat.tts_math_formula'))
   // 行内公式 $...$ → translated placeholder
   text = text.replace(/\$[^$\n]+\$/g, t('ai_chat.tts_math_formula'))
-  // Markdown 标题
+  // Markdown headings
   text = text.replace(/^#{1,6}\s+/gm, '')
-  // 加粗 / 斜体
+  // Bold / italic
   text = text.replace(/\*{1,3}([^*]+)\*{1,3}/g, '$1')
-  // 行内代码
+  // Inline code
   text = text.replace(/`([^`]+)`/g, '$1')
-  // 代码块
+  // Code blocks
   text = text.replace(/```[\s\S]*?```/g, t('ai_chat.tts_code_block'))
-  // 分隔线
+  // Horizontal rules
   text = text.replace(/^---+$/gm, '')
-  // 多余空行合并
+  // Collapse excessive blank lines
   text = text.replace(/\n{3,}/g, '\n\n')
   return text.trim()
 }
 
-/** 开始朗读某条 AI 消息 */
+/** Start reading an AI message aloud */
 function startSpeech(msg: ChatMessage) {
-  // 停止之前的朗读
+  // Stop any in-progress speech
   window.speechSynthesis.cancel()
   ttsState.value = 'idle'
   ttsActiveMsgId.value = null
@@ -994,7 +994,7 @@ function startSpeech(msg: ChatMessage) {
 
   const utter = new SpeechSynthesisUtterance(plainText)
 
-  // 根据学科设置语言
+  // Set language based on subject
   if (selectedSubjectKey.value === 'english') {
     utter.lang = 'en-US'
     utter.rate = 0.9
@@ -1005,7 +1005,7 @@ function startSpeech(msg: ChatMessage) {
   utter.pitch = 1.0
   utter.volume = 1.0
 
-  // 尝试指定具体语音
+  // Try to use a specific voice
   const voice = pickVoice(selectedSubjectKey.value)
   if (voice) utter.voice = voice
 
@@ -1031,12 +1031,12 @@ function startSpeech(msg: ChatMessage) {
   }
 
   window.speechSynthesis.speak(utter)
-  // 部分浏览器不触发 onstart，手动设置状态
+  // Some browsers don't fire onstart, so manually set state
   ttsState.value = 'playing'
   ttsActiveMsgId.value = msgKey
 }
 
-/** 切换暂停 / 继续 */
+/** Toggle pause / resume */
 function togglePauseSpeech() {
   if (ttsState.value === 'playing') {
     window.speechSynthesis.pause()
@@ -1047,18 +1047,18 @@ function togglePauseSpeech() {
   }
 }
 
-/** 停止朗读 */
+/** Stop speech */
 function stopSpeech() {
   window.speechSynthesis.cancel()
   ttsState.value = 'idle'
   ttsActiveMsgId.value = null
 }
 
-// ===================== 生命周期 =====================
+// ===================== Lifecycle =====================
 onMounted(async () => {
   await loadSessions()
 
-  // 为消息添加长按复制功能
+  // Set up long-press copy gesture for messages
   setTimeout(() => {
     const messageContents = document.querySelectorAll('.markdown-body, .ai-message-content')
     messageContents.forEach((content) => {
@@ -1066,14 +1066,14 @@ onMounted(async () => {
     })
   }, 200)
 
-  // 预加载语音列表（部分浏览器首次 getVoices() 返回空，需触发异步加载）
+  // Pre-load voice list (some browsers return empty on first getVoices(), need to trigger async load)
   if (typeof window !== 'undefined' && window.speechSynthesis) {
     window.speechSynthesis.getVoices()
   }
 })
 
 onUnmounted(() => {
-  // 离开页面时停止朗读，释放资源
+  // Stop speech and release resources when leaving the page
   if (typeof window !== 'undefined' && window.speechSynthesis) {
     window.speechSynthesis.cancel()
   }
@@ -1081,7 +1081,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* 打字光标动画 */
+/* Typing cursor animation */
 .typing-cursor {
   display: inline-block;
   width: 2px;
@@ -1097,7 +1097,7 @@ onUnmounted(() => {
   50% { opacity: 0; }
 }
 
-/* AI 消息 Markdown 样式 */
+/* AI message Markdown styles */
 .markdown-body {
   font-size: 0.875rem;
   line-height: 1.75;
@@ -1184,7 +1184,7 @@ onUnmounted(() => {
   margin: 0.6em 0;
 }
 
-/* KaTeX 公式样式调整（AI 消息） */
+/* KaTeX formula style adjustments (AI messages) */
 .markdown-body :deep(.katex-display) {
   margin: 0.6em 0;
   overflow-x: auto;
@@ -1195,7 +1195,7 @@ onUnmounted(() => {
   font-size: 1em;
 }
 
-/* 用户消息 KaTeX 样式：白色公式以适配蓝色背景 */
+/* User message KaTeX styles: white formula text for blue background */
 .user-message-content :deep(.katex) {
   font-size: 1em;
   color: white;
@@ -1206,7 +1206,7 @@ onUnmounted(() => {
   overflow-x: auto;
 }
 
-/* KaTeX 内部 SVG/路径颜色继承 */
+/* KaTeX internal SVG/path color inheritance */
 .user-message-content :deep(.katex .mord),
 .user-message-content :deep(.katex .mrel),
 .user-message-content :deep(.katex .mop),
@@ -1218,7 +1218,7 @@ onUnmounted(() => {
   color: white;
 }
 
-/* 输入框预览区 KaTeX 样式 */
+/* Input preview area KaTeX styles */
 .input-preview-content :deep(.katex) {
   font-size: 1em;
 }
@@ -1228,16 +1228,16 @@ onUnmounted(() => {
   overflow-x: auto;
 }
 
-/* ============ 图片相关样式 ============ */
+/* ============ Image styles ============ */
 
-/* 图片块标签 */
+/* Image block label */
 .image-block-label {
   color: #6b7280;
   font-size: 0.75rem;
   margin-bottom: 6px;
 }
 
-/* 图片加载占位 */
+/* Image loading placeholder */
 .image-loading-placeholder {
   display: flex;
   align-items: center;
@@ -1249,7 +1249,7 @@ onUnmounted(() => {
   margin-top: 4px;
 }
 
-/* 图片网格（最多3列） */
+/* Image grid (up to 3 columns) */
 .image-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -1257,7 +1257,7 @@ onUnmounted(() => {
   margin-top: 4px;
 }
 
-/* 单张图片卡片 */
+/* Single image card */
 .image-card {
   display: block;
   border-radius: 8px;
@@ -1273,7 +1273,7 @@ onUnmounted(() => {
   transform: translateY(-2px);
 }
 
-/* 图片本体 */
+/* Image element */
 .image-card-img {
   width: 100%;
   height: 100px;
@@ -1282,7 +1282,7 @@ onUnmounted(() => {
   background: #e5e7eb;
 }
 
-/* 图片标题 */
+/* Image caption */
 .image-card-caption {
   padding: 4px 6px;
   font-size: 0.7rem;
@@ -1296,9 +1296,9 @@ onUnmounted(() => {
   -webkit-box-orient: vertical;
 }
 
-/* ============ TTS 音频波形动画 ============ */
+/* ============ TTS audio wave animation ============ */
 
-/* 四根竖条容器，垂直居中对齐行内元素 */
+/* Four-bar container, vertically centered for inline alignment */
 .tts-wave-bar {
   display: inline-flex;
   align-items: flex-end;
@@ -1308,7 +1308,7 @@ onUnmounted(() => {
   vertical-align: middle;
 }
 
-/* 每根竖条 */
+/* Each bar */
 .tts-wave-bar span {
   display: inline-block;
   width: 3px;
