@@ -1,13 +1,13 @@
 <template>
   <div class="space-y-6">
-    <!-- 没有计划时显示创建 -->
+    <!-- Show create when no plan -->
     <div v-if="!plan && !showCreate" class="text-center py-16">
       <span class="text-5xl">📅</span>
       <p class="mt-4 text-lg text-gray-600">{{ $t('study_plan.no_plan') }}</p>
       <el-button type="primary" class="mt-4" @click="showCreate = true">{{ $t('study_plan.create_btn') }}</el-button>
     </div>
 
-    <!-- 创建计划表单 -->
+    <!-- Create plan form -->
     <div v-if="showCreate" class="card max-w-2xl mx-auto space-y-4">
       <h3 class="font-bold text-gray-800">📅 {{ $t('study_plan.create_title') }}</h3>
       <p class="text-sm text-gray-500">{{ $t('study_plan.create_hint') }}</p>
@@ -35,9 +35,9 @@
       </div>
     </div>
 
-    <!-- 已有计划 -->
+    <!-- Plan exists -->
     <template v-if="plan && !showCreate">
-      <!-- 概览 -->
+      <!-- Overview -->
       <div class="card">
         <div class="flex items-center justify-between">
           <div>
@@ -56,7 +56,7 @@
         </div>
       </div>
 
-      <!-- 每日内容生成进度条（当日第一次登录时显示） -->
+      <!-- Daily content generation progress (shown on first login of the day) -->
       <div v-if="generatingTodayContent" class="card border-indigo-200 bg-indigo-50">
         <div class="flex items-center gap-3">
           <div class="animate-spin text-2xl">⏳</div>
@@ -74,7 +74,7 @@
         </div>
       </div>
 
-      <!-- 标签页：今日计划 / 计划档案 -->
+      <!-- Tabs: Today's plan / Plan archive -->
       <div class="card">
         <div class="flex border-b border-gray-200 mb-4 gap-1">
           <button
@@ -96,7 +96,7 @@
           </button>
         </div>
 
-        <!-- 今日学习面板（可交互） -->
+        <!-- Today's study panel (interactive) -->
         <div v-if="activeTab === 'today'">
           <div v-if="todayTasks.length === 0 && !generatingTodayContent" class="text-center py-4 text-gray-400 text-sm">
             {{ $t('study_plan.no_today_tasks') }}
@@ -108,7 +108,7 @@
             <div v-for="task in todayTasks" :key="task.id"
               class="rounded-lg border transition-colors overflow-hidden"
               :class="task.is_done ? 'border-green-200' : 'border-gray-200'">
-              <!-- 任务头部 -->
+              <!-- Task header -->
               <div class="flex items-center gap-3 p-3"
                 :class="task.is_done ? 'bg-green-50' : 'bg-gray-50'">
                 <input type="checkbox" :checked="task.is_done" @change="toggleTask(task)"
@@ -128,9 +128,9 @@
                 </button>
               </div>
 
-              <!-- 展开内容区域（今日可交互） -->
+              <!-- Expanded content area (interactive today) -->
               <div v-if="expandedTaskId === task.id" class="border-t border-gray-100 bg-white">
-                <!-- 面板切换 -->
+                <!-- Panel tabs -->
                 <div class="flex gap-1 px-4 pt-3">
                   <button v-for="panel in taskPanels" :key="panel.key"
                     @click="activePanel[task.id] = panel.key"
@@ -142,24 +142,24 @@
                   </button>
                 </div>
 
-                <!-- AI 学习内容面板 -->
+                <!-- AI study content panel -->
                 <div v-if="activePanel[task.id] === 'ai_content'" class="p-4 space-y-3">
-                  <!-- 正在批量生成中 -->
+                  <!-- Batch generating in progress -->
                   <div v-if="generatingTodayContent && !task.ai_content && !streamingContent[task.id]"
                     class="bg-indigo-50 rounded p-3 text-xs text-indigo-600">
                     ⏳ {{ $t('study_plan.generating_wait') }}
                   </div>
-                  <!-- 流式生成预览 -->
+                  <!-- Streaming generation preview -->
                   <div v-else-if="streamingContent[task.id]"
                     class="bg-gray-50 rounded p-3 text-xs text-gray-700">
                     <div class="prose prose-sm" v-html="renderMd(streamingContent[task.id])"></div>
                   </div>
-                  <!-- 已生成内容展示 -->
+                  <!-- Display generated content -->
                   <div v-else-if="task.ai_content"
                     class="bg-blue-50 rounded p-3 text-sm text-gray-700">
                     <div class="prose prose-sm" v-html="renderMd(task.ai_content)"></div>
                   </div>
-                  <!-- 未生成 -->
+                  <!-- Not yet generated -->
                   <div v-else class="text-xs text-gray-400">{{ $t('study_plan.task_not_generated') }}</div>
 
                   <div class="flex gap-2 flex-wrap">
@@ -175,9 +175,9 @@
                   </div>
                 </div>
 
-                <!-- 提交成果面板 -->
+                <!-- Submit results panel -->
                 <div v-if="activePanel[task.id] === 'submit'" class="p-4 space-y-3">
-                  <!-- 已有评判结果 -->
+                  <!-- Evaluation result exists -->
                   <div v-if="task.evaluation && !streamingEval[task.id]">
                     <div class="bg-green-50 rounded p-3 text-sm text-gray-700">
                       <div class="prose prose-sm" v-html="renderMd(task.evaluation)"></div>
@@ -187,12 +187,12 @@
                       🔄 {{ $t('study_plan.resubmit_result') }}
                     </button>
                   </div>
-                  <!-- 评判流式中 -->
+                  <!-- Evaluation streaming -->
                   <div v-else-if="streamingEval[task.id]"
                     class="bg-gray-50 rounded p-3 text-xs text-gray-700">
                     <div class="prose prose-sm" v-html="renderMd(streamingEval[task.id])"></div>
                   </div>
-                  <!-- 提交表单 -->
+                  <!-- Submit form -->
                   <div v-else>
                     <p class="text-xs text-gray-500 mb-2">{{ $t('study_plan.submit_result_hint') }}</p>
                     <textarea
@@ -213,9 +213,9 @@
                   </div>
                 </div>
 
-                <!-- 练习题面板 -->
+                <!-- Quiz panel -->
                 <div v-if="activePanel[task.id] === 'quiz'" class="p-4 space-y-3">
-                  <!-- 已有评判结果 -->
+                  <!-- Quiz evaluation result exists -->
                   <div v-if="task.quiz_evaluation && !streamingQuizEval[task.id]">
                     <div class="bg-purple-50 rounded p-3 text-sm text-gray-700">
                       <div class="prose prose-sm" v-html="renderMd(task.quiz_evaluation)"></div>
@@ -225,20 +225,20 @@
                       🔄 {{ $t('study_plan.practice_again') }}
                     </button>
                   </div>
-                  <!-- 练习题评判流式中 -->
+                  <!-- Quiz evaluation streaming -->
                   <div v-else-if="streamingQuizEval[task.id]"
                     class="bg-gray-50 rounded p-3 text-xs text-gray-700">
                     <div class="prose prose-sm" v-html="renderMd(streamingQuizEval[task.id])"></div>
                   </div>
-                  <!-- 练习题生成中 -->
+                  <!-- Generating quiz -->
                   <div v-else-if="generatingQuiz[task.id]"
                     class="text-xs text-gray-500">⏳ {{ $t('study_plan.gen_quiz_loading') }}</div>
-                  <!-- 练习题列表 -->
+                  <!-- Quiz question list -->
                   <div v-else-if="parsedQuiz[task.id] && parsedQuiz[task.id].length > 0" class="space-y-3">
                     <div v-for="q in parsedQuiz[task.id]" :key="q.id" class="border border-gray-100 rounded p-3">
                       <p class="text-sm font-medium text-gray-700 mb-2 latex-content"
                         v-html="`${q.id}. ` + renderLatexOnly(q.question)"></p>
-                      <!-- 选择题 -->
+                      <!-- Multiple choice -->
                       <div v-if="q.type === 'choice'" class="space-y-1">
                         <label v-for="opt in q.options" :key="opt"
                           class="flex items-center gap-2 text-xs text-gray-600 cursor-pointer hover:text-indigo-600">
@@ -250,7 +250,7 @@
                           <span class="latex-content" v-html="renderLatexOnly(opt)"></span>
                         </label>
                       </div>
-                      <!-- 填空/简答题 -->
+                      <!-- Fill-in-the-blank / short-answer -->
                       <div v-else>
                         <input type="text"
                           :value="(quizAnswers[task.id] || {})[String(q.id)] || ''"
@@ -267,7 +267,7 @@
                       </button>
                     </div>
                   </div>
-                  <!-- 未生成 -->
+                  <!-- Not yet generated -->
                   <div v-else>
                     <p class="text-xs text-gray-400 mb-2">{{ $t('study_plan.no_quiz') }}</p>
                     <button @click="startGenerateQuiz(task)"
@@ -281,13 +281,13 @@
           </div>
         </div>
 
-        <!-- 计划档案面板（只读查看） -->
+        <!-- Plan archive panel (read-only) -->
         <div v-if="activeTab === 'all'">
           <div class="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
             📚 {{ $t('study_plan.archive_readonly_hint') }}
           </div>
 
-          <!-- 学科过滤 -->
+          <!-- Subject filter -->
           <div v-if="allSubjectsInPlan.length > 0" class="mb-4 flex flex-wrap gap-2 items-center">
             <span class="text-xs text-gray-500 mr-1">{{ $t('study_plan.filter_by_subject') }}</span>
             <button
@@ -311,7 +311,7 @@
 
           <div class="space-y-4">
             <div v-for="dateKey in filteredDateKeys" :key="dateKey">
-              <!-- 日期标题 -->
+              <!-- Date header -->
               <div class="flex items-center gap-2 mb-2 sticky top-0 bg-white py-1 z-10">
                 <span class="text-sm font-semibold text-gray-700">{{ formatDateLabel(dateKey) }}</span>
                 <span v-if="dateKey === todayStr"
@@ -322,12 +322,12 @@
                   class="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">{{ $t('study_plan.pending_badge') }}</span>
                 <div class="flex-1 h-px bg-gray-200"></div>
               </div>
-              <!-- 当天任务列表（只读） -->
+              <!-- Daily task list (read-only) -->
               <div class="space-y-2 pl-2">
                 <div v-for="task in getFilteredTasksForDate(dateKey)" :key="task.id"
                   class="rounded-lg border overflow-hidden"
                   :class="task.is_done ? 'border-green-200' : (dateKey < todayStr ? 'border-orange-100' : 'border-gray-200')">
-                  <!-- 只读任务头部 -->
+                  <!-- Read-only task header -->
                   <div class="flex items-center gap-3 p-3"
                     :class="task.is_done ? 'bg-green-50' : (dateKey < todayStr ? 'bg-orange-50' : 'bg-gray-50')">
                     <span class="text-base">{{ task.is_done ? '✅' : (dateKey < todayStr ? '⚠️' : '📝') }}</span>
@@ -338,7 +338,7 @@
                         <span v-if="task.quiz_score != null" class="ml-2 text-purple-600">{{ $t('study_plan.quiz_score') }}{{ $t('study_plan.score_pts_short', { n: task.quiz_score }) }}</span>
                       </p>
                     </div>
-                    <!-- 只有当日任务才能展开；历史/未来任务可查看已存档内容 -->
+                    <!-- Only today's tasks can be expanded; historical/future tasks show archived content -->
                     <button v-if="task.ai_content || task.evaluation || task.quiz_evaluation"
                       @click="toggleArchiveExpand(task.id)"
                       class="text-xs text-gray-500 hover:text-indigo-600 px-2 py-1 rounded border border-gray-200 hover:border-indigo-300">
@@ -346,7 +346,7 @@
                     </button>
                     <span v-else-if="dateKey > todayStr" class="text-xs text-gray-400 px-2">{{ $t('study_plan.pending_gen') }}</span>
                   </div>
-                  <!-- 只读存档内容 -->
+                  <!-- Read-only archived content -->
                   <div v-if="archiveExpandedId === task.id" class="border-t border-gray-100 bg-gray-50 p-4 space-y-3">
                     <div v-if="task.ai_content">
                       <p class="text-xs font-medium text-gray-500 mb-1">📖 {{ $t('study_plan.archive_content_label') }}</p>
@@ -378,7 +378,7 @@
         </div>
       </div>
 
-      <!-- 番茄钟 -->
+      <!-- Pomodoro timer -->
       <div class="card max-w-sm">
         <h3 class="font-semibold text-gray-700 mb-4">🍅 {{ $t('study_plan.pomodoro_title') }}</h3>
         <div class="text-center">
@@ -424,40 +424,40 @@ const showCreate = ref(false)
 const generating = ref(false)
 const createForm = ref({ subjects: [] as string[], exam_date: '', daily_hours: 3, weak_subjects: [] as string[] })
 
-// 标签页
+// Tabs
 const activeTab = ref<'today' | 'all'>('today')
-// 学科过滤
+// Subject filter
 const filterSubject = ref('')
 
-// 任务展开状态（今日面板）
+// Task expand state (today panel)
 const expandedTaskId = ref<number | null>(null)
-// 存档查看展开状态（计划档案面板）
+// Archive view expand state (plan archive panel)
 const archiveExpandedId = ref<number | null>(null)
-// 当前激活面板 task.id -> 'ai_content' | 'quiz' | 'submit'
+// Active panel: task.id -> 'ai_content' | 'quiz' | 'submit'
 const activePanel = reactive<Record<number, string>>({})
 
-// 面板配置
+// Panel configuration
 const taskPanels = computed(() => [
   { key: 'ai_content', label: `📖 ${t('study_plan.task_ai_content')}` },
   { key: 'submit', label: `📤 ${t('study_plan.task_submit_label')}` },
   { key: 'quiz', label: `🎯 ${t('study_plan.task_quiz_label')}` },
 ])
 
-// 每日内容批量生成状态
+// Daily content batch generation state
 const generatingTodayContent = ref(false)
 const todayGenerateProgress = ref<{ current: number; total: number; task_id: number; subject: string; topic: string } | null>(null)
 
-// AI 生成内容状态（单任务重新生成）
+// AI content generation state (single task regeneration)
 const generatingContent = reactive<Record<number, boolean>>({})
 const streamingContent = reactive<Record<number, string>>({})
 
-// 提交评判状态
+// Submission evaluation state
 const submitting = reactive<Record<number, boolean>>({})
 const streamingEval = reactive<Record<number, string>>({})
 const submissionText = reactive<Record<number, string>>({})
 const submissionFile = reactive<Record<number, File | null>>({})
 
-// 练习题状态
+// Quiz state
 const generatingQuiz = reactive<Record<number, boolean>>({})
 const streamingQuiz = reactive<Record<number, string>>({})
 const parsedQuiz = reactive<Record<number, any[]>>({})
@@ -473,16 +473,16 @@ const daysLeft = computed(() => {
   return Math.max(0, Math.ceil(diff / 86400000))
 })
 
-// 今天日期字符串
+// Today's date string
 const todayStr = computed(() => new Date().toISOString().slice(0, 10))
 
-// 所有日期（按序）
+// All dates (sorted)
 const allDateKeys = computed(() => {
   if (!plan.value?.tasks_by_date) return []
   return Object.keys(plan.value.tasks_by_date).sort()
 })
 
-// 计划中涉及的所有学科
+// All subjects in the plan
 const allSubjectsInPlan = computed(() => {
   const set = new Set<string>()
   allDateKeys.value.forEach(dk => {
@@ -492,7 +492,7 @@ const allSubjectsInPlan = computed(() => {
   return Array.from(set).sort()
 })
 
-// 过滤后的日期列表
+// Filtered date list
 const filteredDateKeys = computed(() => {
   if (!filterSubject.value) return allDateKeys.value
   return allDateKeys.value.filter(dk =>
@@ -500,7 +500,7 @@ const filteredDateKeys = computed(() => {
   )
 })
 
-// 获取某日期过滤后的任务
+// Get filtered tasks for a date
 function getFilteredTasksForDate(dateKey: string): any[] {
   const tasks = plan.value?.tasks_by_date?.[dateKey] || []
   if (!filterSubject.value) return tasks
@@ -537,7 +537,7 @@ function toggleArchiveExpand(taskId: number) {
   archiveExpandedId.value = archiveExpandedId.value === taskId ? null : taskId
 }
 
-// 番茄钟
+// Pomodoro timer
 const FOCUS = 25 * 60, BREAK = 5 * 60
 const pomodoroTime = ref(FOCUS)
 const running = ref(false)
@@ -568,7 +568,7 @@ function resetPomodoro() {
   clearInterval(timer)
 }
 
-// 加载计划数据
+// Load plan data
 async function loadPlan() {
   try {
     const res: any = await planApi.getCurrent()
@@ -578,14 +578,14 @@ async function loadPlan() {
       todayTasks.value = todayRes.data || []
       const needsGenerate: boolean = todayRes.needs_generate ?? false
 
-      // 恢复已有练习题的解析状态
+      // Restore parsed state for existing quizzes
       for (const task of todayTasks.value) {
         if (task.quiz_data && !task.quiz_evaluation) {
           tryParseQuiz(task.id, task.quiz_data)
         }
       }
 
-      // 如果今日任务都没有内容，触发批量生成（每日第一次登录时）
+      // If today's tasks have no content, trigger batch generation (first login of the day)
       if (needsGenerate) {
         triggerTodayGenerate()
       }
@@ -593,7 +593,7 @@ async function loadPlan() {
   } catch {}
 }
 
-// 触发今日内容批量生成（每天第一次登录时调用）
+// Trigger today's content batch generation (called on first login of the day)
 function triggerTodayGenerate() {
   const token = localStorage.getItem('token') || ''
   generatingTodayContent.value = true
@@ -608,7 +608,7 @@ function triggerTodayGenerate() {
       streamingContent[taskId] = (streamingContent[taskId] || '') + delta
     },
     async (taskId) => {
-      // 单个任务生成完成，刷新任务数据
+      // Single task generation done, refresh task data
       streamingContent[taskId] = ''
       try {
         const res: any = await planApi.getTaskDetail(taskId)
@@ -620,11 +620,11 @@ function triggerTodayGenerate() {
       } catch {}
     },
     async (_total) => {
-      // 全部生成完成
+      // All generation done
       generatingTodayContent.value = false
       todayGenerateProgress.value = null
       ElMessage.success(t('study_plan.today_content_ready'))
-      // 重新加载今日任务
+      // Reload today's tasks
       try {
         const todayRes: any = await planApi.getToday()
         todayTasks.value = todayRes.data || []
@@ -640,7 +640,7 @@ function triggerTodayGenerate() {
         streamingContent[taskId] = ''
       } else {
         generatingTodayContent.value = false
-        // 如果是"今日不在计划范围"或"今日无任务"等正常情况，静默处理
+        // Silently handle normal cases like "not in plan range" or "no tasks today"
         if (!msg.includes('不在学习计划') && !msg.includes('无学习任务')) { // server-side error filter
           ElMessage.error(t('study_plan.today_content_gen_failed', { detail: msg }))
         }
@@ -653,7 +653,7 @@ function triggerTodayGenerate() {
 async function generatePlan() {
   if (createForm.value.subjects.length === 0) return ElMessage.warning(t('study_plan.select_subjects_required'))
   if (!createForm.value.exam_date) return ElMessage.warning(t('study_plan.select_exam_date_required'))
-  // 检查考试日期是否至少在7天后
+  // Check that exam date is at least 7 days away
   const examDate = new Date(createForm.value.exam_date)
   const minDate = new Date()
   minDate.setDate(minDate.getDate() + 7)
@@ -665,7 +665,7 @@ async function generatePlan() {
     const res: any = await planApi.generate(createForm.value)
     plan.value = res.data
     showCreate.value = false
-    // 计划生成后重新加载，并触发今日内容生成
+    // Reload after plan generated and trigger today's content generation
     await loadPlan()
     activeTab.value = 'today'
     ElMessage.success(t('study_plan.plan_generated'))
@@ -688,7 +688,7 @@ async function toggleTask(task: any) {
   }
 }
 
-// AI 重新生成单个任务学习内容
+// AI regenerate single task content
 function startGenerateContent(task: any) {
   const token = localStorage.getItem('token') || ''
   generatingContent[task.id] = true
@@ -718,7 +718,7 @@ function startGenerateContent(task: any) {
   void stop
 }
 
-// 标记"已阅读AI内容完成"
+// Mark "read AI content as done"
 async function markDoneByAI(task: any) {
   try {
     await planApi.markTaskDone(task.id, true)
@@ -730,7 +730,7 @@ async function markDoneByAI(task: any) {
   }
 }
 
-// 提交学习成果并AI评判
+// Submit study results for AI evaluation
 function startSubmit(task: any) {
   const token = localStorage.getItem('token') || ''
   const text = submissionText[task.id] || ''
@@ -773,7 +773,7 @@ function startSubmit(task: any) {
   void stop
 }
 
-// 重置提交
+// Reset submission
 function resetSubmission(task: any) {
   task.evaluation = null
   task.eval_score = null
@@ -782,9 +782,9 @@ function resetSubmission(task: any) {
   streamingEval[task.id] = ''
 }
 
-// ===== 练习题相关 =====
+// ===== Quiz-related =====
 
-// 尝试解析练习题 JSON
+// Try to parse quiz JSON
 function tryParseQuiz(taskId: number, raw: string) {
   try {
     let cleaned = raw.trim()
@@ -799,7 +799,7 @@ function tryParseQuiz(taskId: number, raw: string) {
   }
 }
 
-// 生成练习题
+// Generate quiz
 function startGenerateQuiz(task: any) {
   const token = localStorage.getItem('token') || ''
   generatingQuiz[task.id] = true
@@ -832,13 +832,13 @@ function startGenerateQuiz(task: any) {
   void stop
 }
 
-// 设置练习题答案
+// Set quiz answer
 function setQuizAnswer(taskId: number, qid: string, value: string) {
   if (!quizAnswers[taskId]) quizAnswers[taskId] = {}
   quizAnswers[taskId][qid] = value
 }
 
-// 检查是否所有题目都已作答
+// Check if all questions have been answered
 function hasAllAnswers(taskId: number): boolean {
   const qs = parsedQuiz[taskId]
   if (!qs || qs.length === 0) return false
@@ -849,7 +849,7 @@ function hasAllAnswers(taskId: number): boolean {
   })
 }
 
-// 提交练习题答案并AI评判
+// Submit quiz answers for AI evaluation
 function startSubmitQuiz(task: any) {
   const token = localStorage.getItem('token') || ''
   const answers = quizAnswers[task.id] || {}
@@ -885,7 +885,7 @@ function startSubmitQuiz(task: any) {
   void stop
 }
 
-// 重置练习题，允许重新练习
+// Reset quiz, allow re-practice
 function resetQuiz(task: any) {
   task.quiz_data = null
   task.quiz_evaluation = null
