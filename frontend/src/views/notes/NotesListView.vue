@@ -2,11 +2,11 @@
   <div class="space-y-3 sm:space-y-4">
     <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
       <div class="flex items-center gap-2">
-        <el-select v-model="filterSubject" placeholder="全部学科" clearable size="small" style="width:100px" @change="loadNotes">
+        <el-select v-model="filterSubject" :placeholder="$t('subjects.all')" clearable size="small" style="width:100px" @change="loadNotes">
           <el-option v-for="s in subjects" :key="s" :label="s" :value="s" />
         </el-select>
       </div>
-      <el-button type="primary" @click="createNote" size="small" class="w-full sm:w-auto">+ 新建笔记</el-button>
+      <el-button type="primary" @click="createNote" size="small" class="w-full sm:w-auto">{{ $t('notes.new_note_btn') }}</el-button>
     </div>
 
     <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
@@ -15,8 +15,8 @@
 
     <div v-else-if="notes.length === 0" class="text-center py-12 sm:py-16 text-gray-400">
       <span class="text-4xl sm:text-5xl">📝</span>
-      <p class="mt-3 sm:mt-4 text-base sm:text-lg">还没有笔记，记录你的第一篇笔记吧</p>
-      <el-button type="primary" class="mt-3 sm:mt-4" @click="createNote" size="small">新建笔记</el-button>
+      <p class="mt-3 sm:mt-4 text-base sm:text-lg">{{ $t('notes.empty_hint') }}</p>
+      <el-button type="primary" class="mt-3 sm:mt-4" @click="createNote" size="small">{{ $t('notes.new_note') }}</el-button>
     </div>
 
     <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
@@ -35,15 +35,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { notesApi } from '@/api/notes'
 
+const { t } = useI18n()
 const router = useRouter()
 const notes = ref<any[]>([])
 const loading = ref(false)
 const filterSubject = ref('')
-const subjects = ['数学', '物理', '化学', '生物', '语文', '英语', '历史', '地理', '政治']
+const subjects = computed(() => [
+  t('subjects.math'), t('subjects.physics'), t('subjects.chemistry'),
+  t('subjects.biology'), t('subjects.chinese'), t('subjects.english'),
+  t('subjects.history'), t('subjects.geography'), t('subjects.politics')
+])
 
 function stripMarkdown(text: string) {
   return text.replace(/[#*`\[\]()>]/g, '').trim().slice(0, 100)
@@ -64,7 +70,7 @@ async function loadNotes() {
 }
 
 async function createNote() {
-  const res: any = await notesApi.create({ title: '新笔记', subject: '数学', content: '' })
+  const res: any = await notesApi.create({ title: t('notes.new_note'), subject: t('subjects.math'), content: '' })
   router.push(`/notes/${res.data.id}/edit`)
 }
 
