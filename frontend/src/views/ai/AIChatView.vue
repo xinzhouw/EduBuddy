@@ -232,7 +232,7 @@
       <!-- 输入区 -->
       <div class="border-t border-gray-100 pt-2 sm:pt-3 px-2 sm:px-0 shrink-0">
         <!-- 图片上传区（可折叠） -->
-        <div v-if="showImageUpload" class="mb-2">
+        <div v-show="showImageUpload" class="mb-2">
           <ImageUploadArea
             ref="imageUploadRef"
             :max-count="5"
@@ -255,7 +255,7 @@
             size="small"
             class="shrink-0"
             title="上传试题图片"
-            :icon="Picture"
+            :icon="UploadFilled"
           />
           <el-input
             v-model="inputText"
@@ -292,7 +292,7 @@ import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { aiApi } from '@/api/ai'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Picture } from '@element-plus/icons-vue'
+import { UploadFilled } from '@element-plus/icons-vue'
 import { renderMessage, renderLatexOnly } from '@/utils/markdown'
 import { searchEducationalImages } from '@/utils/imageSearch'
 import SessionDrawer from '@/components/shared/SessionDrawer.vue'
@@ -681,7 +681,9 @@ async function copyMessage(msg: ChatMessage) {
       document.body.appendChild(textarea)
       textarea.focus()
       textarea.select()
-      document.execCommand('copy')
+      // execCommand 已弃用，但在非安全上下文（http）下 navigator.clipboard 不可用，
+      // 这是唯一可用的复制降级方案；用 as any 规避类型层的弃用告警。
+      ;(document as any).execCommand('copy')
       document.body.removeChild(textarea)
     }
     copiedMsgId.value = (msg.id || msg.tempId) ?? null
@@ -826,9 +828,11 @@ async function exportPdf(msg: ChatMessage) {
     if (!printWindow) {
       throw new Error('无法打开新窗口，请检查浏览器是否阻止了弹出窗口')
     }
-    printWindow.document.open()
-    printWindow.document.write(fullHtml)
-    printWindow.document.close()
+    // 用 Blob URL 加载导出文档（替代已弃用的 document.write）
+    const blobUrl = URL.createObjectURL(new Blob([fullHtml], { type: 'text/html' }))
+    printWindow.location.href = blobUrl
+    // 延时释放，确保新窗口已完成加载与打印
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
 
     ElMessage.success('已打开打印预览，请选择"另存为 PDF"保存文件')
   } catch (err: any) {
@@ -899,9 +903,6 @@ const ttsState = ref<'idle' | 'playing' | 'paused'>('idle')
 
 /** 当前正在朗读的消息 id（msg.id 或 msg.tempId） */
 const ttsActiveMsgId = ref<number | null>(null)
-
-/** 缓存的中文语音对象 */
-let cachedVoice: SpeechSynthesisVoice | null = null
 
 /** 从浏览器语音列表中挑选最优中文语音 */
 function pickVoice(lang: string): SpeechSynthesisVoice | null {
@@ -1043,12 +1044,9 @@ onMounted(async () => {
     })
   }, 200)
 
-  // 预加载语音列表（部分浏览器需要通过事件触发）
+  // 预加载语音列表（部分浏览器首次 getVoices() 返回空，需触发异步加载）
   if (typeof window !== 'undefined' && window.speechSynthesis) {
     window.speechSynthesis.getVoices()
-    window.speechSynthesis.addEventListener('voiceschanged', () => {
-      cachedVoice = pickVoice(selectedSubject.value)
-    })
   }
 })
 
