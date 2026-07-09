@@ -3,18 +3,18 @@
     <!-- 左侧：历史记录（PC 端固定侧边栏，移动端隐藏） -->
     <div class="hidden md:flex w-64 shrink-0 card flex-col gap-2 overflow-hidden">
       <div class="flex items-center justify-between shrink-0">
-        <h3 class="font-semibold text-gray-700 text-sm">批改历史</h3>
-        <button @click="startNew" class="text-blue-500 text-sm hover:text-blue-600">+ 新批改</button>
+        <h3 class="font-semibold text-gray-700 text-sm">{{ $t('homework.history_title') }}</h3>
+        <button @click="startNew" class="text-blue-500 text-sm hover:text-blue-600">{{ $t('homework.new_grading') }}</button>
       </div>
 
       <!-- 学科筛选 -->
-      <el-select v-model="filterSubject" size="small" placeholder="全部学科" clearable class="w-full shrink-0">
-        <el-option v-for="s in subjects" :key="s" :label="s" :value="s" />
+      <el-select v-model="filterSubject" size="small" :placeholder="$t('homework.filter_subject')" clearable class="w-full shrink-0">
+        <el-option v-for="s in subjects" :key="s" :label="subjectLabel(s)" :value="s" />
       </el-select>
 
       <div class="flex-1 overflow-y-auto space-y-1">
         <div v-if="historyList.length === 0" class="text-center py-8 text-gray-400 text-sm">
-          暂无批改记录
+          {{ $t('homework.no_history') }}
         </div>
         <div
           v-for="item in historyList"
@@ -25,22 +25,22 @@
         >
           <div class="flex items-center gap-1.5 pr-6">
             <span class="text-xs px-1.5 py-0.5 rounded-md font-medium"
-              :class="subjectColorClass(item.subject)">{{ item.subject }}</span>
+              :class="subjectColorClass(item.subject)">{{ subjectLabel(item.subject) }}</span>
             <p class="font-medium truncate flex-1">{{ item.title }}</p>
           </div>
           <div class="flex items-center gap-2 mt-0.5">
             <span v-if="item.score !== null && item.score !== undefined"
               class="text-xs font-bold"
               :class="scoreColorClass(item.score)">
-              {{ item.score.toFixed(0) }}分
+              {{ $t('homework.score_pts', { score: item.score.toFixed(0) }) }}
             </span>
-            <span v-else class="text-xs text-gray-400">待批改</span>
+            <span v-else class="text-xs text-gray-400">{{ $t('homework.pending_grade') }}</span>
             <span class="text-xs text-gray-400">{{ formatDate(item.created_at) }}</span>
           </div>
           <button
             @click.stop="confirmDelete(item)"
             class="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded text-gray-400 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity text-xs"
-            title="删除">✕</button>
+            :title="$t('common.delete')">✕</button>
         </div>
       </div>
     </div>
@@ -54,24 +54,24 @@
           @click="showGradingDrawer = true"
           class="md:hidden px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
         >
-          📋 批改历史
+          📋 {{ $t('homework.mobile_history_btn') }}
         </button>
 
         <!-- 学科：下拉选择（新建时可选，查看历史时禁用） -->
-        <span class="text-sm text-gray-500">学科：</span>
+        <span class="text-sm text-gray-500">{{ $t('homework.subject_label') }}</span>
         <el-select
           v-model="form.subject"
           size="small"
           style="width: 100px"
           :disabled="viewMode === 'result'"
-          :title="viewMode === 'result' ? '查看历史批改时学科不可更改' : ''"
+          :title="viewMode === 'result' ? $t('homework.history_locked') : ''"
         >
-          <el-option v-for="s in subjects" :key="s" :label="s" :value="s" />
+          <el-option v-for="s in subjects" :key="s" :label="subjectLabel(s)" :value="s" />
         </el-select>
         <!-- 提交方式切换（仅表单视图显示） -->
         <el-radio-group v-if="viewMode === 'form'" v-model="submitMode" size="small" :disabled="isGrading || isRecognizing">
-          <el-radio-button value="text">📝 文本输入</el-radio-button>
-          <el-radio-button value="file">📎 上传文件</el-radio-button>
+          <el-radio-button value="text">{{ $t('homework.input_text') }}</el-radio-button>
+          <el-radio-button value="file">{{ $t('homework.upload_file') }}</el-radio-button>
         </el-radio-group>
       </div>
 
@@ -88,8 +88,8 @@
             </div>
             <div>
               <p class="text-base font-semibold text-gray-700">{{ currentTitle }}</p>
-              <p class="text-sm text-gray-500">{{ form.subject }} · {{ scoreLabel(finalScore) }}</p>
-              <p class="text-xs text-gray-400 mt-1">批改时间：{{ currentGradedAt || '刚刚' }}</p>
+              <p class="text-sm text-gray-500">{{ subjectLabel(form.subject) }} · {{ scoreLabel(finalScore) }}</p>
+              <p class="text-xs text-gray-400 mt-1">{{ $t('homework.graded_at') }} {{ currentGradedAt || $t('homework.just_now') }}</p>
             </div>
             <div class="ml-auto flex gap-2">
               <!-- PDF 导出按钮 -->
@@ -100,14 +100,14 @@
                 :loading="isExportingPDF"
                 :disabled="isGrading || !gradingReport"
                 @click="exportToPDF"
-                title="导出批改报告为 PDF"
+                :title="$t('homework.export_pdf_title')"
               >
                 <span class="flex items-center gap-1">
                   <span>📥</span>
-                  <span>{{ isExportingPDF ? '生成中...' : '导出 PDF' }}</span>
+                  <span>{{ isExportingPDF ? $t('homework.exporting') : $t('homework.export_pdf') }}</span>
                 </span>
               </el-button>
-              <el-button size="small" @click="startNew">重新提交</el-button>
+              <el-button size="small" @click="startNew">{{ $t('homework.resubmit') }}</el-button>
             </div>
           </div>
           <!-- 批改完成但无分数时也显示导出按钮 -->
@@ -121,10 +121,10 @@
             >
               <span class="flex items-center gap-1">
                 <span>📥</span>
-                <span>{{ isExportingPDF ? '生成中...' : '导出 PDF' }}</span>
+                <span>{{ isExportingPDF ? $t('homework.exporting') : $t('homework.export_pdf') }}</span>
               </span>
             </el-button>
-            <el-button size="small" class="ml-2" @click="startNew">重新提交</el-button>
+            <el-button size="small" class="ml-2" @click="startNew">{{ $t('homework.resubmit') }}</el-button>
           </div>
 
           <!-- 批改报告（Markdown 渲染） -->
@@ -132,7 +132,7 @@
             <div v-if="isGrading" class="space-y-2">
               <div class="flex items-center gap-2 text-blue-500 text-sm mb-3">
                 <span class="animate-spin text-base">⚙️</span>
-                <span>AI 正在批改中，请稍候...</span>
+                <span>{{ $t('homework.ai_grading') }}</span>
               </div>
               <!-- 流式输出预览 -->
               <div v-if="gradingReport" class="markdown-body px-1 py-2 bg-gray-50 rounded-xl"
@@ -151,7 +151,7 @@
                   : 'bg-indigo-50 border-indigo-100'"
               >
                 <span class="text-sm shrink-0" :class="ttsDisabled ? 'text-gray-400' : 'text-indigo-500'">🔊</span>
-                <span class="text-xs font-medium shrink-0" :class="ttsDisabled ? 'text-gray-400' : 'text-indigo-600'">语音朗读</span>
+                <span class="text-xs font-medium shrink-0" :class="ttsDisabled ? 'text-gray-400' : 'text-indigo-600'">{{ $t('homework.tts_label') }}</span>
 
                 <!-- 禁用状态（数学/物理/化学） -->
                 <template v-if="ttsDisabled">
@@ -159,9 +159,9 @@
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M8 5v14l11-7z"/>
                     </svg>
-                    开始朗读
+                    {{ $t('homework.tts_start') }}
                   </span>
-                  <span class="ml-auto text-xs text-gray-400">{{ form.subject }}学科公式复杂，暂不支持语音朗读</span>
+                  <span class="ml-auto text-xs text-gray-400">{{ $t('homework.tts_unsupported', { subject: subjectLabel(form.subject) }) }}</span>
                 </template>
 
                 <!-- 正常状态 -->
@@ -171,12 +171,12 @@
                     v-if="ttsState === 'idle'"
                     @click="startSpeech"
                     class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 active:bg-indigo-700 transition-colors shadow-sm"
-                    title="朗读批改报告"
+                    :title="$t('homework.tts_read_report')"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M8 5v14l11-7z"/>
                     </svg>
-                    开始朗读
+                    {{ $t('homework.tts_start') }}
                   </button>
                   <!-- 播放中：暂停 + 停止 -->
                   <template v-else>
@@ -187,7 +187,7 @@
                       :class="ttsState === 'playing'
                         ? 'bg-amber-500 text-white hover:bg-amber-600'
                         : 'bg-green-500 text-white hover:bg-green-600'"
-                      :title="ttsState === 'playing' ? '暂停' : '继续'"
+                      :title="ttsState === 'playing' ? $t('homework.tts_pause') : $t('homework.tts_continue')"
                     >
                       <!-- 暂停图标 -->
                       <svg v-if="ttsState === 'playing'" xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
@@ -197,18 +197,18 @@
                       <svg v-else xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M8 5v14l11-7z"/>
                       </svg>
-                      {{ ttsState === 'playing' ? '暂停' : '继续' }}
+                      {{ ttsState === 'playing' ? $t('homework.tts_pause') : $t('homework.tts_continue') }}
                     </button>
                     <!-- 停止 -->
                     <button
                       @click="stopSpeech"
                       class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-500 text-white hover:bg-gray-600 transition-colors shadow-sm"
-                      title="停止朗读"
+                      :title="$t('homework.tts_stop')"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M6 6h12v12H6z"/>
                       </svg>
-                      停止
+                      {{ $t('homework.tts_stop') }}
                     </button>
                   </template>
                   <!-- 播放状态指示 -->
@@ -220,8 +220,8 @@
                       <span class="tts-bar w-1 rounded-sm bg-indigo-500" style="animation-delay: 0.3s"></span>
                       <span class="tts-bar w-1 rounded-sm bg-indigo-500" style="animation-delay: 0.45s"></span>
                     </span>
-                    <span v-if="ttsState === 'playing'">正在朗读...</span>
-                    <span v-else-if="ttsState === 'paused'">⏸ 已暂停</span>
+                    <span v-if="ttsState === 'playing'">{{ $t('homework.tts_reading') }}</span>
+                    <span v-else-if="ttsState === 'paused'">{{ $t('homework.tts_paused') }}</span>
                   </span>
                 </template>
               </div>
@@ -240,7 +240,7 @@
                 >
                   <span class="flex items-center gap-2">
                     <span>📄</span>
-                    <span>查看原始作业内容</span>
+                    <span>{{ $t('homework.view_original') }}</span>
                     <span v-if="originalFileName" class="text-xs text-gray-400 font-normal">（{{ originalFileName }}）</span>
                     <span v-else-if="originalContentType" class="text-xs text-gray-400 font-normal">（{{ contentTypeLabel(originalContentType) }}）</span>
                   </span>
@@ -263,7 +263,7 @@
                           class="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
                         >
                           <span>🖼️</span>
-                          <span>查看图片</span>
+                          <span>{{ $t('homework.view_image') }}</span>
                         </button>
                         <!-- PDF：在新标签页预览 -->
                         <button
@@ -272,7 +272,7 @@
                           class="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
                         >
                           <span>📄</span>
-                          <span>预览 PDF</span>
+                          <span>{{ $t('homework.preview_pdf') }}</span>
                         </button>
                         <!-- 下载按钮（所有文件类型都有） -->
                         <button
@@ -280,20 +280,20 @@
                           class="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors border border-gray-200"
                         >
                           <span>⬇️</span>
-                          <span>下载文件</span>
+                          <span>{{ $t('homework.download_file') }}</span>
                         </button>
                       </div>
                     </div>
                     <!-- 对于 PDF/DOCX，如果有提取的文字也同时展示 -->
                     <div v-if="originalContentText" class="space-y-1.5">
                       <div class="flex items-center justify-between">
-                        <span class="text-xs text-gray-500 font-medium">📝 提取的文字内容</span>
+                        <span class="text-xs text-gray-500 font-medium">{{ $t('homework.extracted_text') }}</span>
                         <div class="flex items-center gap-2">
-                          <span class="text-xs text-gray-400">{{ originalContentText.length }} 字</span>
+                          <span class="text-xs text-gray-400">{{ $t('homework.content_length', { n: originalContentText.length }) }}</span>
                           <button
                             class="text-xs text-blue-500 hover:text-blue-600 transition-colors"
                             @click="copyOriginalContent"
-                          >📋 复制</button>
+                          >{{ $t('homework.copy_content') }}</button>
                         </div>
                       </div>
                       <pre class="text-xs text-gray-700 bg-gray-50 rounded-lg p-3 max-h-48 overflow-y-auto whitespace-pre-wrap leading-relaxed font-sans border border-gray-100">{{ originalContentText }}</pre>
@@ -302,11 +302,11 @@
                   <!-- 纯文本输入：直接展示内容 -->
                   <div v-else-if="originalContentText" class="space-y-2">
                     <div class="flex items-center justify-between">
-                      <span class="text-xs text-gray-400">{{ contentTypeLabel(originalContentType) }} · {{ originalContentText.length }} 字</span>
+                      <span class="text-xs text-gray-400">{{ contentTypeLabel(originalContentType) }} · {{ $t('homework.content_length', { n: originalContentText.length }) }}</span>
                       <button
                         class="text-xs text-blue-500 hover:text-blue-600 transition-colors"
                         @click="copyOriginalContent"
-                      >📋 复制内容</button>
+                      >{{ $t('homework.copy_original_content') }}</button>
                     </div>
                     <pre class="text-xs text-gray-700 bg-gray-50 rounded-lg p-3 max-h-64 overflow-y-auto whitespace-pre-wrap leading-relaxed font-sans">{{ originalContentText }}</pre>
                   </div>
@@ -315,7 +315,7 @@
             </template>
             <div v-else class="text-center text-gray-400 py-12">
               <span class="text-4xl block mb-3">📋</span>
-              <p>批改报告将在这里显示</p>
+              <p>{{ $t('homework.report_placeholder') }}</p>
             </div>
           </div>
         </div>
@@ -324,10 +324,10 @@
         <div v-else class="py-4 space-y-4">
           <!-- 作业标题 -->
           <div class="flex items-center gap-3">
-            <label class="text-sm text-gray-600 w-16 shrink-0">作业标题</label>
+            <label class="text-sm text-gray-600 w-16 shrink-0">{{ $t('homework.homework_title') }}</label>
             <el-input
               v-model="form.title"
-              placeholder="例如：第三章练习题、期中数学作业..."
+              :placeholder="$t('homework.title_placeholder')"
               size="small"
               class="flex-1"
               :maxlength="100"
@@ -338,31 +338,24 @@
           <!-- 文本输入模式 -->
           <div v-if="submitMode === 'text'" class="space-y-2">
             <div class="flex items-center justify-between">
-              <label class="text-sm text-gray-600">作业内容</label>
-              <span class="text-xs text-gray-400">{{ form.content.length }} / 10000 字</span>
+              <label class="text-sm text-gray-600">{{ $t('homework.homework_content') }}</label>
+              <span class="text-xs text-gray-400">{{ $t('homework.content_length', { n: form.content.length }) }}</span>
             </div>
             <el-input
               v-model="form.content"
               type="textarea"
               :rows="12"
-              placeholder="请粘贴或输入你的作业内容...
-
-示例：
-1. 已知 $x^2 - 5x + 6 = 0$，求 $x$ 的值。
-答：分解因式得 $(x-2)(x-3)=0$，所以 $x=2$ 或 $x=3$
-
-2. 计算 $\int_0^1 x^2 dx$
-答：..."
+              :placeholder="$t('homework.content_placeholder')"
               :maxlength="10000"
               resize="none"
               class="font-mono text-sm"
             />
-            <p class="text-xs text-gray-400">💡 支持 LaTeX 公式（如 $x^2$），直接粘贴题目和答案即可</p>
+            <p class="text-xs text-gray-400">{{ $t('homework.latex_hint') }}</p>
           </div>
 
           <!-- 文件上传模式 -->
           <div v-else class="space-y-3">
-            <label class="text-sm text-gray-600">上传作业文件</label>
+            <label class="text-sm text-gray-600">{{ $t('homework.upload_homework') }}</label>
 
             <!-- 拖拽上传区域 -->
             <div
@@ -382,9 +375,9 @@
               />
               <div v-if="!selectedFile">
                 <div class="text-4xl mb-3">📁</div>
-                <p class="text-sm font-medium text-gray-600">点击选择文件 或 拖拽到此处</p>
-                <p class="text-xs text-gray-400 mt-2">支持 PDF、Word (.docx)、图片 (JPG/PNG)</p>
-                <p class="text-xs text-gray-400">最大 50MB</p>
+                <p class="text-sm font-medium text-gray-600">{{ $t('homework.upload_click') }}</p>
+                <p class="text-xs text-gray-400 mt-2">{{ $t('homework.upload_support') }}</p>
+                <p class="text-xs text-gray-400">{{ $t('homework.upload_max_size') }}</p>
               </div>
               <div v-else class="flex items-center justify-center gap-3">
                 <span class="text-2xl">{{ fileIcon(selectedFile.name) }}</span>
@@ -392,7 +385,7 @@
                   <p class="text-sm font-medium text-gray-700">{{ selectedFile.name }}</p>
                   <p class="text-xs text-gray-400">{{ formatFileSize(selectedFile.size) }}</p>
                 </div>
-                <el-button size="small" type="danger" text @click.stop="clearFile">更换文件</el-button>
+                <el-button size="small" type="danger" text @click.stop="clearFile">{{ $t('homework.change_file') }}</el-button>
               </div>
             </div>
 
@@ -402,7 +395,7 @@
               <div v-if="isRecognizing" class="bg-blue-50 border border-blue-200 rounded-xl p-4">
                 <div class="flex items-center gap-2 text-blue-600 text-sm">
                   <span class="animate-spin">🔍</span>
-                  <span>AI 正在识别图片内容，请稍候...</span>
+                  <span>{{ $t('homework.ai_recognizing') }}</span>
                 </div>
               </div>
 
@@ -410,22 +403,22 @@
               <div v-else-if="recognizedText !== null" class="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-2">
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-2">
-                    <span class="text-sm font-medium text-gray-700">🔍 图片识别结果</span>
+                    <span class="text-sm font-medium text-gray-700">{{ $t('homework.image_result') }}</span>
                     <span class="text-xs px-2 py-0.5 rounded-full font-medium"
                       :class="recognizeConfidence === 'high' ? 'bg-green-100 text-green-700'
                             : recognizeConfidence === 'medium' ? 'bg-amber-100 text-amber-700'
                             : 'bg-red-100 text-red-700'">
-                      {{ recognizeConfidence === 'high' ? '✓ 高置信度' : recognizeConfidence === 'medium' ? '⚠ 中等置信度' : '⚠ 低置信度' }}
+                      {{ recognizeConfidence === 'high' ? $t('homework.confidence_high') : recognizeConfidence === 'medium' ? $t('homework.confidence_medium') : $t('homework.confidence_low') }}
                     </span>
                   </div>
                   <div class="flex items-center gap-2">
                     <el-button size="small" text @click="recognizeEditMode = !recognizeEditMode">
-                      {{ recognizeEditMode ? '预览' : '✏️ 编辑' }}
+                      {{ recognizeEditMode ? $t('homework.preview_btn') : $t('homework.edit_btn') }}
                     </el-button>
-                    <el-button size="small" text @click="retryRecognize" :disabled="isRecognizing">重新识别</el-button>
+                    <el-button size="small" text @click="retryRecognize" :disabled="isRecognizing">{{ $t('homework.retry_recognize') }}</el-button>
                   </div>
                 </div>
-                <div class="text-xs text-gray-500">以下是 AI 从图片中识别到的文字内容，请确认是否正确：</div>
+                <div class="text-xs text-gray-500">{{ $t('homework.recognize_confirm') }}</div>
 
                 <!-- 预览模式：安全渲染（HTML转义 + LaTeX公式） -->
                 <div
@@ -433,7 +426,7 @@
                   class="recognize-preview bg-white border border-gray-100 rounded-lg p-3 min-h-24 max-h-64 overflow-y-auto cursor-pointer text-sm leading-relaxed"
                   v-html="renderRecognizedText(recognizedText)"
                   @click="recognizeEditMode = true"
-                  title="点击编辑"
+                  :title="$t('homework.click_edit')"
                 ></div>
 
                 <!-- 编辑模式：左右分栏 - 左侧MathLive公式编辑区 + 右侧实时预览 -->
@@ -449,12 +442,12 @@
                         :class="undoStack.length > 0
                           ? 'border-gray-300 text-gray-600 hover:bg-gray-100 hover:border-gray-400'
                           : 'border-gray-200 text-gray-300 cursor-not-allowed'"
-                        title="撤销 (Ctrl+Z)"
+                        :title="$t('homework.undo_tooltip')"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                           <path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
                         </svg>
-                        撤销
+                        {{ $t('homework.undo') }}
                       </button>
                       <!-- Redo 按钮 -->
                       <button
@@ -464,23 +457,23 @@
                         :class="redoStack.length > 0
                           ? 'border-gray-300 text-gray-600 hover:bg-gray-100 hover:border-gray-400'
                           : 'border-gray-200 text-gray-300 cursor-not-allowed'"
-                        title="重做 (Ctrl+Y)"
+                        :title="$t('homework.redo_tooltip')"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                           <path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/>
                         </svg>
-                        重做
+                        {{ $t('homework.redo') }}
                       </button>
                       <!-- 历史步数提示 -->
                       <span class="text-xs text-gray-400 ml-1">
-                        {{ undoStack.length > 0 ? `可撤销 ${undoStack.length} 步` : '' }}
+                        {{ undoStack.length > 0 ? $t('homework.undo_steps', { n: undoStack.length }) : '' }}
                       </span>
                     </div>
                     <button
                       @click="showMathEditor = !showMathEditor"
                       class="text-xs px-2 py-1 bg-purple-50 text-purple-700 rounded-md hover:bg-purple-100 transition-colors border border-purple-200"
                     >
-                      {{ showMathEditor ? '▲ 关闭公式编辑' : '∑ 插入公式' }}
+                      {{ showMathEditor ? $t('homework.close_formula') : $t('homework.insert_formula') }}
                     </button>
                   </div>
 
@@ -488,16 +481,16 @@
                   <div class="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-xs text-blue-700 flex items-start gap-2">
                     <span class="shrink-0 mt-0.5">💡</span>
                     <div>
-                      <p class="font-medium mb-0.5">如何编辑数学公式</p>
-                      <p>• 点击下方「插入公式」按钮，用可视化界面编辑数学公式，自动转为 <code class="bg-blue-100 px-1 rounded">$公式$</code> 格式</p>
-                      <p>• 也可以直接在文本框中修改文字内容，公式部分保持 <code class="bg-blue-100 px-1 rounded">$...$</code> 格式不变</p>
-                      <p>• 支持 <kbd class="bg-blue-100 px-1 rounded font-mono">Ctrl+Z</kbd> 撤销 / <kbd class="bg-blue-100 px-1 rounded font-mono">Ctrl+Y</kbd> 重做</p>
+                      <p class="font-medium mb-0.5">{{ $t('homework.formula_edit_title') }}</p>
+                      <p>{{ $t('homework.formula_edit_hint1') }}</p>
+                      <p>{{ $t('homework.formula_edit_hint2') }}</p>
+                      <p>{{ $t('homework.formula_edit_hint3') }}</p>
                     </div>
                   </div>
 
                   <!-- MathLive 可视化公式编辑器（折叠显示） -->
                   <div v-if="showMathEditor" class="border border-purple-200 rounded-lg bg-purple-50 p-2 space-y-1.5">
-                    <p class="text-xs text-purple-600">在下方输入或点击公式键盘，完成后点击「插入到文本」：</p>
+                    <p class="text-xs text-purple-600">{{ $t('homework.math_field_hint') }}</p>
                     <math-field
                       ref="mathFieldEl"
                       virtual-keyboard-mode="onfocus"
@@ -509,7 +502,7 @@
                       @click="insertMathToText"
                       class="w-full text-xs py-1.5 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
                     >
-                      ✓ 插入到文本（将以 $公式$ 格式插入光标处）
+                      {{ $t('homework.insert_math_btn') }}
                     </button>
                   </div>
 
@@ -517,13 +510,13 @@
                   <div class="grid grid-cols-2 gap-2">
                     <!-- 左侧：文本编辑区 -->
                     <div class="space-y-1.5">
-                      <span class="text-xs text-gray-500 font-medium">✏️ 编辑区</span>
+                      <span class="text-xs text-gray-500 font-medium">{{ $t('homework.edit_area') }}</span>
                       <!-- 文本 textarea -->
                       <textarea
                         ref="recognizeTextareaEl"
                         v-model="recognizedText"
                         rows="7"
-                        placeholder="识别内容为空，可在此输入..."
+                        :placeholder="$t('homework.recognize_empty_placeholder')"
                         class="w-full border border-gray-300 rounded-lg p-2 text-xs font-mono leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                         @keydown="onRecognizeKeydown"
                         @input="onRecognizeInput"
@@ -532,7 +525,7 @@
 
                     <!-- 右侧：实时渲染预览 -->
                     <div class="space-y-1.5">
-                      <span class="text-xs text-gray-500 font-medium">👁 实时预览</span>
+                      <span class="text-xs text-gray-500 font-medium">{{ $t('homework.preview_area') }}</span>
                       <div
                         class="recognize-preview bg-white border border-gray-200 rounded-lg p-2 text-sm leading-relaxed overflow-y-auto"
                         style="height: calc(7 * 1.6rem + 16px)"
@@ -541,23 +534,23 @@
                     </div>
                   </div>
                 </div>
-                <p class="text-xs text-gray-400">💡 点击预览区域可切换编辑/预览模式</p>
+                <p class="text-xs text-gray-400">{{ $t('homework.click_preview_hint') }}</p>
               </div>
 
               <!-- 识别失败 -->
               <div v-else-if="recognizeError" class="bg-red-50 border border-red-200 rounded-xl p-3">
                 <div class="flex items-center justify-between">
-                  <span class="text-sm text-red-600">⚠ 识别失败：{{ recognizeError }}</span>
-                  <el-button size="small" text type="danger" @click="retryRecognize">重试</el-button>
+                  <span class="text-sm text-red-600">{{ $t('homework.recognize_error', { error: recognizeError }) }}</span>
+                  <el-button size="small" text type="danger" @click="retryRecognize">{{ $t('homework.retry') }}</el-button>
                 </div>
               </div>
             </div>
 
             <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700 space-y-1">
-              <p class="font-medium">📌 上传说明</p>
-              <p>• <strong>PDF / Word</strong>：自动提取文字内容进行批改</p>
-              <p>• <strong>图片 (JPG/PNG)</strong>：AI 先识别图片文字，确认无误后再批改</p>
-              <p>• 请确保图片清晰，手写内容可识别</p>
+              <p class="font-medium">{{ $t('homework.upload_notice_title') }}</p>
+              <p>{{ $t('homework.upload_notice_pdf') }}</p>
+              <p>{{ $t('homework.upload_notice_image') }}</p>
+              <p>{{ $t('homework.upload_notice_quality') }}</p>
             </div>
           </div>
 
@@ -571,7 +564,7 @@
               :disabled="!canSubmit"
               icon="Check"
             >
-              {{ isGrading ? 'AI 批改中...' : '🚀 提交批改' }}
+              {{ isGrading ? $t('homework.ai_grading_short') : $t('homework.submit_grading') }}
             </el-button>
           </div>
         </div>
@@ -587,12 +580,12 @@
   >
     <!-- PDF 封面信息 -->
     <div style="margin-bottom: 24px; padding-bottom: 20px; border-bottom: 2px solid #e5e7eb;">
-      <h1 style="font-size: 22px; font-weight: 700; color: #111827; margin: 0 0 8px 0;">AI 作业批改报告</h1>
+      <h1 style="font-size: 22px; font-weight: 700; color: #111827; margin: 0 0 8px 0;">{{ $t('homework.pdf_report_title') }}</h1>
       <div style="display: flex; gap: 24px; font-size: 13px; color: #6b7280; flex-wrap: wrap;">
-        <span>作业标题：{{ currentTitle || '我的作业' }}</span>
-        <span>学科：{{ form.subject }}</span>
-        <span v-if="finalScore !== null">得分：{{ finalScore.toFixed(0) }} / 100</span>
-        <span>批改时间：{{ currentGradedAt || '刚刚' }}</span>
+        <span>{{ $t('homework.pdf_title_label') }} {{ currentTitle || $t('homework.my_homework') }}</span>
+        <span>{{ $t('homework.pdf_subject_label') }} {{ subjectLabel(form.subject) }}</span>
+        <span v-if="finalScore !== null">{{ $t('homework.pdf_score_label') }} {{ finalScore.toFixed(0) }} {{ $t('homework.score_unit_100') }}</span>
+        <span>{{ $t('homework.pdf_graded_at') }} {{ currentGradedAt || $t('homework.just_now') }}</span>
       </div>
       <div v-if="finalScore !== null" style="margin-top: 12px;">
         <span
@@ -610,7 +603,7 @@
     ></div>
     <!-- PDF 页脚 -->
     <div style="margin-top: 32px; padding-top: 12px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af; text-align: center;">
-      由 EduBuddy AI 智能学习助手生成 · {{ new Date().toLocaleDateString('zh-CN') }}
+      {{ $t('homework.pdf_footer') }} · {{ new Date().toLocaleDateString() }}
     </div>
   </div>
 
@@ -628,6 +621,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, nextTick, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { homeworkApi, createTextGradingStream, createFileGradingStream } from '@/api/homework'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -636,7 +630,24 @@ import GradingHistoryDrawer from '@/components/shared/GradingHistoryDrawer.vue'
 // 引入 MathLive Web Component
 import 'mathlive'
 
+const { t } = useI18n()
 const authStore = useAuthStore()
+
+/** 将后端存储的中文学科值映射到 i18n 显示标签 */
+function subjectLabel(subject: string): string {
+  const map: Record<string, string> = {
+    '数学': t('subjects.math'),
+    '物理': t('subjects.physics'),
+    '化学': t('subjects.chemistry'),
+    '生物': t('subjects.biology'),
+    '语文': t('subjects.chinese'),
+    '英语': t('subjects.english'),
+    '历史': t('subjects.history'),
+    '地理': t('subjects.geography'),
+    '政治': t('subjects.politics'),
+  }
+  return map[subject] || subject
+}
 
 // ─── 常量 ───────────────────────────────────────────────────
 const subjects = ['数学', '物理', '化学', '生物', '语文', '英语', '历史', '地理', '政治']
@@ -873,7 +884,7 @@ async function exportToPDF() {
     })() : ''
 
     const reportHtml = renderMessage(gradingReport.value)
-    const safeTitle = (currentTitle.value || '作业批改报告')
+    const safeTitle = (currentTitle.value || t('homework.my_homework'))
       .replace(/[<>:"/\\|?*]/g, '_').slice(0, 50)
 
     // 构建完整 HTML，包含打印样式
@@ -944,24 +955,24 @@ async function exportToPDF() {
 <body>
 <div class="page">
   <div class="header">
-    <h1>AI 作业批改报告</h1>
+    <h1>${escapeHtml(t('homework.pdf_report_title'))}</h1>
     <div class="header-meta">
-      <span>作业标题：${escapeHtml(currentTitle.value || '我的作业')}</span>
-      <span>学科：${escapeHtml(form.value.subject)}</span>
-      ${finalScore.value !== null ? `<span>得分：${finalScore.value.toFixed(0)} / 100</span>` : ''}
-      <span>批改时间：${escapeHtml(currentGradedAt.value || '刚刚')}</span>
+      <span>${escapeHtml(t('homework.pdf_title_label'))}${escapeHtml(currentTitle.value || t('homework.my_homework'))}</span>
+      <span>${escapeHtml(t('homework.pdf_subject_label'))}${escapeHtml(subjectLabel(form.value.subject))}</span>
+      ${finalScore.value !== null ? `<span>${escapeHtml(t('homework.pdf_score_label'))}${finalScore.value.toFixed(0)} / 100</span>` : ''}
+      <span>${escapeHtml(t('homework.pdf_graded_at'))}${escapeHtml(currentGradedAt.value || t('homework.just_now'))}</span>
     </div>
     ${scoreHtml ? `<div style="margin-top:8px;">${scoreHtml}</div>` : ''}
   </div>
   <div class="report-body">${reportHtml}</div>
-  <div class="footer">由 EduBuddy AI 智能学习助手生成 · ${new Date().toLocaleDateString('zh-CN')}</div>
+  <div class="footer">${escapeHtml(t('homework.pdf_footer'))} · ${new Date().toLocaleDateString()}</div>
   <!-- 自动打印按钮区域 -->
   <div class="no-print" style="position:fixed;bottom:20px;right:20px;display:flex;gap:10px;z-index:9999;">
     <button onclick="window.print()" style="padding:10px 24px;background:#2563eb;color:white;border:none;border-radius:8px;font-size:14px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.2);">
-      🖨️ 打印 / 另存为 PDF
+      🖨️ ${escapeHtml(t('homework.pdf_print_btn'))}
     </button>
     <button onclick="window.close()" style="padding:10px 16px;background:#6b7280;color:white;border:none;border-radius:8px;font-size:14px;cursor:pointer;">
-      ✕ 关闭
+      ✕ ${escapeHtml(t('homework.pdf_close_btn'))}
     </button>
   </div>
 </div>
@@ -977,17 +988,17 @@ async function exportToPDF() {
     // 在新窗口中打开
     const printWindow = window.open('', '_blank', 'width=900,height=700')
     if (!printWindow) {
-      throw new Error('无法打开新窗口，请检查浏览器是否阻止了弹出窗口')
+      throw new Error(t('homework.pdf_window_blocked'))
     }
 
     printWindow.document.open()
     printWindow.document.write(fullHtml)
     printWindow.document.close()
 
-    ElMessage.success('已打开打印预览，请选择"另存为 PDF"保存文件')
+    ElMessage.success(t('homework.pdf_print_success'))
   } catch (err: any) {
-    console.error('PDF 导出失败:', err)
-    ElMessage.error('导出失败：' + (err?.message || '未知错误'))
+    console.error('PDF export failed:', err)
+    ElMessage.error(t('homework.pdf_export_failed', { msg: err?.message || t('homework.unknown_error') }))
   } finally {
     isExportingPDF.value = false
   }
@@ -1061,23 +1072,23 @@ async function loadDetail(id: number) {
     showOriginalContent.value = false
     viewMode.value = 'result'
   } catch {
-    ElMessage.error('加载批改详情失败')
+    ElMessage.error(t('homework.load_detail_failed'))
   }
 }
 
 async function confirmDelete(item: any) {
   try {
     await ElMessageBox.confirm(
-      `确定要删除「${item.title}」的批改记录吗？`,
-      '删除确认',
-      { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning', confirmButtonClass: 'el-button--danger' }
+      t('homework.delete_confirm_msg', { title: item.title }),
+      t('homework.delete_confirm_title'),
+      { confirmButtonText: t('common.delete'), cancelButtonText: t('common.cancel'), type: 'warning', confirmButtonClass: 'el-button--danger' }
     )
     await homeworkApi.deleteGrading(item.id)
     if (currentGradingId.value === item.id) startNew()
     await loadHistory()
-    ElMessage.success('已删除')
+    ElMessage.success(t('homework.delete_success'))
   } catch (e: any) {
-    if (e !== 'cancel' && e?.message !== 'cancel') ElMessage.error('删除失败')
+    if (e !== 'cancel' && e?.message !== 'cancel') ElMessage.error(t('homework.delete_failed'))
   }
 }
 
@@ -1134,7 +1145,7 @@ async function triggerRecognize(file: File) {
     recognizedText.value = res.data?.recognized_text ?? ''
     recognizeConfidence.value = res.data?.confidence ?? 'low'
   } catch (e: any) {
-    recognizeError.value = e?.response?.data?.detail || e?.message || '识别失败'
+    recognizeError.value = e?.response?.data?.detail || e?.message || t('homework.recognize_failed_default')
   } finally {
     isRecognizing.value = false
   }
@@ -1153,7 +1164,7 @@ function submitHomework() {
   // 重置结果
   gradingReport.value = ''
   finalScore.value = null
-  currentTitle.value = form.value.title || (submitMode.value === 'file' ? selectedFile.value!.name : '我的作业')
+  currentTitle.value = form.value.title || (submitMode.value === 'file' ? selectedFile.value!.name : t('homework.my_homework'))
   viewMode.value = 'result'
   isGrading.value = true
 
@@ -1162,7 +1173,7 @@ function submitHomework() {
   if (submitMode.value === 'text') {
     createTextGradingStream(
       {
-        title: form.value.title || '我的作业',
+        title: form.value.title || t('homework.my_homework'),
         subject: form.value.subject,
         content: form.value.content,
       },
@@ -1172,12 +1183,12 @@ function submitHomework() {
         isGrading.value = false
         finalScore.value = score
         currentGradingId.value = gradingId
-        currentGradedAt.value = '刚刚'
+        currentGradedAt.value = t('homework.just_now')
         loadHistory()
       },
       (errMsg) => {
         isGrading.value = false
-        ElMessage.error('批改失败：' + errMsg)
+        ElMessage.error(t('homework.grading_failed', { msg: errMsg }))
         viewMode.value = 'form'
       },
     )
@@ -1195,12 +1206,12 @@ function submitHomework() {
         isGrading.value = false
         finalScore.value = score
         currentGradingId.value = gradingId
-        currentGradedAt.value = '刚刚'
+        currentGradedAt.value = t('homework.just_now')
         loadHistory()
       },
       (errMsg) => {
         isGrading.value = false
-        ElMessage.error('批改失败：' + errMsg)
+        ElMessage.error(t('homework.grading_failed', { msg: errMsg }))
         viewMode.value = 'form'
       },
     )
@@ -1245,10 +1256,10 @@ function formatDate(iso: string) {
   const d = new Date(iso)
   const now = new Date()
   const diff = now.getTime() - d.getTime()
-  if (diff < 60000) return '刚刚'
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`
-  return d.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })
+  if (diff < 60000) return t('homework.just_now')
+  if (diff < 3600000) return t('homework.minutes_ago', { n: Math.floor(diff / 60000) })
+  if (diff < 86400000) return t('homework.hours_ago', { n: Math.floor(diff / 3600000) })
+  return d.toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' })
 }
 
 function formatFileSize(bytes: number) {
@@ -1280,25 +1291,25 @@ function scoreBorderClass(score: number) {
 }
 
 function scoreLabel(score: number) {
-  if (score >= 90) return '优秀 🌟'
-  if (score >= 80) return '良好 👍'
-  if (score >= 70) return '中等 📚'
-  if (score >= 60) return '及格 💪'
-  return '需要加油 📖'
+  if (score >= 90) return t('homework.score_excellent')
+  if (score >= 80) return t('homework.score_good')
+  if (score >= 70) return t('homework.score_average')
+  if (score >= 60) return t('homework.score_pass')
+  return t('homework.score_poor')
 }
 
 /** 原始内容类型标签 */
 function contentTypeLabel(type: string): string {
   const map: Record<string, string> = {
-    text: '📝 文本输入',
-    pdf: '📄 PDF 文档',
-    docx: '📝 Word 文档',
-    image: '🖼️ 图片',
-    jpg: '🖼️ 图片',
-    jpeg: '🖼️ 图片',
-    png: '🖼️ 图片',
-    gif: '🖼️ 图片',
-    webp: '🖼️ 图片',
+    text: `📝 ${t('homework.content_type_text')}`,
+    pdf: `📄 ${t('homework.content_type_pdf')}`,
+    docx: `📝 ${t('homework.content_type_docx')}`,
+    image: `🖼️ ${t('homework.content_type_image')}`,
+    jpg: `🖼️ ${t('homework.content_type_image')}`,
+    jpeg: `🖼️ ${t('homework.content_type_image')}`,
+    png: `🖼️ ${t('homework.content_type_image')}`,
+    gif: `🖼️ ${t('homework.content_type_image')}`,
+    webp: `🖼️ ${t('homework.content_type_image')}`,
   }
   return map[type] || type
 }
@@ -1325,12 +1336,12 @@ function getFileUrl(gradingId: number): string {
 /** 触发文件下载（带 Authorization header，使用 fetch + Blob） */
 async function downloadFile(gradingId: number) {
   const token = authStore.token
-  if (!token) { ElMessage.error('未登录'); return }
+  if (!token) { ElMessage.error(t('homework.not_logged_in')); return }
   try {
     const resp = await fetch(`/api/homework/history/${gradingId}/file`, {
       headers: { 'Authorization': `Bearer ${token}` },
     })
-    if (!resp.ok) { ElMessage.error('文件下载失败'); return }
+    if (!resp.ok) { ElMessage.error(t('homework.file_download_failed')); return }
     const blob = await resp.blob()
     const contentDisposition = resp.headers.get('content-disposition') || ''
     let filename = originalFileName.value || 'homework_file'
@@ -1345,26 +1356,26 @@ async function downloadFile(gradingId: number) {
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
   } catch {
-    ElMessage.error('文件下载失败')
+    ElMessage.error(t('homework.file_download_failed'))
   }
 }
 
 /** 在新窗口预览文件（带 Authorization header，使用 fetch + Object URL） */
 async function openFileInNewTab(gradingId: number) {
   const token = authStore.token
-  if (!token) { ElMessage.error('未登录'); return }
+  if (!token) { ElMessage.error(t('homework.not_logged_in')); return }
   try {
     const resp = await fetch(`/api/homework/history/${gradingId}/file`, {
       headers: { 'Authorization': `Bearer ${token}` },
     })
-    if (!resp.ok) { ElMessage.error('文件加载失败'); return }
+    if (!resp.ok) { ElMessage.error(t('homework.file_load_failed')); return }
     const blob = await resp.blob()
     const url = URL.createObjectURL(blob)
     window.open(url, '_blank')
     // 延迟释放，给浏览器时间打开
     setTimeout(() => URL.revokeObjectURL(url), 10000)
   } catch {
-    ElMessage.error('文件加载失败')
+    ElMessage.error(t('homework.file_load_failed'))
   }
 }
 
@@ -1376,9 +1387,9 @@ async function copyOriginalContent() {
   if (!originalContentText.value) return
   try {
     await navigator.clipboard.writeText(originalContentText.value)
-    ElMessage.success('已复制到剪贴板')
+    ElMessage.success(t('homework.copy_success'))
   } catch {
-    ElMessage.error('复制失败，请手动选中文本复制')
+    ElMessage.error(t('homework.copy_failed'))
   }
 }
 
@@ -1660,7 +1671,7 @@ function reportToPlainText(md: string): string {
 /** 开始朗读 */
 function startSpeech() {
   if (!('speechSynthesis' in window)) {
-    ElMessage.warning('您的浏览器不支持语音朗读功能')
+    ElMessage.warning(t('homework.browser_no_tts'))
     return
   }
   if (!gradingReport.value) return
