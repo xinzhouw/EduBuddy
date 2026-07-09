@@ -3,35 +3,35 @@
     <!-- 没有计划时显示创建 -->
     <div v-if="!plan && !showCreate" class="text-center py-16">
       <span class="text-5xl">📅</span>
-      <p class="mt-4 text-lg text-gray-600">还没有学习计划，制定一个目标吧！</p>
-      <el-button type="primary" class="mt-4" @click="showCreate = true">创建学习计划</el-button>
+      <p class="mt-4 text-lg text-gray-600">{{ $t('study_plan.no_plan') }}</p>
+      <el-button type="primary" class="mt-4" @click="showCreate = true">{{ $t('study_plan.create_btn') }}</el-button>
     </div>
 
     <!-- 创建计划表单 -->
     <div v-if="showCreate" class="card max-w-2xl mx-auto space-y-4">
-      <h3 class="font-bold text-gray-800">📅 制定学习计划</h3>
-      <p class="text-sm text-gray-500">计划制定后将生成每天的学习任务索引，每天第一次登录时自动生成当日的具体学习内容。</p>
+      <h3 class="font-bold text-gray-800">📅 {{ $t('study_plan.create_title') }}</h3>
+      <p class="text-sm text-gray-500">{{ $t('study_plan.create_hint') }}</p>
       <div class="grid grid-cols-2 gap-4">
         <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">备考学科（多选）</label>
+          <label class="block text-sm font-medium text-gray-600 mb-1">{{ $t('study_plan.subjects_label') }}</label>
           <el-checkbox-group v-model="createForm.subjects">
             <el-checkbox v-for="s in subjects" :key="s" :value="s">{{ s }}</el-checkbox>
           </el-checkbox-group>
         </div>
         <div class="space-y-3">
           <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">考试日期</label>
+            <label class="block text-sm font-medium text-gray-600 mb-1">{{ $t('study_plan.exam_date_label') }}</label>
             <el-date-picker v-model="createForm.exam_date" type="date" value-format="YYYY-MM-DD" class="w-full" />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">每天学习时长（小时）</label>
+            <label class="block text-sm font-medium text-gray-600 mb-1">{{ $t('study_plan.daily_hours_label') }}</label>
             <el-input-number v-model="createForm.daily_hours" :min="0.5" :max="12" :step="0.5" />
           </div>
         </div>
       </div>
       <div class="flex gap-3">
-        <el-button type="primary" @click="generatePlan" :loading="generating">生成计划</el-button>
-        <el-button @click="showCreate = false">取消</el-button>
+        <el-button type="primary" @click="generatePlan" :loading="generating">{{ $t('study_plan.generate_btn') }}</el-button>
+        <el-button @click="showCreate = false">{{ $t('common.cancel') }}</el-button>
       </div>
     </div>
 
@@ -41,14 +41,14 @@
       <div class="card">
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-sm text-gray-500">考试倒计时</p>
-            <p class="text-2xl font-bold text-gray-800">还有 {{ daysLeft }} 天</p>
+            <p class="text-sm text-gray-500">{{ $t('study_plan.countdown_label') }}</p>
+            <p class="text-2xl font-bold text-gray-800">{{ $t('study_plan.days_left', { days: daysLeft }) }}</p>
           </div>
           <div class="text-right">
-            <p class="text-sm text-gray-500">今日完成</p>
+            <p class="text-sm text-gray-500">{{ $t('study_plan.today_completed') }}</p>
             <p class="text-2xl font-bold text-green-600">{{ todayDone }}/{{ todayTotal }}</p>
           </div>
-          <el-button size="small" @click="showCreate = true">⚙ 重新生成</el-button>
+          <el-button size="small" @click="showCreate = true">⚙ {{ $t('study_plan.regenerate_btn') }}</el-button>
         </div>
         <div class="mt-3 w-full bg-gray-200 rounded-full h-2">
           <div class="bg-green-500 h-2 rounded-full transition-all"
@@ -61,10 +61,10 @@
         <div class="flex items-center gap-3">
           <div class="animate-spin text-2xl">⏳</div>
           <div class="flex-1">
-            <p class="font-medium text-indigo-700">正在为今日学习任务生成 AI 内容...</p>
+            <p class="font-medium text-indigo-700">{{ $t('study_plan.generating_content') }}</p>
             <p v-if="todayGenerateProgress" class="text-sm text-indigo-600 mt-1">
               （{{ todayGenerateProgress.current }}/{{ todayGenerateProgress.total }}）
-              正在生成：{{ todayGenerateProgress.subject }} · {{ todayGenerateProgress.topic }}
+              {{ $t('study_plan.generating_subject') }}{{ todayGenerateProgress.subject }} · {{ todayGenerateProgress.topic }}
             </p>
             <div class="mt-2 w-full bg-indigo-200 rounded-full h-1.5">
               <div class="bg-indigo-500 h-1.5 rounded-full transition-all"
@@ -83,7 +83,7 @@
             :class="activeTab === 'today'
               ? 'border-indigo-500 text-indigo-600 bg-indigo-50'
               : 'border-transparent text-gray-500 hover:text-gray-700'">
-            📋 今日学习
+            📋 {{ $t('study_plan.today_tab') }}
           </button>
           <button
             @click="activeTab = 'all'"
@@ -91,18 +91,18 @@
             :class="activeTab === 'all'
               ? 'border-indigo-500 text-indigo-600 bg-indigo-50'
               : 'border-transparent text-gray-500 hover:text-gray-700'">
-            🗓 计划档案
-            <span class="ml-1 text-xs text-gray-400">（只读）</span>
+            🗓 {{ $t('study_plan.archive_tab') }}
+            <span class="ml-1 text-xs text-gray-400">{{ $t('study_plan.archive_readonly') }}</span>
           </button>
         </div>
 
         <!-- 今日学习面板（可交互） -->
         <div v-if="activeTab === 'today'">
           <div v-if="todayTasks.length === 0 && !generatingTodayContent" class="text-center py-4 text-gray-400 text-sm">
-            今日无学习任务
+            {{ $t('study_plan.no_today_tasks') }}
           </div>
           <div v-else-if="generatingTodayContent && todayTasks.length === 0" class="text-center py-4 text-gray-400 text-sm">
-            正在准备今日学习内容，请稍候...
+            {{ $t('study_plan.preparing_content') }}
           </div>
           <div class="space-y-3">
             <div v-for="task in todayTasks" :key="task.id"
@@ -115,16 +115,16 @@
                   class="w-4 h-4 rounded border-gray-300 text-green-500 cursor-pointer" />
                 <div class="flex-1 min-w-0">
                   <p class="text-sm font-medium text-gray-700">{{ task.subject }} · {{ task.topic }}</p>
-                  <p class="text-xs text-gray-500">{{ task.duration_minutes }}分钟 · {{ taskTypeLabel(task.task_type) }}
+                  <p class="text-xs text-gray-500">{{ task.duration_minutes }}{{ $t('study_plan.task_minutes') }} · {{ taskTypeLabel(task.task_type) }}
                     <span v-if="task.eval_score != null"
-                      class="ml-2 text-indigo-600 font-medium">成果评分：{{ task.eval_score }}分</span>
+                      class="ml-2 text-indigo-600 font-medium">{{ $t('study_plan.eval_score') }}{{ $t('study_plan.score_pts_short', { n: task.eval_score }) }}</span>
                     <span v-if="task.quiz_score != null"
-                      class="ml-2 text-purple-600 font-medium">练习得分：{{ task.quiz_score }}分</span>
+                      class="ml-2 text-purple-600 font-medium">{{ $t('study_plan.quiz_score') }}{{ $t('study_plan.score_pts_short', { n: task.quiz_score }) }}</span>
                   </p>
                 </div>
                 <button @click="toggleExpand(task.id)"
                   class="text-xs text-gray-500 hover:text-indigo-600 px-2 py-1 rounded border border-gray-200 hover:border-indigo-300 transition-colors">
-                  {{ expandedTaskId === task.id ? '收起 ▲' : '展开 ▼' }}
+                  {{ expandedTaskId === task.id ? $t('study_plan.collapse') + ' ▲' : $t('study_plan.expand') + ' ▼' }}
                 </button>
               </div>
 
@@ -147,7 +147,7 @@
                   <!-- 正在批量生成中 -->
                   <div v-if="generatingTodayContent && !task.ai_content && !streamingContent[task.id]"
                     class="bg-indigo-50 rounded p-3 text-xs text-indigo-600">
-                    ⏳ 正在生成学习内容，请稍候...
+                    ⏳ {{ $t('study_plan.generating_wait') }}
                   </div>
                   <!-- 流式生成预览 -->
                   <div v-else-if="streamingContent[task.id]"
@@ -160,17 +160,17 @@
                     <div class="prose prose-sm" v-html="renderMd(task.ai_content)"></div>
                   </div>
                   <!-- 未生成 -->
-                  <div v-else class="text-xs text-gray-400">尚未生成学习内容</div>
+                  <div v-else class="text-xs text-gray-400">{{ $t('study_plan.task_not_generated') }}</div>
 
                   <div class="flex gap-2 flex-wrap">
                     <button @click="startGenerateContent(task)"
                       class="text-xs px-3 py-1.5 rounded border border-indigo-300 text-indigo-600 hover:bg-indigo-50 transition-colors"
                       :disabled="generatingContent[task.id] || generatingTodayContent">
-                      {{ generatingContent[task.id] ? '⏳ 生成中...' : '🤖 重新生成内容' }}
+                      {{ generatingContent[task.id] ? ('⏳ ' + $t('study_plan.generating_short')) : ('🤖 ' + $t('study_plan.regenerate_content')) }}
                     </button>
                     <button v-if="!task.is_done && task.ai_content" @click="markDoneByAI(task)"
                       class="text-xs px-3 py-1.5 rounded border border-green-300 text-green-600 hover:bg-green-50 transition-colors">
-                      ✅ 已阅读，标记完成
+                      ✅ {{ $t('study_plan.mark_done') }}
                     </button>
                   </div>
                 </div>
@@ -184,7 +184,7 @@
                     </div>
                     <button @click="resetSubmission(task)"
                       class="mt-2 text-xs px-3 py-1.5 rounded border border-gray-300 text-gray-600 hover:bg-gray-50">
-                      🔄 重新提交
+                      🔄 {{ $t('study_plan.resubmit_result') }}
                     </button>
                   </div>
                   <!-- 评判流式中 -->
@@ -194,11 +194,11 @@
                   </div>
                   <!-- 提交表单 -->
                   <div v-else>
-                    <p class="text-xs text-gray-500 mb-2">描述你的学习成果，或上传学习笔记图片，由 AI 评判掌握程度</p>
+                    <p class="text-xs text-gray-500 mb-2">{{ $t('study_plan.submit_result_hint') }}</p>
                     <textarea
                       :value="submissionText[task.id] || ''"
                       @input="(e: Event) => submissionText[task.id] = (e.target as HTMLTextAreaElement).value"
-                      placeholder="描述你学到了什么、解题思路、还有哪些疑问..."
+                      :placeholder="$t('study_plan.result_placeholder')"
                       class="w-full border border-gray-300 rounded p-2 text-sm resize-none h-20 focus:outline-none focus:border-indigo-400"></textarea>
                     <div class="flex gap-2 mt-2 items-center">
                       <input type="file" accept="image/*"
@@ -207,7 +207,7 @@
                       <button @click="startSubmit(task)"
                         :disabled="submitting[task.id] || (!submissionText[task.id] && !submissionFile[task.id])"
                         class="text-xs px-3 py-1.5 rounded border border-purple-300 text-purple-600 hover:bg-purple-50 transition-colors disabled:opacity-50">
-                        {{ submitting[task.id] ? '⏳ 评判中...' : '📤 提交成果' }}
+                        {{ submitting[task.id] ? ('⏳ ' + $t('study_plan.submitting_short')) : ('📤 ' + $t('study_plan.submit_result_btn')) }}
                       </button>
                     </div>
                   </div>
@@ -222,7 +222,7 @@
                     </div>
                     <button @click="resetQuiz(task)"
                       class="mt-2 text-xs px-3 py-1.5 rounded border border-gray-300 text-gray-600 hover:bg-gray-50">
-                      🔄 重新练习
+                      🔄 {{ $t('study_plan.practice_again') }}
                     </button>
                   </div>
                   <!-- 练习题评判流式中 -->
@@ -232,7 +232,7 @@
                   </div>
                   <!-- 练习题生成中 -->
                   <div v-else-if="generatingQuiz[task.id]"
-                    class="text-xs text-gray-500">⏳ 正在生成练习题...</div>
+                    class="text-xs text-gray-500">⏳ {{ $t('study_plan.gen_quiz_loading') }}</div>
                   <!-- 练习题列表 -->
                   <div v-else-if="parsedQuiz[task.id] && parsedQuiz[task.id].length > 0" class="space-y-3">
                     <div v-for="q in parsedQuiz[task.id]" :key="q.id" class="border border-gray-100 rounded p-3">
@@ -255,7 +255,7 @@
                         <input type="text"
                           :value="(quizAnswers[task.id] || {})[String(q.id)] || ''"
                           @input="(e: Event) => setQuizAnswer(task.id, String(q.id), (e.target as HTMLInputElement).value)"
-                          placeholder="输入答案..."
+                          :placeholder="$t('study_plan.answer_placeholder')"
                           class="w-full border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:border-indigo-300" />
                       </div>
                     </div>
@@ -263,16 +263,16 @@
                       <button @click="startSubmitQuiz(task)"
                         :disabled="submittingQuiz[task.id] || !hasAllAnswers(task.id)"
                         class="text-xs px-3 py-1.5 rounded border border-purple-300 text-purple-600 hover:bg-purple-50 disabled:opacity-50">
-                        {{ submittingQuiz[task.id] ? '⏳ 评判中...' : '📝 提交答案' }}
+                        {{ submittingQuiz[task.id] ? ('⏳ ' + $t('study_plan.submitting_short')) : ('📝 ' + $t('study_plan.submit_quiz_btn')) }}
                       </button>
                     </div>
                   </div>
                   <!-- 未生成 -->
                   <div v-else>
-                    <p class="text-xs text-gray-400 mb-2">尚未生成练习题</p>
+                    <p class="text-xs text-gray-400 mb-2">{{ $t('study_plan.no_quiz') }}</p>
                     <button @click="startGenerateQuiz(task)"
                       class="text-xs px-3 py-1.5 rounded border border-purple-300 text-purple-600 hover:bg-purple-50">
-                      🎯 生成练习题
+                      🎯 {{ $t('study_plan.gen_quiz_btn') }}
                     </button>
                   </div>
                 </div>
@@ -284,17 +284,17 @@
         <!-- 计划档案面板（只读查看） -->
         <div v-if="activeTab === 'all'">
           <div class="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
-            📚 计划档案为只读模式。历史日期的学习内容已存档保存，仅供查看，无法修改。
+            📚 {{ $t('study_plan.archive_readonly_hint') }}
           </div>
 
           <!-- 学科过滤 -->
           <div v-if="allSubjectsInPlan.length > 0" class="mb-4 flex flex-wrap gap-2 items-center">
-            <span class="text-xs text-gray-500 mr-1">按学科筛选：</span>
+            <span class="text-xs text-gray-500 mr-1">{{ $t('study_plan.filter_by_subject') }}</span>
             <button
               @click="filterSubject = ''"
               class="px-2 py-1 rounded-full text-xs border transition-colors"
               :class="filterSubject === '' ? 'bg-indigo-500 text-white border-indigo-500' : 'border-gray-300 text-gray-600 hover:border-indigo-300'">
-              全部
+              {{ $t('study_plan.all_subjects') }}
             </button>
             <button
               v-for="s in allSubjectsInPlan" :key="s"
@@ -306,7 +306,7 @@
           </div>
 
           <div v-if="filteredDateKeys.length === 0" class="text-center py-6 text-gray-400 text-sm">
-            暂无计划任务
+            {{ $t('study_plan.no_tasks') }}
           </div>
 
           <div class="space-y-4">
@@ -315,11 +315,11 @@
               <div class="flex items-center gap-2 mb-2 sticky top-0 bg-white py-1 z-10">
                 <span class="text-sm font-semibold text-gray-700">{{ formatDateLabel(dateKey) }}</span>
                 <span v-if="dateKey === todayStr"
-                  class="text-xs bg-indigo-500 text-white px-2 py-0.5 rounded-full">今天</span>
+                  class="text-xs bg-indigo-500 text-white px-2 py-0.5 rounded-full">{{ $t('study_plan.today_badge') }}</span>
                 <span v-else-if="dateKey < todayStr"
-                  class="text-xs bg-gray-300 text-gray-600 px-2 py-0.5 rounded-full">已过期</span>
+                  class="text-xs bg-gray-300 text-gray-600 px-2 py-0.5 rounded-full">{{ $t('study_plan.expired_badge') }}</span>
                 <span v-else
-                  class="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">待学习</span>
+                  class="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">{{ $t('study_plan.pending_badge') }}</span>
                 <div class="flex-1 h-px bg-gray-200"></div>
               </div>
               <!-- 当天任务列表（只读） -->
@@ -333,38 +333,38 @@
                     <span class="text-base">{{ task.is_done ? '✅' : (dateKey < todayStr ? '⚠️' : '📝') }}</span>
                     <div class="flex-1 min-w-0">
                       <p class="text-sm font-medium text-gray-700">{{ task.subject }} · {{ task.topic }}</p>
-                      <p class="text-xs text-gray-500">{{ task.duration_minutes }}分钟 · {{ taskTypeLabel(task.task_type) }}
-                        <span v-if="task.eval_score != null" class="ml-2 text-indigo-600">成果评分：{{ task.eval_score }}分</span>
-                        <span v-if="task.quiz_score != null" class="ml-2 text-purple-600">练习得分：{{ task.quiz_score }}分</span>
+                      <p class="text-xs text-gray-500">{{ task.duration_minutes }}{{ $t('study_plan.task_minutes') }} · {{ taskTypeLabel(task.task_type) }}
+                        <span v-if="task.eval_score != null" class="ml-2 text-indigo-600">{{ $t('study_plan.eval_score') }}{{ $t('study_plan.score_pts_short', { n: task.eval_score }) }}</span>
+                        <span v-if="task.quiz_score != null" class="ml-2 text-purple-600">{{ $t('study_plan.quiz_score') }}{{ $t('study_plan.score_pts_short', { n: task.quiz_score }) }}</span>
                       </p>
                     </div>
                     <!-- 只有当日任务才能展开；历史/未来任务可查看已存档内容 -->
                     <button v-if="task.ai_content || task.evaluation || task.quiz_evaluation"
                       @click="toggleArchiveExpand(task.id)"
                       class="text-xs text-gray-500 hover:text-indigo-600 px-2 py-1 rounded border border-gray-200 hover:border-indigo-300">
-                      {{ archiveExpandedId === task.id ? '收起 ▲' : '查看存档 ▼' }}
+                      {{ archiveExpandedId === task.id ? ($t('study_plan.collapse_archive') + ' ▲') : ($t('study_plan.view_archive') + ' ▼') }}
                     </button>
-                    <span v-else-if="dateKey > todayStr" class="text-xs text-gray-400 px-2">待生成</span>
+                    <span v-else-if="dateKey > todayStr" class="text-xs text-gray-400 px-2">{{ $t('study_plan.pending_gen') }}</span>
                   </div>
                   <!-- 只读存档内容 -->
                   <div v-if="archiveExpandedId === task.id" class="border-t border-gray-100 bg-gray-50 p-4 space-y-3">
                     <div v-if="task.ai_content">
-                      <p class="text-xs font-medium text-gray-500 mb-1">📖 学习内容（存档）</p>
+                      <p class="text-xs font-medium text-gray-500 mb-1">📖 {{ $t('study_plan.archive_content_label') }}</p>
                       <div class="bg-white rounded p-3 text-sm text-gray-700 border border-gray-100">
                         <div class="prose prose-sm" v-html="renderMd(task.ai_content)"></div>
                       </div>
                     </div>
                     <div v-if="task.evaluation">
-                      <p class="text-xs font-medium text-gray-500 mb-1">📊 成果评判（存档）
-                        <span v-if="task.eval_score != null" class="text-indigo-600">{{ task.eval_score }}分</span>
+                      <p class="text-xs font-medium text-gray-500 mb-1">📊 {{ $t('study_plan.archive_eval_label') }}
+                        <span v-if="task.eval_score != null" class="text-indigo-600">{{ $t('study_plan.score_pts_short', { n: task.eval_score }) }}</span>
                       </p>
                       <div class="bg-white rounded p-3 text-sm text-gray-700 border border-gray-100">
                         <div class="prose prose-sm" v-html="renderMd(task.evaluation)"></div>
                       </div>
                     </div>
                     <div v-if="task.quiz_evaluation">
-                      <p class="text-xs font-medium text-gray-500 mb-1">🎯 练习评判（存档）
-                        <span v-if="task.quiz_score != null" class="text-purple-600">{{ task.quiz_score }}分</span>
+                      <p class="text-xs font-medium text-gray-500 mb-1">🎯 {{ $t('study_plan.archive_quiz_label') }}
+                        <span v-if="task.quiz_score != null" class="text-purple-600">{{ $t('study_plan.score_pts_short', { n: task.quiz_score }) }}</span>
                       </p>
                       <div class="bg-white rounded p-3 text-sm text-gray-700 border border-gray-100">
                         <div class="prose prose-sm" v-html="renderMd(task.quiz_evaluation)"></div>
@@ -380,15 +380,15 @@
 
       <!-- 番茄钟 -->
       <div class="card max-w-sm">
-        <h3 class="font-semibold text-gray-700 mb-4">🍅 番茄钟</h3>
+        <h3 class="font-semibold text-gray-700 mb-4">🍅 {{ $t('study_plan.pomodoro_title') }}</h3>
         <div class="text-center">
           <p class="text-5xl font-mono font-bold text-gray-800 mb-4">{{ formatTime(pomodoroTime) }}</p>
-          <p class="text-sm text-gray-500 mb-4">{{ isBreak ? '休息时间 ☕' : '专注学习 📚' }}</p>
+          <p class="text-sm text-gray-500 mb-4">{{ isBreak ? $t('study_plan.break_time') : $t('study_plan.focus_time') }}</p>
           <div class="flex justify-center gap-3">
             <el-button @click="togglePomodoro" :type="running ? 'warning' : 'primary'">
-              {{ running ? '暂停' : '开始' }}
+              {{ running ? $t('study_plan.timer_pause') : $t('study_plan.timer_start') }}
             </el-button>
-            <el-button @click="resetPomodoro">重置</el-button>
+            <el-button @click="resetPomodoro">{{ $t('study_plan.timer_reset') }}</el-button>
           </div>
         </div>
       </div>
@@ -398,6 +398,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, reactive } from 'vue'
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
 import { renderLatexOnly } from '@/utils/markdown'
 import {
   planApi,
@@ -414,7 +416,8 @@ function renderMd(content: string) {
   return content ? renderMessage(content) : ''
 }
 
-const subjects = ['数学', '物理', '化学', '生物', '语文', '英语', '历史', '地理', '政治']
+const subjectKeys = ['math', 'physics', 'chemistry', 'biology', 'chinese', 'english', 'history', 'geography', 'politics']
+const subjects = computed(() => subjectKeys.map(k => t(`subjects.${k}`)))
 const plan = ref<any>(null)
 const todayTasks = ref<any[]>([])
 const showCreate = ref(false)
@@ -434,11 +437,11 @@ const archiveExpandedId = ref<number | null>(null)
 const activePanel = reactive<Record<number, string>>({})
 
 // 面板配置
-const taskPanels = [
-  { key: 'ai_content', label: '📖 AI 学习内容' },
-  { key: 'submit', label: '📤 提交成果' },
-  { key: 'quiz', label: '🎯 练习题' },
-]
+const taskPanels = computed(() => [
+  { key: 'ai_content', label: `📖 ${t('study_plan.task_ai_content')}` },
+  { key: 'submit', label: `📤 ${t('study_plan.task_submit_label')}` },
+  { key: 'quiz', label: `🎯 ${t('study_plan.task_quiz_label')}` },
+])
 
 // 每日内容批量生成状态
 const generatingTodayContent = ref(false)
@@ -505,7 +508,12 @@ function getFilteredTasksForDate(dateKey: string): any[] {
 }
 
 function taskTypeLabel(type: string) {
-  return ({ study: '学习', practice: '练习', review: '复习' } as any)[type] || type
+  const map: Record<string, string> = {
+    study: t('dashboard.study_type_study'),
+    practice: t('dashboard.study_type_practice'),
+    review: t('dashboard.study_type_review'),
+  }
+  return map[type] || type
 }
 function formatTime(s: number) {
   return `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`
@@ -514,9 +522,8 @@ function formatDateLabel(dateKey: string) {
   const d = new Date(dateKey + 'T00:00:00')
   const month = d.getMonth() + 1
   const day = d.getDate()
-  const weekDays = ['日', '一', '二', '三', '四', '五', '六']
-  const weekDay = weekDays[d.getDay()]
-  return `${month}月${day}日（周${weekDay}）`
+  const weekday = t(`study_plan.weekday_${d.getDay()}`)
+  return t('study_plan.date_label_fmt', { month, day, weekday })
 }
 
 function toggleExpand(taskId: number) {
@@ -546,7 +553,7 @@ function togglePomodoro() {
       } else {
         isBreak.value = !isBreak.value
         pomodoroTime.value = isBreak.value ? BREAK : FOCUS
-        ElMessage.success(isBreak.value ? '专注时间结束，休息一下！' : '休息结束，继续学习！')
+        ElMessage.success(isBreak.value ? t('study_plan.pomodoro_focus_done') : t('study_plan.pomodoro_break_done'))
       }
     }, 1000)
   } else {
@@ -561,7 +568,7 @@ function resetPomodoro() {
   clearInterval(timer)
 }
 
-/** 加载计划数据 */
+// 加载计划数据
 async function loadPlan() {
   try {
     const res: any = await planApi.getCurrent()
@@ -586,7 +593,7 @@ async function loadPlan() {
   } catch {}
 }
 
-/** 触发今日内容批量生成（每天第一次登录时调用） */
+// 触发今日内容批量生成（每天第一次登录时调用）
 function triggerTodayGenerate() {
   const token = localStorage.getItem('token') || ''
   generatingTodayContent.value = true
@@ -616,7 +623,7 @@ function triggerTodayGenerate() {
       // 全部生成完成
       generatingTodayContent.value = false
       todayGenerateProgress.value = null
-      ElMessage.success('今日学习内容已全部准备好！')
+      ElMessage.success(t('study_plan.today_content_ready'))
       // 重新加载今日任务
       try {
         const todayRes: any = await planApi.getToday()
@@ -634,8 +641,8 @@ function triggerTodayGenerate() {
       } else {
         generatingTodayContent.value = false
         // 如果是"今日不在计划范围"或"今日无任务"等正常情况，静默处理
-        if (!msg.includes('不在学习计划') && !msg.includes('无学习任务')) {
-          ElMessage.error('生成今日内容失败：' + msg)
+        if (!msg.includes('不在学习计划') && !msg.includes('无学习任务')) { // server-side error filter
+          ElMessage.error(t('study_plan.today_content_gen_failed', { detail: msg }))
         }
       }
     },
@@ -644,14 +651,14 @@ function triggerTodayGenerate() {
 }
 
 async function generatePlan() {
-  if (createForm.value.subjects.length === 0) return ElMessage.warning('请选择备考学科')
-  if (!createForm.value.exam_date) return ElMessage.warning('请选择考试日期')
+  if (createForm.value.subjects.length === 0) return ElMessage.warning(t('study_plan.select_subjects_required'))
+  if (!createForm.value.exam_date) return ElMessage.warning(t('study_plan.select_exam_date_required'))
   // 检查考试日期是否至少在7天后
   const examDate = new Date(createForm.value.exam_date)
   const minDate = new Date()
   minDate.setDate(minDate.getDate() + 7)
   if (examDate < minDate) {
-    return ElMessage.warning('考试日期建议至少在7天后，否则可能无法生成足够的学习任务')
+    return ElMessage.warning(t('study_plan.exam_date_min_7_days'))
   }
   generating.value = true
   try {
@@ -661,9 +668,9 @@ async function generatePlan() {
     // 计划生成后重新加载，并触发今日内容生成
     await loadPlan()
     activeTab.value = 'today'
-    ElMessage.success('学习计划已生成！正在为今日准备学习内容...')
+    ElMessage.success(t('study_plan.plan_generated'))
   } catch (err: any) {
-    const detail = err?.response?.data?.detail || err?.message || '生成失败'
+    const detail = err?.response?.data?.detail || err?.message || t('study_plan.gen_failed')
     ElMessage.error(detail)
   } finally {
     generating.value = false
@@ -676,12 +683,12 @@ async function toggleTask(task: any) {
     task.is_done = !task.is_done
     if (!task.is_done) task.completion_mode = null
   } catch (err: any) {
-    const detail = err?.response?.data?.detail || '操作失败'
+    const detail = err?.response?.data?.detail || t('study_plan.operation_failed')
     ElMessage.error(detail)
   }
 }
 
-/** AI 重新生成单个任务学习内容 */
+// AI 重新生成单个任务学习内容
 function startGenerateContent(task: any) {
   const token = localStorage.getItem('token') || ''
   generatingContent[task.id] = true
@@ -705,32 +712,32 @@ function startGenerateContent(task: any) {
     },
     (err) => {
       generatingContent[task.id] = false
-      ElMessage.error('生成失败：' + err)
+      ElMessage.error(t('study_plan.content_gen_failed_detail', { detail: err }))
     },
   )
   void stop
 }
 
-/** 标记"已阅读AI内容完成" */
+// 标记"已阅读AI内容完成"
 async function markDoneByAI(task: any) {
   try {
     await planApi.markTaskDone(task.id, true)
     task.is_done = true
     task.completion_mode = 'ai_content'
-    ElMessage.success('已标记为完成！')
+    ElMessage.success(t('study_plan.marked_done'))
   } catch (err: any) {
-    ElMessage.error(err?.response?.data?.detail || '操作失败')
+    ElMessage.error(err?.response?.data?.detail || t('study_plan.operation_failed'))
   }
 }
 
-/** 提交学习成果并AI评判 */
+// 提交学习成果并AI评判
 function startSubmit(task: any) {
   const token = localStorage.getItem('token') || ''
   const text = submissionText[task.id] || ''
   const file = submissionFile[task.id] || null
 
   if (!text && !file) {
-    ElMessage.warning('请填写学习成果说明或上传图片')
+    ElMessage.warning(t('study_plan.submit_empty_warning'))
     return
   }
 
@@ -748,9 +755,9 @@ function startSubmit(task: any) {
     async (score, passed) => {
       submitting[task.id] = false
       if (passed) {
-        ElMessage.success(`AI 评判通过！得分：${score} 分，任务已自动完成 ✅`)
+        ElMessage.success(t('study_plan.ai_pass_msg', { score }))
       } else {
-        ElMessage.warning(`AI 评判得分：${score} 分，尚未达到60分标准，请继续努力！`)
+        ElMessage.warning(t('study_plan.ai_fail_msg', { score }))
       }
       try {
         const res: any = await planApi.getTaskDetail(task.id)
@@ -760,13 +767,13 @@ function startSubmit(task: any) {
     },
     (err) => {
       submitting[task.id] = false
-      ElMessage.error('评判失败：' + err)
+      ElMessage.error(t('study_plan.eval_failed_detail', { detail: err }))
     },
   )
   void stop
 }
 
-/** 重置提交 */
+// 重置提交
 function resetSubmission(task: any) {
   task.evaluation = null
   task.eval_score = null
@@ -777,7 +784,7 @@ function resetSubmission(task: any) {
 
 // ===== 练习题相关 =====
 
-/** 尝试解析练习题 JSON */
+// 尝试解析练习题 JSON
 function tryParseQuiz(taskId: number, raw: string) {
   try {
     let cleaned = raw.trim()
@@ -792,7 +799,7 @@ function tryParseQuiz(taskId: number, raw: string) {
   }
 }
 
-/** 生成练习题 */
+// 生成练习题
 function startGenerateQuiz(task: any) {
   const token = localStorage.getItem('token') || ''
   generatingQuiz[task.id] = true
@@ -819,19 +826,19 @@ function startGenerateQuiz(task: any) {
     },
     (err) => {
       generatingQuiz[task.id] = false
-      ElMessage.error('生成练习题失败：' + err)
+      ElMessage.error(t('study_plan.quiz_gen_failed_detail', { detail: err }))
     },
   )
   void stop
 }
 
-/** 设置练习题答案 */
+// 设置练习题答案
 function setQuizAnswer(taskId: number, qid: string, value: string) {
   if (!quizAnswers[taskId]) quizAnswers[taskId] = {}
   quizAnswers[taskId][qid] = value
 }
 
-/** 检查是否所有题目都已作答 */
+// 检查是否所有题目都已作答
 function hasAllAnswers(taskId: number): boolean {
   const qs = parsedQuiz[taskId]
   if (!qs || qs.length === 0) return false
@@ -842,7 +849,7 @@ function hasAllAnswers(taskId: number): boolean {
   })
 }
 
-/** 提交练习题答案并AI评判 */
+// 提交练习题答案并AI评判
 function startSubmitQuiz(task: any) {
   const token = localStorage.getItem('token') || ''
   const answers = quizAnswers[task.id] || {}
@@ -860,9 +867,9 @@ function startSubmitQuiz(task: any) {
     async (score, passed) => {
       submittingQuiz[task.id] = false
       if (passed) {
-        ElMessage.success(`练习通过！得分：${score} 分，任务已自动完成 🎯`)
+        ElMessage.success(t('study_plan.quiz_pass_msg', { score }))
       } else {
-        ElMessage.warning(`练习得分：${score} 分，未达到60分，请查看解析后继续加油！`)
+        ElMessage.warning(t('study_plan.quiz_fail_msg', { score }))
       }
       try {
         const res: any = await planApi.getTaskDetail(task.id)
@@ -872,13 +879,13 @@ function startSubmitQuiz(task: any) {
     },
     (err) => {
       submittingQuiz[task.id] = false
-      ElMessage.error('评判失败：' + err)
+      ElMessage.error(t('study_plan.eval_failed_detail', { detail: err }))
     },
   )
   void stop
 }
 
-/** 重置练习题，允许重新练习 */
+// 重置练习题，允许重新练习
 function resetQuiz(task: any) {
   task.quiz_data = null
   task.quiz_evaluation = null
