@@ -49,11 +49,12 @@ def _apply_lightweight_migrations():
     """
     from sqlalchemy import text
 
-    # (表名, 列名, 列类型) —— 新增列在此登记
+    # (表名, 列名, 列类型[含默认值]) —— 新增列在此登记
     column_additions = [
         ("chat_messages", "image_ids", "TEXT"),
         ("chat_messages", "image_ocr_text", "TEXT"),
         ("chat_messages", "image_vision_desc", "TEXT"),
+        ("users", "language", "VARCHAR(10) NOT NULL DEFAULT 'zh'"),
     ]
 
     with engine.connect() as conn:
