@@ -158,9 +158,10 @@ async def generate_report(
     }
 
     student_info = {"nickname": current_user.nickname, "grade": current_user.grade}
+    user_language = current_user.language or "zh"
 
     async def event_stream():
-        async for chunk in ai_service.generate_study_report(student_info, stats_30d):
+        async for chunk in ai_service.generate_study_report(student_info, stats_30d, language=user_language):
             yield f"data: {chunk}\n\n"
         yield "data: [DONE]\n\n"
 

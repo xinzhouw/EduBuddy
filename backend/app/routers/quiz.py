@@ -180,6 +180,7 @@ async def generate_quiz(
         question_types=data.question_types,
         count=data.count,
         grade=current_user.grade,
+        language=current_user.language or "zh",
     )
 
     session_id = str(uuid.uuid4())

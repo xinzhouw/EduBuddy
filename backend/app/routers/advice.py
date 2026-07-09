@@ -137,7 +137,7 @@ async def get_today_advice(
         # 生成新建议
         context = _collect_context(db, current_user)
         try:
-            advices = await ai_service.generate_daily_advice(context)
+            advices = await ai_service.generate_daily_advice(context, language=current_user.language or "zh")
         except Exception:
             advices = []
         if not advices:

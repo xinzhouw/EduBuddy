@@ -115,10 +115,11 @@ async def analyze_document(
     if not doc.content_text:
         raise HTTPException(status_code=400, detail="文档内容为空或尚未解析完成")
 
+    user_language = current_user.language or "zh"
     full_response = []
 
     async def generate():
-        async for chunk in ai_service.analyze_document(doc.content_text, data.task):
+        async for chunk in ai_service.analyze_document(doc.content_text, data.task, language=user_language):
             full_response.append(chunk)
             yield f"data: {json.dumps({'type': 'content', 'delta': chunk}, ensure_ascii=False)}\n\n"
 

@@ -46,6 +46,8 @@ async def generate_plan(
     # 先 commit 保存 plan，释放 SQLite 写锁，避免 AI 长时间调用期间 "database is locked"
     db.commit()
 
+    user_language = current_user.language or "zh"
+
     # 生成任务索引（只包含 date/subject/topic/task_type/duration_minutes，不含内容）
     tasks_data = await ai_service.generate_study_plan(
         subjects=data.subjects,
@@ -53,6 +55,7 @@ async def generate_plan(
         daily_hours=data.daily_hours,
         weak_subjects=data.weak_subjects,
         start_date=str(start_date),
+        language=user_language,
     )
 
     import logging
@@ -208,6 +211,7 @@ async def generate_today_content(
         return StreamingResponse(already_done(), media_type="text/event-stream")
 
     grade = getattr(current_user, "grade", "高中") or "高中"
+    user_language = current_user.language or "zh"
 
     # 收集任务信息（在 StreamingResponse 的 generator 外部，避免 session 问题）
     task_infos = [
@@ -236,6 +240,7 @@ async def generate_today_content(
                     task_type=task_info["task_type"],
                     duration_minutes=task_info["duration_minutes"],
                     grade=grade,
+                    language=user_language,
                 ):
                     full_content.append(delta)
                     yield f"data: {json.dumps({'task_id': task_id, 'delta': delta}, ensure_ascii=False)}\n\n"
@@ -305,6 +310,7 @@ async def generate_task_content(
         raise HTTPException(status_code=403, detail="只有当日任务可以生成内容，历史任务已归档只读")
 
     grade = getattr(current_user, "grade", "高中") or "高中"
+    user_language = current_user.language or "zh"
     subject = task.subject
     topic = task.topic
     task_type = task.task_type
@@ -319,6 +325,7 @@ async def generate_task_content(
                 task_type=task_type,
                 duration_minutes=duration_minutes,
                 grade=grade,
+                language=user_language,
             ):
                 full_content.append(delta)
                 yield f"data: {json.dumps({'delta': delta}, ensure_ascii=False)}\n\n"
@@ -364,6 +371,7 @@ async def submit_task(
     subject = task.subject
     topic = task.topic
     task_type = task.task_type
+    user_language = current_user.language or "zh"
 
     # 处理图片上传
     image_base64 = ""
@@ -399,6 +407,7 @@ async def submit_task(
                 submission_text=submission_text,
                 image_base64=image_base64,
                 mime_type=mime_type,
+                language=user_language,
             ):
                 full_eval.append(delta)
                 yield f"data: {json.dumps({'delta': delta}, ensure_ascii=False)}\n\n"
@@ -446,6 +455,7 @@ async def generate_task_quiz(
         raise HTTPException(status_code=403, detail="只有当日任务可以生成练习题，历史任务已归档只读")
 
     grade = getattr(current_user, "grade", "高中") or "高中"
+    user_language = current_user.language or "zh"
     subject = task.subject
     topic = task.topic
     task_type = task.task_type
@@ -459,6 +469,7 @@ async def generate_task_quiz(
                 task_type=task_type,
                 grade=grade,
                 count=5,
+                language=user_language,
             ):
                 full_content.append(delta)
                 yield f"data: {json.dumps({'delta': delta}, ensure_ascii=False)}\n\n"
@@ -512,6 +523,7 @@ async def submit_task_quiz(
 
     subject = task.subject
     topic = task.topic
+    user_language = current_user.language or "zh"
 
     # ── 后端程序化计算客观题得分，并告知 AI 每题满分以便其评判简答题 ──
     import logging as _logging
@@ -556,6 +568,7 @@ async def submit_task_quiz(
                 student_answers=student_answers,
                 per_score=per_score,
                 obj_scores=obj_scores,
+                language=user_language,
             ):
                 full_eval.append(delta)
                 yield f"data: {json.dumps({'delta': delta}, ensure_ascii=False)}\n\n"

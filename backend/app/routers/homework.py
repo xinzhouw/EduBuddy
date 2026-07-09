@@ -67,8 +67,9 @@ async def grade_text_homework(
     db.refresh(grading)
     grading_id = grading.id
 
-    # 提前读取用户年级避免 Session 关闭后访问
+    # 提前读取用户年级和语言偏好，避免 Session 关闭后访问
     grade_level = data.grade_level or current_user.grade or ""
+    user_language = current_user.language or "zh"
 
     full_report = []
 
@@ -78,6 +79,7 @@ async def grade_text_homework(
                 subject=data.subject,
                 grade_level=grade_level,
                 content=data.content,
+                language=user_language,
             ):
                 full_report.append(chunk)
                 yield f"data: {json.dumps({'type': 'content', 'delta': chunk}, ensure_ascii=False)}\n\n"
@@ -234,6 +236,7 @@ async def grade_file_homework(
 
     # 准备批改内容
     grade_level_val = grade_level or current_user.grade or ""
+    user_language = current_user.language or "zh"
 
     # 图片：使用内存字节转为 base64，交给 Vision API（避免重复读取文件）
     image_base64: str = ""
@@ -265,6 +268,7 @@ async def grade_file_homework(
                     grade_level=grade_level_val,
                     image_base64=image_base64,
                     mime_type=image_mime_type,
+                    language=user_language,
                 )
             else:
                 # 文本/PDF/Word：使用普通文本批改
@@ -273,6 +277,7 @@ async def grade_file_homework(
                     subject=subject,
                     grade_level=grade_level_val,
                     content=grading_content,
+                    language=user_language,
                 )
 
             async for chunk in gen:

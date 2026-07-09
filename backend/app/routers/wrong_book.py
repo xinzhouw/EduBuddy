@@ -90,6 +90,7 @@ async def ai_explain(
     if not item:
         raise HTTPException(status_code=404, detail="错题不存在")
 
+    user_language = current_user.language or "zh"
     full_response = []
 
     async def generate():
@@ -97,6 +98,7 @@ async def ai_explain(
             question=item.question,
             correct_answer=item.correct_answer,
             wrong_answer=item.user_wrong_answer,
+            language=user_language,
         ):
             full_response.append(chunk)
             yield f"data: {json.dumps({'type': 'content', 'delta': chunk}, ensure_ascii=False)}\n\n"
@@ -121,11 +123,13 @@ async def follow_up(
     if not item:
         raise HTTPException(status_code=404, detail="错题不存在")
     question = data.get("question", "")
+    user_language = current_user.language or "zh"
 
     async def generate():
         async for chunk in ai_service.follow_up_stream(
             question=question,
             context=item.ai_explanation or "",
+            language=user_language,
         ):
             yield f"data: {json.dumps({'type': 'content', 'delta': chunk}, ensure_ascii=False)}\n\n"
         yield f"data: {json.dumps({'type': 'done'}, ensure_ascii=False)}\n\n"
@@ -217,5 +221,6 @@ async def similar_quiz(
         question_types=["single_choice", "fill_blank"],
         count=count,
         grade=current_user.grade,
+        language=current_user.language or "zh",
     )
     return {"code": 200, "data": {"questions": questions}}

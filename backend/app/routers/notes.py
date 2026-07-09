@@ -75,7 +75,7 @@ async def ai_summarize(note_id: int, db: Session = Depends(get_db), current_user
     if not note.content.strip():
         raise HTTPException(status_code=400, detail="笔记内容为空")
 
-    result = await ai_service.summarize_note(note.content)
+    result = await ai_service.summarize_note(note.content, language=current_user.language or "zh")
     note.ai_summary = result.get("summary", "")
     note.key_points = json.dumps(result.get("key_points", []), ensure_ascii=False)
     db.commit()
@@ -88,7 +88,7 @@ async def generate_flashcards(note_id: int, db: Session = Depends(get_db), curre
     if not note:
         raise HTTPException(status_code=404, detail="笔记不存在")
 
-    cards_data = await ai_service.generate_flashcards(note.content, note.subject)
+    cards_data = await ai_service.generate_flashcards(note.content, note.subject, language=current_user.language or "zh")
     flashcards = []
     for card in cards_data:
         fc = Flashcard(
