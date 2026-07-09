@@ -412,7 +412,9 @@
     "pdf_print_btn": "打印 / 另存为 PDF",
     "pdf_close_btn": "关闭",
     "tts_math_formula": "数学公式",
-    "tts_code_block": "代码块"
+    "tts_code_block": "代码块",
+    "session_other_subject": "其他",
+    "image_question_default": "请解读并解答图片中的题目"
   },
   "quiz": {
     "page_title": "开始练习",

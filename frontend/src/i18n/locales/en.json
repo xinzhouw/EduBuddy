@@ -412,7 +412,9 @@
     "pdf_print_btn": "Print / Save as PDF",
     "pdf_close_btn": "Close",
     "tts_math_formula": "math formula",
-    "tts_code_block": "code block"
+    "tts_code_block": "code block",
+    "session_other_subject": "Other",
+    "image_question_default": "Please analyze and solve the problem in this image"
   },
   "quiz": {
     "page_title": "Start Practice",

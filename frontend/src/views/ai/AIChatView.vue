@@ -3,28 +3,28 @@
     <!-- 历史会话列表（PC 端固定，移动端改为按钮触发抽屉） -->
     <div class="hidden md:flex w-64 shrink-0 card flex-col gap-2 overflow-hidden">
       <div class="flex items-center justify-between">
-        <h3 class="font-semibold text-gray-700 text-sm">历史对话</h3>
-        <button @click="newChat" class="text-blue-500 text-sm hover:text-blue-600">+ 新对话</button>
+        <h3 class="font-semibold text-gray-700 text-sm">{{ $t('ai_chat.history_title') }}</h3>
+        <button @click="newChat" class="text-blue-500 text-sm hover:text-blue-600">{{ $t('ai_chat.new_chat') }}</button>
       </div>
 
       <!-- 学科过滤标签 -->
       <div class="flex flex-wrap gap-1">
         <button
-          v-for="s in ['全部', ...subjects]"
-          :key="s"
-          @click="filterSubject = s"
+          v-for="(k, idx) in filterKeys"
+          :key="k"
+          @click="filterSubject = k"
           class="text-xs px-2 py-0.5 rounded-full border transition-colors"
-          :class="filterSubject === s
+          :class="filterSubject === k
             ? 'bg-blue-500 text-white border-blue-500'
             : 'bg-white text-gray-500 border-gray-200 hover:border-blue-300 hover:text-blue-500'"
-        >{{ s }}</button>
+        >{{ filterLabels[idx] }}</button>
       </div>
 
       <div class="flex-1 overflow-y-auto space-y-1">
-        <div v-if="filteredSessions.length === 0" class="text-center py-8 text-gray-400 text-sm">暂无历史对话</div>
+        <div v-if="filteredSessions.length === 0" class="text-center py-8 text-gray-400 text-sm">{{ $t('ai_chat.no_history') }}</div>
 
         <!-- 按学科分组显示 -->
-        <template v-if="filterSubject === '全部'">
+        <template v-if="filterSubject === 'all'">
           <template v-for="(group, subject) in groupedSessions" :key="subject">
             <!-- 学科分组标题 -->
             <div class="flex items-center gap-1 px-1 pt-2 pb-0.5">
@@ -37,11 +37,11 @@
               class="session-item group p-2.5 rounded-lg cursor-pointer text-sm transition-colors relative"
               :class="currentSessionId === s.id ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-600'">
               <p class="font-medium truncate pr-6">{{ s.title }}</p>
-              <p class="text-xs text-gray-400">{{ s.message_count }} 条</p>
+              <p class="text-xs text-gray-400">{{ s.message_count }} {{ $t('ai_chat.message_count_unit') }}</p>
               <button
                 @click.stop="confirmDeleteSession(s)"
                 class="delete-btn absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded text-gray-400 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
-                title="删除会话">
+                :title="$t('ai_chat.delete_session')">
                 ✕
               </button>
             </div>
@@ -55,11 +55,11 @@
             class="session-item group p-2.5 rounded-lg cursor-pointer text-sm transition-colors relative"
             :class="currentSessionId === s.id ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-600'">
             <p class="font-medium truncate pr-6">{{ s.title }}</p>
-            <p class="text-xs text-gray-400">{{ s.subject }} · {{ s.message_count }} 条</p>
+            <p class="text-xs text-gray-400">{{ s.subject }} · {{ s.message_count }} {{ $t('ai_chat.message_count_unit') }}</p>
             <button
               @click.stop="confirmDeleteSession(s)"
               class="delete-btn absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded text-gray-400 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
-              title="删除会话">
+              :title="$t('ai_chat.delete_session')">
               ✕
             </button>
           </div>
@@ -76,28 +76,28 @@
           @click="showSessionDrawer = true"
           class="md:hidden px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
         >
-          📋 对话列表
+          📋 {{ $t('ai_chat.session_list_title') }}
         </button>
 
-        <span class="text-sm text-gray-500 hidden sm:inline">学科：</span>
+        <span class="text-sm text-gray-500 hidden sm:inline">{{ $t('ai_chat.subject_label') }}</span>
         <el-select
           v-model="selectedSubject"
           size="small"
           style="width: 100px"
           :disabled="!isNewChat"
-          :title="!isNewChat ? '查看历史对话时学科不可更改' : ''"
+          :title="!isNewChat ? $t('ai_chat.history_locked') : ''"
         >
           <el-option v-for="s in subjects" :key="s" :label="s" :value="s" />
         </el-select>
-        <span v-if="!isNewChat" class="text-xs text-gray-400 hidden sm:inline">（历史对话学科不可更改）</span>
+        <span v-if="!isNewChat" class="text-xs text-gray-400 hidden sm:inline">{{ $t('ai_chat.history_locked_hint') }}</span>
       </div>
 
       <!-- 消息区域 -->
       <div ref="messagesEl" class="flex-1 overflow-y-auto py-2 sm:py-4 space-y-2 sm:space-y-4 px-2 sm:px-4">
         <div v-if="messages.length === 0" class="flex flex-col items-center justify-center h-full text-gray-400">
           <span class="text-4xl sm:text-5xl mb-2 sm:mb-4">🤖</span>
-          <p class="text-base sm:text-lg font-medium text-center">向 EduBuddy 提问吧！</p>
-          <p class="text-xs sm:text-sm mt-1 sm:mt-2 text-center text-gray-500">支持数学、物理、化学等学科</p>
+          <p class="text-base sm:text-lg font-medium text-center">{{ $t('ai_chat.welcome_prompt') }}</p>
+          <p class="text-xs sm:text-sm mt-1 sm:mt-2 text-center text-gray-500">{{ $t('ai_chat.welcome_hint') }}</p>
         </div>
 
         <div v-for="msg in messages" :key="msg.id || msg.tempId" class="flex gap-2 sm:gap-3"
@@ -140,10 +140,10 @@
                 <div v-for="(block, bi) in msg.imageBlocks" :key="bi" class="mt-3">
                   <div class="image-block-label text-xs text-gray-500 mb-1.5 flex items-center gap-1">
                     <span>📷</span>
-                    <span>参考图片：{{ block.keyword }}</span>
+                    <span>{{ $t('ai_chat.ref_image') }}{{ block.keyword }}</span>
                   </div>
                   <div v-if="block.loading" class="image-loading-placeholder">
-                    <span class="text-xs text-gray-400">搜索图片中...</span>
+                    <span class="text-xs text-gray-400">{{ $t('ai_chat.searching_image') }}</span>
                   </div>
                   <div v-else-if="block.images && block.images.length > 0" class="image-grid">
                     <a
@@ -164,14 +164,14 @@
                       <div class="image-card-caption">{{ img.title }}</div>
                     </a>
                   </div>
-                  <div v-else class="text-xs text-gray-400 italic">未找到相关图片</div>
+                  <div v-else class="text-xs text-gray-400 italic">{{ $t('ai_chat.no_image_found') }}</div>
                 </div>
               </template>
               <!-- 流式输出中：显示正在搜索的图片占位 -->
               <template v-if="msg.streaming && msg.pendingImageKeywords && msg.pendingImageKeywords.length > 0">
                 <div v-for="kw in msg.pendingImageKeywords" :key="kw" class="mt-3">
                   <div class="image-loading-placeholder">
-                    <span class="text-xs text-gray-400">🔍 正在搜索图片：{{ kw }}</span>
+                    <span class="text-xs text-gray-400">🔍 {{ $t('ai_chat.searching_image_hint') }}{{ kw }}</span>
                   </div>
                 </div>
               </template>
@@ -179,32 +179,32 @@
             <!-- AI 回复操作按钮 -->
             <div v-if="msg.role === 'assistant' && !msg.streaming && msg.id" class="flex gap-2 mt-1.5 ml-1">
               <button @click="copyMessage(msg)" class="text-xs text-gray-400 hover:text-blue-500 transition-colors">
-                {{ copiedMsgId === (msg.id || msg.tempId) ? '✓ 已复制' : '📋 复制' }}
+                {{ copiedMsgId === (msg.id || msg.tempId) ? '✓ ' + $t('ai_chat.copied_btn') : '📋 ' + $t('ai_chat.copy_btn') }}
               </button>
               <button @click="handleFeedback(msg, 'thumbs_up')" class="text-xs text-gray-400 hover:text-green-500 transition-colors">👍</button>
               <button @click="handleFeedback(msg, 'thumbs_down')" class="text-xs text-gray-400 hover:text-red-500 transition-colors">👎</button>
-              <button @click="addToWrongBook(msg)" class="text-xs text-gray-400 hover:text-blue-500 transition-colors">➕ 错题本</button>
+              <button @click="addToWrongBook(msg)" class="text-xs text-gray-400 hover:text-blue-500 transition-colors">➕ {{ $t('ai_chat.add_to_wrong_book') }}</button>
               <button @click="exportPdf(msg)" :disabled="exportingMsgId !== null" class="text-xs text-gray-400 hover:text-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                {{ exportingMsgId === (msg.id || msg.tempId) ? '导出中...' : '📄 导出PDF' }}
+                {{ exportingMsgId === (msg.id || msg.tempId) ? $t('ai_chat.exporting') : '📄 ' + $t('ai_chat.export_pdf') }}
               </button>
               <!-- 语音朗读按钮：仅语文、英语学科显示 -->
               <template v-if="isTtsSubject">
                 <template v-if="ttsState === 'idle' || ttsActiveMsgId !== (msg.id || msg.tempId)">
                   <button @click="startSpeech(msg)" class="text-xs text-gray-400 hover:text-indigo-500 transition-colors">
-                    🔊 朗读
+                    🔊 {{ $t('ai_chat.tts_read') }}
                   </button>
                 </template>
                 <template v-else-if="ttsState === 'playing'">
                   <span class="tts-wave-bar" aria-hidden="true">
                     <span></span><span></span><span></span><span></span>
                   </span>
-                  <button @click="togglePauseSpeech" class="text-xs text-amber-500 hover:text-amber-600 transition-colors">⏸ 暂停</button>
-                  <button @click="stopSpeech" class="text-xs text-gray-400 hover:text-red-500 transition-colors">⏹ 停止</button>
+                  <button @click="togglePauseSpeech" class="text-xs text-amber-500 hover:text-amber-600 transition-colors">⏸ {{ $t('ai_chat.tts_pause') }}</button>
+                  <button @click="stopSpeech" class="text-xs text-gray-400 hover:text-red-500 transition-colors">⏹ {{ $t('ai_chat.tts_stop') }}</button>
                 </template>
                 <template v-else-if="ttsState === 'paused'">
-                  <button @click="togglePauseSpeech" class="text-xs text-green-500 hover:text-green-600 transition-colors">▶ 继续</button>
-                  <button @click="stopSpeech" class="text-xs text-gray-400 hover:text-red-500 transition-colors">⏹ 停止</button>
-                  <span class="text-xs text-gray-400">⏸ 已暂停</span>
+                  <button @click="togglePauseSpeech" class="text-xs text-green-500 hover:text-green-600 transition-colors">▶ {{ $t('ai_chat.tts_resume') }}</button>
+                  <button @click="stopSpeech" class="text-xs text-gray-400 hover:text-red-500 transition-colors">⏹ {{ $t('ai_chat.tts_stop') }}</button>
+                  <span class="text-xs text-gray-400">{{ $t('ai_chat.tts_paused') }}</span>
                 </template>
               </template>
             </div>
@@ -219,7 +219,7 @@
         <div v-if="isLoading" class="flex gap-3">
           <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm">🤖</div>
           <div class="bg-gray-100 px-4 py-3 rounded-2xl rounded-tl-sm">
-            <span class="text-gray-500 text-sm">思考中</span>
+            <span class="text-gray-500 text-sm">{{ $t('ai_chat.thinking') }}</span>
             <span class="inline-flex gap-1 ml-2">
               <span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay:0ms"></span>
               <span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay:150ms"></span>
@@ -242,7 +242,7 @@
         </div>
         <!-- 已选图片数量提示 -->
         <div v-if="selectedImages.length > 0 && !showImageUpload" class="mb-2 text-xs text-gray-500">
-          已选择 {{ selectedImages.length }} 张图片，将随下一条消息发送
+          {{ $t('ai_chat.images_selected', { n: selectedImages.length }) }}
         </div>
         <!-- 实时 LaTeX 预览区（有内容时显示） -->
         <div v-if="inputText.trim()" class="mb-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-xl text-xs sm:text-sm text-gray-700 leading-relaxed input-preview-content"
@@ -254,20 +254,20 @@
             @click="showImageUpload = !showImageUpload"
             size="small"
             class="shrink-0"
-            title="上传试题图片"
+            :title="$t('ai_chat.upload_image')"
             :icon="UploadFilled"
           />
           <el-input
             v-model="inputText"
             type="textarea"
             :rows="2"
-            placeholder="输入问题，或上传试题图片..."
+            :placeholder="$t('ai_chat.send_placeholder')"
             class="flex-1 text-xs sm:text-sm"
             @keydown.enter.exact.prevent="sendMessage"
             resize="none"
           />
           <el-button type="primary" @click="sendMessage" :disabled="(!inputText.trim() && selectedImages.length === 0) || isLoading" size="small" class="shrink-0">
-            发送
+            {{ $t('ai_chat.send_btn') }}
           </el-button>
         </div>
       </div>
@@ -282,13 +282,14 @@
       @new-chat="newChat"
       @select-session="loadSession"
       @delete-session="confirmDeleteSession"
-      @filter-subject="(s: string) => filterSubject = s"
+      @filter-subject="onFilterSubject"
     />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { aiApi } from '@/api/ai'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -370,9 +371,13 @@ function renderUserMessage(content: string): string {
 }
 
 // ===================== 状态 =====================
+const { t } = useI18n()
 const authStore = useAuthStore()
-const subjects = ['数学', '物理', '化学', '生物', '语文', '英语', '历史', '地理', '政治']
-const selectedSubject = ref('数学')
+const subjectKeys = ['math', 'physics', 'chemistry', 'biology', 'chinese', 'english', 'history', 'geography', 'politics']
+const subjects = computed(() => subjectKeys.map(k => t('subjects.' + k)))
+const filterKeys = computed(() => ['all', ...subjectKeys])
+const filterLabels = computed(() => [t('ai_chat.filter_all'), ...subjects.value])
+const selectedSubject = ref(t('subjects.math'))
 const inputText = ref('')
 const messages = ref<ChatMessage[]>([])
 const sessions = ref<any[]>([])
@@ -393,8 +398,13 @@ function handleImagesSelected(files: File[]) {
   selectedImages.value = files
 }
 
-/** 历史会话左侧列表的学科过滤（'全部' 或具体学科名） */
-const filterSubject = ref('全部')
+/** 历史会话左侧列表的学科过滤（'all' 或 subjectKey） */
+const filterSubject = ref('all')
+/** 当前选中学科对应的 key */
+const selectedSubjectKey = computed(() => {
+  const idx = subjects.value.indexOf(selectedSubject.value)
+  return idx !== -1 ? subjectKeys[idx] : 'math'
+})
 
 /** 移动端会话列表抽屉是否显示 */
 const showSessionDrawer = ref(false)
@@ -411,7 +421,7 @@ const isNewChat = computed(() => currentSessionId.value === null)
 const groupedSessions = computed(() => {
   const groups: Record<string, any[]> = {}
   for (const s of sessions.value) {
-    const subj = s.subject || '其他'
+    const subj = s.subject || t('ai_chat.session_other_subject')
     if (!groups[subj]) groups[subj] = []
     groups[subj].push(s)
   }
@@ -420,9 +430,21 @@ const groupedSessions = computed(() => {
 
 /** 当前学科过滤后的会话列表 */
 const filteredSessions = computed(() => {
-  if (filterSubject.value === '全部') return sessions.value
-  return sessions.value.filter(s => s.subject === filterSubject.value)
+  if (filterSubject.value === 'all') return sessions.value
+  // filterSubject 存储 subjectKey，需转换为对应中文（后端存储的语言）进行比对
+  const label = t('subjects.' + filterSubject.value)
+  return sessions.value.filter(s => s.subject === label || s.subject === filterSubject.value)
 })
+
+/** 将 SessionDrawer 或 filter 按钮发出的学科值映射为 subjectKey 或 'all' */
+function onFilterSubject(s: string) {
+  if (!s || s === t('ai_chat.filter_all')) {
+    filterSubject.value = 'all'
+  } else {
+    const idx = subjects.value.indexOf(s)
+    filterSubject.value = idx !== -1 ? subjectKeys[idx] : s
+  }
+}
 
 // ===================== 工具函数 =====================
 async function scrollToBottom() {
@@ -531,7 +553,7 @@ function newChat() {
   currentSessionId.value = null
   messages.value = []
   // 新建会话时恢复默认学科（可自由选择）
-  selectedSubject.value = '数学'
+  selectedSubject.value = t('subjects.math')
 }
 
 // ===================== 发送消息 =====================
@@ -577,7 +599,7 @@ async function sendMessage() {
     // 注意：不要手动设置 Content-Type，需由浏览器自动带上 multipart boundary。
     const body = buildChatFormData({
       sessionId: currentSessionId.value,
-      question: text || '请解读并解答图片中的题目',
+      question: text || t('ai_chat.image_question_default'),
       subject: selectedSubject.value,
       images: imagesToSend,
     })
@@ -589,9 +611,9 @@ async function sendMessage() {
 
     if (!response.ok) {
       if (response.status === 401) {
-        throw new Error('认证已过期，请重新登录')
+        throw new Error(t('ai_chat.auth_expired'))
       }
-      throw new Error(`请求失败 (${response.status})`)
+      throw new Error(t('ai_chat.request_failed_status', { status: response.status }))
     }
 
     const reader = response.body!.getReader()
@@ -656,7 +678,7 @@ async function sendMessage() {
     }
   } catch (e) {
 
-    aiMsg.value.content = '抱歉，请求失败，请检查网络或 API 配置。'
+    aiMsg.value.content = t('ai_chat.request_failed')
     aiMsg.value.streaming = false
     aiMsg.value.pendingImageKeywords = []
   } finally {
@@ -687,14 +709,14 @@ async function copyMessage(msg: ChatMessage) {
       document.body.removeChild(textarea)
     }
     copiedMsgId.value = (msg.id || msg.tempId) ?? null
-    ElMessage.success('已复制到剪贴板')
+    ElMessage.success(t('ai_chat.copy_success'))
     setTimeout(() => {
       if (copiedMsgId.value === ((msg.id || msg.tempId) ?? null)) {
         copiedMsgId.value = null
       }
     }, 2000)
   } catch {
-    ElMessage.error('复制失败，请手动选择文本复制')
+    ElMessage.error(t('ai_chat.copy_failed'))
   }
 }
 
@@ -721,7 +743,7 @@ async function exportPdf(msg: ChatMessage) {
   // 去掉 [[IMAGE:...]] 标记后渲染 Markdown + LaTeX
   const cleaned = msg.content.replace(/\[\[IMAGE:[^\]]*\]\]/gi, '').trim()
   if (!cleaned) {
-    ElMessage.error('暂无可导出的内容')
+    ElMessage.error(t('ai_chat.export_no_content'))
     return
   }
 
@@ -734,7 +756,7 @@ async function exportPdf(msg: ChatMessage) {
 <html>
 <head>
 <meta charset="utf-8">
-<title>EduBuddy AI 回答</title>
+<title>${escapeHtml(t('ai_chat.pdf_title'))}</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -797,21 +819,21 @@ async function exportPdf(msg: ChatMessage) {
 <body>
 <div class="page">
   <div class="header">
-    <h1>EduBuddy AI 回答</h1>
+    <h1>${escapeHtml(t('ai_chat.pdf_title'))}</h1>
     <div class="header-meta">
-      <span>学科：${escapeHtml(selectedSubject.value)}</span>
-      <span>导出时间：${escapeHtml(dateStr)}</span>
+      <span>${escapeHtml(t('ai_chat.pdf_subject_label'))}${escapeHtml(selectedSubject.value)}</span>
+      <span>${escapeHtml(t('ai_chat.pdf_export_time'))}${escapeHtml(dateStr)}</span>
     </div>
   </div>
   <div class="report-body">${reportHtml}</div>
-  <div class="footer">由 EduBuddy AI 智能学习助手生成 · ${dateStr}</div>
+  <div class="footer">${escapeHtml(t('ai_chat.pdf_footer', { date: dateStr }))}</div>
   <!-- 自动打印按钮区域 -->
   <div class="no-print" style="position:fixed;bottom:20px;right:20px;display:flex;gap:10px;z-index:9999;">
     <button onclick="window.print()" style="padding:10px 24px;background:#2563eb;color:white;border:none;border-radius:8px;font-size:14px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.2);">
-      🖨️ 打印 / 另存为 PDF
+      🖨️ ${escapeHtml(t('ai_chat.pdf_print_btn'))}
     </button>
     <button onclick="window.close()" style="padding:10px 16px;background:#6b7280;color:white;border:none;border-radius:8px;font-size:14px;cursor:pointer;">
-      ✕ 关闭
+      ✕ ${escapeHtml(t('ai_chat.pdf_close_btn'))}
     </button>
   </div>
 </div>
@@ -826,7 +848,7 @@ async function exportPdf(msg: ChatMessage) {
 
     const printWindow = window.open('', '_blank', 'width=900,height=700')
     if (!printWindow) {
-      throw new Error('无法打开新窗口，请检查浏览器是否阻止了弹出窗口')
+      throw new Error(t('ai_chat.popup_blocked'))
     }
     // 用 Blob URL 加载导出文档（替代已弃用的 document.write）
     const blobUrl = URL.createObjectURL(new Blob([fullHtml], { type: 'text/html' }))
@@ -834,9 +856,9 @@ async function exportPdf(msg: ChatMessage) {
     // 延时释放，确保新窗口已完成加载与打印
     setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
 
-    ElMessage.success('已打开打印预览，请选择"另存为 PDF"保存文件')
+    ElMessage.success(t('ai_chat.export_print_hint'))
   } catch (err: any) {
-    ElMessage.error('导出失败：' + (err?.message || '未知错误'))
+    ElMessage.error(t('ai_chat.export_failed', { msg: err?.message || '' }))
   } finally {
     exportingMsgId.value = null
   }
@@ -849,7 +871,7 @@ async function handleFeedback(msg: ChatMessage, rating: string) {
 
   try {
     await aiApi.feedback(msg.id!, { rating })
-    ElMessage.success(rating === 'thumbs_up' ? '感谢你的反馈！' : '已记录，我们会改进')
+    ElMessage.success(rating === 'thumbs_up' ? t('ai_chat.feedback_positive') : t('ai_chat.feedback_negative'))
   } catch {}
 }
 
@@ -859,18 +881,18 @@ async function addToWrongBook(msg: ChatMessage) {
     const userMsg = messages.value[idx - 1]
     if (!userMsg || !msg.id) return
     await aiApi.addToWrongBook(userMsg.id || msg.id, { subject: selectedSubject.value, tags: [] })
-    ElMessage.success('已加入错题本')
+    ElMessage.success(t('ai_chat.add_to_wrong_book_success'))
   } catch {}
 }
 
 async function confirmDeleteSession(session: any) {
   try {
     await ElMessageBox.confirm(
-      `确定要删除对话「${session.title}」吗？此操作不可恢复。`,
-      '删除会话',
+      t('ai_chat.delete_session_confirm_msg', { title: session.title }),
+      t('ai_chat.delete_session'),
       {
-        confirmButtonText: '删除',
-        cancelButtonText: '取消',
+        confirmButtonText: t('common.delete'),
+        cancelButtonText: t('common.cancel'),
         type: 'warning',
         confirmButtonClass: 'el-button--danger',
       }
@@ -879,24 +901,24 @@ async function confirmDeleteSession(session: any) {
     if (currentSessionId.value === session.id) {
       currentSessionId.value = null
       messages.value = []
-      selectedSubject.value = '数学'
+      selectedSubject.value = t('subjects.math')
     }
     await loadSessions()
-    ElMessage.success('会话已删除')
+    ElMessage.success(t('ai_chat.delete_session_success'))
   } catch (e: any) {
     if (e !== 'cancel' && e?.message !== 'cancel') {
-      ElMessage.error('删除失败，请重试')
+      ElMessage.error(t('ai_chat.delete_failed'))
     }
   }
 }
 
 // ===================== 语音朗读（TTS）=====================
 
-/** 支持语音朗读的学科 */
-const TTS_SUBJECTS = ['语文', '英语']
+/** 支持语音朗读的学科 key */
+const TTS_SUBJECT_KEYS = ['chinese', 'english']
 
 /** 当前学科是否支持 TTS */
-const isTtsSubject = computed(() => TTS_SUBJECTS.includes(selectedSubject.value))
+const isTtsSubject = computed(() => TTS_SUBJECT_KEYS.includes(selectedSubjectKey.value))
 
 /** TTS 播放状态：idle / playing / paused */
 const ttsState = ref<'idle' | 'playing' | 'paused'>('idle')
@@ -904,10 +926,10 @@ const ttsState = ref<'idle' | 'playing' | 'paused'>('idle')
 /** 当前正在朗读的消息 id（msg.id 或 msg.tempId） */
 const ttsActiveMsgId = ref<number | null>(null)
 
-/** 从浏览器语音列表中挑选最优中文语音 */
-function pickVoice(lang: string): SpeechSynthesisVoice | null {
+/** 从浏览器语音列表中挑选最优语音（按学科 key）*/
+function pickVoice(subjectKey: string): SpeechSynthesisVoice | null {
   const voices = window.speechSynthesis.getVoices()
-  if (lang === '英语') {
+  if (subjectKey === 'english') {
     // 英语：优先 en-US，其次 en-GB，再次任意 en
     return (
       voices.find(v => v.lang === 'en-US') ||
@@ -938,10 +960,10 @@ function msgToPlainText(content: string): string {
   let text = content
   // 去除图片标记
   text = text.replace(/\[\[IMAGE:[^\]]*\]\]/gi, '')
-  // 块级公式 $$...$$ → "数学公式"
-  text = text.replace(/\$\$[\s\S]*?\$\$/g, '数学公式')
-  // 行内公式 $...$ → "数学公式"
-  text = text.replace(/\$[^$\n]+\$/g, '数学公式')
+  // 块级公式 $$...$$ → translated placeholder
+  text = text.replace(/\$\$[\s\S]*?\$\$/g, t('ai_chat.tts_math_formula'))
+  // 行内公式 $...$ → translated placeholder
+  text = text.replace(/\$[^$\n]+\$/g, t('ai_chat.tts_math_formula'))
   // Markdown 标题
   text = text.replace(/^#{1,6}\s+/gm, '')
   // 加粗 / 斜体
@@ -949,7 +971,7 @@ function msgToPlainText(content: string): string {
   // 行内代码
   text = text.replace(/`([^`]+)`/g, '$1')
   // 代码块
-  text = text.replace(/```[\s\S]*?```/g, '代码块')
+  text = text.replace(/```[\s\S]*?```/g, t('ai_chat.tts_code_block'))
   // 分隔线
   text = text.replace(/^---+$/gm, '')
   // 多余空行合并
@@ -966,14 +988,14 @@ function startSpeech(msg: ChatMessage) {
 
   const plainText = msgToPlainText(msg.content)
   if (!plainText) {
-    ElMessage.warning('没有可朗读的文本内容')
+    ElMessage.warning(t('ai_chat.tts_no_text'))
     return
   }
 
   const utter = new SpeechSynthesisUtterance(plainText)
 
   // 根据学科设置语言
-  if (selectedSubject.value === '英语') {
+  if (selectedSubjectKey.value === 'english') {
     utter.lang = 'en-US'
     utter.rate = 0.9
   } else {
@@ -984,7 +1006,7 @@ function startSpeech(msg: ChatMessage) {
   utter.volume = 1.0
 
   // 尝试指定具体语音
-  const voice = pickVoice(selectedSubject.value)
+  const voice = pickVoice(selectedSubjectKey.value)
   if (voice) utter.voice = voice
 
   const msgKey = (msg.id || msg.tempId) ?? null
