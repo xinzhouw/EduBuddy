@@ -169,6 +169,26 @@ $$答案的LaTeX公式或文字说明$$
 """
 
 
+def _language_directive(language: str) -> str:
+    """
+    Return a language instruction appended to any AI system prompt so the
+    model answers in the user's selected UI language. Chinese ('zh') is the
+    default the base prompts are already written in, so it needs no directive.
+    Formulas, code, chemical notation and proper nouns stay unchanged.
+    """
+    if language == "en":
+        return (
+            "\n\n**CRITICAL LANGUAGE REQUIREMENT: Respond ENTIRELY in English.** "
+            "Every explanation, heading, table header, label and section title must be "
+            "written in English, regardless of the language of the question, study "
+            "material, or the examples shown above (translate any Chinese headings such "
+            "as '解题思路' to their English equivalents like 'Approach'). Keep mathematical "
+            "formulas (LaTeX), chemical formulas (mhchem), SMILES, code blocks, URLs and "
+            "proper nouns exactly as they are — only translate the surrounding natural language."
+        )
+    return ""
+
+
 class AIService:
     def __init__(self):
         self.provider = settings.llm_provider or "openai"
@@ -228,6 +248,7 @@ class AIService:
         grade: str,
         history: list = None,
         rag_context: str = "",
+        language: str = "zh",
     ) -> AsyncGenerator[str, None]:
         """流式 AI 问答（支持 RAG 教材上下文注入）"""
         client = self._get_client()
@@ -235,6 +256,7 @@ class AIService:
         system_content = SYSTEM_PROMPT
         if rag_context:
             system_content = SYSTEM_PROMPT + rag_context
+        system_content += _language_directive(language)
         messages = [{"role": "system", "content": system_content}]
         if history:
             messages.extend(history)
@@ -257,6 +279,7 @@ class AIService:
         image_paths: list = None,
         history: list = None,
         rag_context: str = "",
+        language: str = "zh",
     ) -> AsyncGenerator[str, None]:
         """
         流式对话，支持图片分析
@@ -275,7 +298,7 @@ class AIService:
 
         if not image_paths:
             # 无图片，直接调用 chat_stream
-            async for chunk in self.chat_stream(question, subject, grade, history, rag_context):
+            async for chunk in self.chat_stream(question, subject, grade, history, rag_context, language):
                 yield chunk
             return
 
@@ -301,14 +324,14 @@ class AIService:
 
             # 6. 调用 chat_stream 进行流式对话
             async for chunk in self.chat_stream(
-                enhanced_prompt, subject, grade, history, enhanced_context
+                enhanced_prompt, subject, grade, history, enhanced_context, language
             ):
                 yield chunk
 
         except Exception as e:
             print(f"图片分析失败: {e}")
             # 降级：如果图片分析失败，仍尝试用原问题对话
-            async for chunk in self.chat_stream(question, subject, grade, history, rag_context):
+            async for chunk in self.chat_stream(question, subject, grade, history, rag_context, language):
                 yield chunk
 
     async def generate_quiz(
@@ -319,6 +342,7 @@ class AIService:
         question_types: list,
         count: int,
         grade: str = "高一",
+        language: str = "zh",
     ) -> list:
         """生成练习题，返回题目列表"""
         client = self._get_client()
@@ -362,7 +386,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
         response = await client.chat.completions.create(
             model=self.model,
             messages=[
-                {"role": "system", "content": "你是一名专业的中学出题老师，请严格按照JSON格式输出题目。"},
+                {"role": "system", "content": "你是一名专业的中学出题老师，请严格按照JSON格式输出题目。" + _language_directive(language)},
                 {"role": "user", "content": prompt}
             ],
             response_format={"type": "json_object"},
@@ -436,6 +460,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
         question: str,
         correct_answer: str,
         wrong_answer: Optional[str] = None,
+        language: str = "zh",
     ) -> AsyncGenerator[str, None]:
         """错题 AI 讲解（流式，自动续写防中断）"""
         prompt = f"""请详细讲解以下题目：
@@ -446,7 +471,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
             prompt += f"\n学生错误答案：{wrong_answer}\n\n请分析错误原因并给出详细讲解。"
 
         messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": SYSTEM_PROMPT + _language_directive(language)},
             {"role": "user", "content": prompt}
         ]
         async for delta in self._stream_with_continuation(
@@ -455,7 +480,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
             yield delta
 
 
-    async def summarize_note(self, content: str) -> dict:
+    async def summarize_note(self, content: str, language: str = "zh") -> dict:
         """笔记 AI 总结"""
         client = self._get_client()
         prompt = f"""请对以下笔记内容进行总结，提炼核心知识点：
@@ -470,7 +495,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
         response = await client.chat.completions.create(
             model=self.model,
             messages=[
-                {"role": "system", "content": "你是一名专业的学科教师，擅长提炼知识点。"},
+                {"role": "system", "content": "你是一名专业的学科教师，擅长提炼知识点。" + _language_directive(language)},
                 {"role": "user", "content": prompt}
             ],
             response_format={"type": "json_object"},
@@ -478,7 +503,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
         )
         return json.loads(response.choices[0].message.content)
 
-    async def generate_flashcards(self, content: str, subject: str) -> list:
+    async def generate_flashcards(self, content: str, subject: str, language: str = "zh") -> list:
         """从笔记生成知识卡片"""
         client = self._get_client()
         prompt = f"""请从以下{subject}笔记中提取关键概念，生成5-10张知识卡片：
@@ -498,7 +523,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
         response = await client.chat.completions.create(
             model=self.model,
             messages=[
-                {"role": "system", "content": "你是一名专业的学科教师，擅长制作知识卡片。"},
+                {"role": "system", "content": "你是一名专业的学科教师，擅长制作知识卡片。" + _language_directive(language)},
                 {"role": "user", "content": prompt}
             ],
             response_format={"type": "json_object"},
@@ -514,6 +539,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
         daily_hours: float,
         weak_subjects: list,
         start_date: str,
+        language: str = "zh",
     ) -> list:
         """生成学习计划，返回按天任务列表"""
         import math
@@ -562,7 +588,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
         response = await client.chat.completions.create(
             model=self.model,
             messages=[
-                {"role": "system", "content": "你是一名专业的学习规划师，擅长制定备考计划。请严格按照用户要求，确保所有学科都被覆盖到计划中。只输出合法JSON，不要加任何说明文字，不要用代码块包裹。"},
+                {"role": "system", "content": "你是一名专业的学习规划师，擅长制定备考计划。请严格按照用户要求，确保所有学科都被覆盖到计划中。只输出合法JSON，不要加任何说明文字，不要用代码块包裹。" + _language_directive(language)},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=8000,
@@ -586,7 +612,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
         return data.get("tasks", [])
 
     async def analyze_document(
-        self, text: str, task: str
+        self, text: str, task: str, language: str = "zh"
     ) -> AsyncGenerator[str, None]:
         """文档 AI 分析（流式）"""
         client = self._get_client()
@@ -600,7 +626,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
         stream = await client.chat.completions.create(
             model=self.model,
             messages=[
-                {"role": "system", "content": "你是一名专业的中学学科教师，擅长分析学习资料。"},
+                {"role": "system", "content": "你是一名专业的中学学科教师，擅长分析学习资料。" + _language_directive(language)},
                 {"role": "user", "content": prompt}
             ],
             stream=True,
@@ -612,7 +638,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
             if delta:
                 yield delta
 
-    def _homework_grading_system_prompt(self, subject: str, grade_level: str) -> str:
+    def _homework_grading_system_prompt(self, subject: str, grade_level: str, language: str = "zh") -> str:
         """生成作业批改的系统提示词"""
         grade_context = f"（{grade_level}）" if grade_level else ""
         return f"""你是一位经验丰富的{subject}学科教师，正在批改学生的{subject}作业{grade_context}。
@@ -671,7 +697,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
 1. 评分要客观公正，符合中学教学评分标准
 2. 批改意见要具体、有建设性
 3. 数学公式使用 LaTeX 语法（行内 $...$，块级 $$...$$）
-4. 语气要鼓励学生，不要打击积极性"""
+4. 语气要鼓励学生，不要打击积极性""" + _language_directive(language)
 
     async def grade_homework(
         self,
@@ -679,6 +705,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
         grade_level: str,
         content: str,
         file_description: str = "",
+        language: str = "zh",
     ) -> AsyncGenerator[str, None]:
         """AI 批改作业（文本，流式输出），输出结构化 Markdown 批改报告"""
         client = self._get_client()
@@ -689,7 +716,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
         stream = await client.chat.completions.create(
             model=self.model,
             messages=[
-                {"role": "system", "content": self._homework_grading_system_prompt(subject, grade_level)},
+                {"role": "system", "content": self._homework_grading_system_prompt(subject, grade_level, language)},
                 {"role": "user", "content": user_content},
             ],
             stream=True,
@@ -707,6 +734,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
         grade_level: str,
         image_base64: str,
         mime_type: str = "image/jpeg",
+        language: str = "zh",
     ) -> AsyncGenerator[str, None]:
         """AI 批改作业（图片，Vision API，流式输出）"""
         client = self._get_client()
@@ -731,7 +759,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
         stream = await client.chat.completions.create(
             model=self.model,
             messages=[
-                {"role": "system", "content": self._homework_grading_system_prompt(subject, grade_level)},
+                {"role": "system", "content": self._homework_grading_system_prompt(subject, grade_level, language)},
                 user_message,
             ],
             stream=True,
@@ -744,14 +772,19 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
                 yield delta
 
     async def extract_score_from_report(self, report: str) -> float:
-        """从批改报告中提取最终得分（正则解析，无需额外API调用）"""
-        # 尝试从 "最终得分：xx / 100 分" 格式中提取
-        match = re.search(r'最终得分[：:]\s*(\d+(?:\.\d+)?)\s*/\s*100', report)
+        """从批改报告中提取最终得分（正则解析，无需额外API调用，兼容中英文报告）"""
+        # 尝试从 "最终得分：xx / 100 分" / "Final Score: xx / 100" 格式中提取
+        match = re.search(r'(?:最终得分|综合得分|Final Score|Total Score|Overall Score)[：:]\s*(\d+(?:\.\d+)?)\s*/\s*100', report, re.IGNORECASE)
         if match:
             score = float(match.group(1))
             return min(100.0, max(0.0, score))
-        # 尝试从 "xx/100" 格式中提取
-        match = re.search(r'(\d+(?:\.\d+)?)\s*/\s*100\s*分', report)
+        # 尝试从 "xx/100 分" 或 "xx / 100 points" 格式中提取
+        match = re.search(r'(\d+(?:\.\d+)?)\s*/\s*100\s*(?:分|points?|pts?)', report, re.IGNORECASE)
+        if match:
+            score = float(match.group(1))
+            return min(100.0, max(0.0, score))
+        # 最后回退：任意 "xx / 100"
+        match = re.search(r'(\d+(?:\.\d+)?)\s*/\s*100\b', report)
         if match:
             score = float(match.group(1))
             return min(100.0, max(0.0, score))
@@ -959,7 +992,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
         text = (response.choices[0].message.content or "").strip()
         return {"text": text}
 
-    async def generate_daily_advice(self, context: dict) -> list:
+    async def generate_daily_advice(self, context: dict, language: str = "zh") -> list:
         """根据学生学习数据生成每日个性化建议，返回建议列表（3~5条）"""
         client = self._get_client()
 
@@ -1023,7 +1056,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
         response = await client.chat.completions.create(
             model=self.model,
             messages=[
-                {"role": "system", "content": "你是一位专业的教育心理学顾问，精通艾宾浩斯遗忘曲线、间隔效应、测试效应、认知负荷理论和自我效能感理论。"},
+                {"role": "system", "content": "你是一位专业的教育心理学顾问，精通艾宾浩斯遗忘曲线、间隔效应、测试效应、认知负荷理论和自我效能感理论。" + _language_directive(language)},
                 {"role": "user", "content": prompt}
             ],
             response_format={"type": "json_object"},
@@ -1037,6 +1070,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
         self,
         student_info: dict,
         stats_30d: dict,
+        language: str = "zh",
     ) -> AsyncGenerator[str, None]:
         """生成30天学习分析报告（流式输出）"""
         client = self._get_client()
@@ -1079,7 +1113,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
         stream = await client.chat.completions.create(
             model=self.model,
             messages=[
-                {"role": "system", "content": "你是一位专业的教育数据分析师，精通教育心理学理论，擅长用数据洞察学生学习规律并给出有说服力的改进建议。"},
+                {"role": "system", "content": "你是一位专业的教育数据分析师，精通教育心理学理论，擅长用数据洞察学生学习规律并给出有说服力的改进建议。" + _language_directive(language)},
                 {"role": "user", "content": prompt}
             ],
             stream=True,
@@ -1098,6 +1132,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
         task_type: str,
         duration_minutes: int,
         grade: str = "高中",
+        language: str = "zh",
     ) -> AsyncGenerator[str, None]:
         """为学习计划任务 AI 生成学习内容（流式），Markdown 格式"""
         type_names = {"study": "学习", "practice": "练习", "review": "复习"}
@@ -1116,7 +1151,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
 5. 最后附上「✅ 学习检验」板块：提出 1~2 个思考问题，供学生自测是否掌握"""
 
         messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": SYSTEM_PROMPT + _language_directive(language)},
             {"role": "user", "content": prompt},
         ]
         async for delta in self._stream_with_continuation(
@@ -1132,6 +1167,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
         submission_text: str = "",
         image_base64: str = "",
         mime_type: str = "image/jpeg",
+        language: str = "zh",
     ) -> AsyncGenerator[str, None]:
         """AI 评判用户提交的学习成果（流式），输出结构化 Markdown 评判报告"""
         type_names = {"study": "学习笔记", "practice": "练习作答", "review": "复习成果"}
@@ -1169,7 +1205,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
 
 ---
 
-注意：语气要鼓励，评判要客观，得分要真实反映掌握程度。"""
+注意：语气要鼓励，评判要客观，得分要真实反映掌握程度。""" + _language_directive(language)
 
         if image_base64:
             user_message: dict = {
@@ -1217,6 +1253,7 @@ correct_answer对于单选题为A/B/C/D，多选题为如"AB"，填空题为具�
         task_type: str,
         grade: str = "高中",
         count: int = 5,
+        language: str = "zh",
     ) -> AsyncGenerator[str, None]:
         """为学习计划任务 AI 生成练习题（流式），输出 JSON 数组格式"""
         type_names = {"study": "学习", "practice": "练习", "review": "复习"}
@@ -1259,7 +1296,7 @@ type 字段只能是 "choice"（单选）、"fill"（填空）、"short"（简�
 只输出 JSON 数组，不要任何额外说明。"""
 
         messages = [
-            {"role": "system", "content": "你是一位专业的中学学科教师，擅长出题。请严格按照用户要求的 JSON 格式输出练习题，不要有任何额外文字。"},
+            {"role": "system", "content": "你是一位专业的中学学科教师，擅长出题。请严格按照用户要求的 JSON 格式输出练习题，不要有任何额外文字。" + _language_directive(language)},
             {"role": "user", "content": prompt},
         ]
         async for delta in self._stream_with_continuation(
@@ -1275,6 +1312,7 @@ type 字段只能是 "choice"（单选）、"fill"（填空）、"short"（简�
         student_answers: dict,
         per_score: float = None,
         obj_scores: dict = None,
+        language: str = "zh",
     ) -> AsyncGenerator[str, None]:
         """AI 评判学生的练习题答案（流式），输出结构化 Markdown 评判报告"""
         total_q = len(questions) if questions else 1
@@ -1362,7 +1400,7 @@ type 字段只能是 "choice"（单选）、"fill"（填空）、"short"（简�
 
 ---
 
-注意：综合得分必须严格等于表格各题得分之和，简答题语气鼓励，评判客观。"""
+注意：综合得分必须严格等于表格各题得分之和，简答题语气鼓励，评判客观。""" + _language_directive(language)
 
         user_message = {
             "role": "user",
@@ -1390,9 +1428,10 @@ type 字段只能是 "choice"（单选）、"fill"（填空）、"short"（简�
         question: str,
         context: str,
         history: list = None,
+        language: str = "zh",
     ) -> AsyncGenerator[str, None]:
         """追问 AI（流式，自动续写防中断）"""
-        messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+        messages = [{"role": "system", "content": SYSTEM_PROMPT + _language_directive(language)}]
         if context:
             messages.append({"role": "assistant", "content": context})
         if history:

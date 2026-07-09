@@ -106,6 +106,7 @@ async def chat(
     # 5. 读取用户信息 + 图片路径（提前取出普通值，避免 StreamingResponse 中 Session 关闭后 DetachedInstanceError）
     user_id = current_user.id
     user_grade = current_user.grade
+    user_language = current_user.language or "zh"
     image_paths = [img.file_path for img in image_objs]
 
     # 6. 构建上下文
@@ -138,6 +139,7 @@ async def chat(
                 image_paths=image_paths,
                 history=history,
                 rag_context=combined_context,
+                language=user_language,
             ):
                 full_response.append(chunk)
                 yield f"data: {json.dumps({'type': 'content', 'delta': chunk}, ensure_ascii=False)}\n\n"
@@ -148,6 +150,7 @@ async def chat(
                 grade=user_grade,
                 history=history,
                 rag_context=combined_context,
+                language=user_language,
             ):
                 full_response.append(chunk)
                 yield f"data: {json.dumps({'type': 'content', 'delta': chunk}, ensure_ascii=False)}\n\n"
