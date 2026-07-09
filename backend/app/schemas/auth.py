@@ -39,6 +39,7 @@ class UserOut(BaseModel):
     gender: Optional[str] = None
     age: Optional[int] = None
     avatar_url: Optional[str] = None
+    language: str = 'zh'
     created_at: datetime
 
     class Config:

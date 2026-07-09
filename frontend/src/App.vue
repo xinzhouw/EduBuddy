@@ -37,9 +37,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, getCurrentInstance } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useLanguageStore } from '@/stores/language'
+import { useI18n } from 'vue-i18n'
+import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
+import en from 'element-plus/dist/locale/en.mjs'
 import AppSidebar from '@/components/layout/AppSidebar.vue'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import AppBottomNav from '@/components/layout/AppBottomNav.vue'
@@ -47,6 +51,8 @@ import { initializeMobileFormOptimizations } from '@/utils/mobileFormOptimizatio
 import { initializePerformanceOptimizations, reportPerformanceMetrics } from '@/utils/performanceOptimization'
 
 const authStore = useAuthStore()
+const langStore = useLanguageStore()
+const { locale } = useI18n()
 const route = useRoute()
 const windowWidth = ref(window.innerWidth)
 
@@ -56,8 +62,22 @@ const handleResize = () => {
   windowWidth.value = window.innerWidth
 }
 
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener('resize', handleResize)
+
+  // 初始化语言
+  await langStore.initLanguage()
+
+  // 同步 i18n locale
+  locale.value = langStore.currentLanguage
+
+  // 同步 Element Plus locale
+  const instance = getCurrentInstance()
+  if (instance) {
+    const elLocale = langStore.currentLanguage === 'zh' ? zhCn : en
+    instance.appContext.app.config.globalProperties.$ELEMENT = { locale: elLocale }
+  }
+
   // 初始化移动端表单优化
   initializeMobileFormOptimizations()
   // 初始化性能优化

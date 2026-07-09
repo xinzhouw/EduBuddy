@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session
 from jose import jwt
 from app.database import get_db
 from app.config import get_settings
-from app.dependencies import get_current_user, require_rate_limit, get_client_ip, verify_refresh_token
+from app.dependencies import get_current_user, require_rate_limit, get_client_ip, verify_refresh_token, get_language
+from app.services.i18n import get_message
 from app.models.user import User
 from app.security import hash_password, verify_password
 from app.schemas.auth import (
@@ -153,7 +154,7 @@ def register(data: UserRegister, db: Session = Depends(get_db), request: Request
 
 
 @router.post("/login")
-def login(data: UserLogin, db: Session = Depends(get_db), request: Request = None):
+def login(data: UserLogin, db: Session = Depends(get_db), request: Request = None, language: str = Depends(get_language)):
     # 检查速率限制
     if request:
         ip_address = get_client_ip(request)
@@ -164,7 +165,7 @@ def login(data: UserLogin, db: Session = Depends(get_db), request: Request = Non
                 detail={
                     "code": 429,
                     "error_code": LoginErrorCode.RATE_LIMIT_EXCEEDED,
-                    "message": f"登录过于频繁，请在 {retry_after} 秒后重试",
+                    "message": get_message("RATE_LIMIT_EXCEEDED", language),
                     "data": None,
                     "retry_after": retry_after,
                 },
@@ -180,7 +181,7 @@ def login(data: UserLogin, db: Session = Depends(get_db), request: Request = Non
             detail={
                 "code": 401,
                 "error_code": LoginErrorCode.INVALID_CREDENTIALS,
-                "message": "邮箱或密码错误",
+                "message": get_message("INVALID_CREDENTIALS", language),
                 "data": None,
                 "retry_after": None,
             },
@@ -194,7 +195,7 @@ def login(data: UserLogin, db: Session = Depends(get_db), request: Request = Non
             detail={
                 "code": 401,
                 "error_code": LoginErrorCode.ACCOUNT_DISABLED,
-                "message": "邮箱或密码错误",
+                "message": get_message("INVALID_CREDENTIALS", language),
                 "data": None,
                 "retry_after": None,
             },
@@ -214,7 +215,7 @@ def login(data: UserLogin, db: Session = Depends(get_db), request: Request = Non
         status_code=200,
         content={
             "code": 200,
-            "message": "登录成功",
+            "message": get_message("LOGIN_SUCCESS", language),
             "data": {
                 "access_token": access_token,  # 仍在响应中（向后兼容）
                 "refresh_token": refresh_token,

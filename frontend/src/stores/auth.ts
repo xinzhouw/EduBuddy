@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { authApi } from '@/api/auth'
 import { ElMessage } from 'element-plus'
+import { useLanguageStore } from './language'
 
 export interface User {
   id: number
@@ -12,6 +13,7 @@ export interface User {
   phone?: string | null
   gender?: string | null
   age?: number | null
+  language?: string | null
   avatar_url: string | null
   created_at?: string
 }
@@ -22,6 +24,14 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(JSON.parse(localStorage.getItem('user') || 'null'))
 
   const isAuthenticated = computed(() => !!token.value)
+
+  function syncUserLanguage(userData: User | null) {
+    if (userData?.language) {
+      const langStore = useLanguageStore()
+      langStore.currentLanguage = userData.language as 'zh' | 'en'
+      localStorage.setItem('language', userData.language)
+    }
+  }
 
   async function login(email: string, password: string) {
     console.log('[Auth Store] login() 开始', { email })
@@ -54,6 +64,7 @@ export const useAuthStore = defineStore('auth', () => {
       token.value = authData.access_token
       refreshToken.value = authData.refresh_token
       user.value = authData.user
+      syncUserLanguage(authData.user)
 
       console.log('[Auth Store] 保存到 localStorage')
       localStorage.setItem('token', authData.access_token)
@@ -77,6 +88,7 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = authData.access_token
     refreshToken.value = authData.refresh_token
     user.value = authData.user
+    syncUserLanguage(authData.user)
     localStorage.setItem('token', authData.access_token)
     localStorage.setItem('refresh_token', authData.refresh_token)
     localStorage.setItem('user', JSON.stringify(authData.user))
@@ -86,6 +98,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function fetchMe() {
     const res: any = await authApi.getMe()
     user.value = res.data
+    syncUserLanguage(res.data)
     localStorage.setItem('user', JSON.stringify(res.data))
   }
 

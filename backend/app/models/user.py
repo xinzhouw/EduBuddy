@@ -21,6 +21,7 @@ class User(Base):
     last_login_date = Column(Date, nullable=True)    # 最后登录日期（用于每日建议触发）
     last_login = Column(DateTime, nullable=True)     # 最后登录时间（用于管理后台统计）
     login_count = Column(Integer, nullable=False, default=0)  # 登录次数统计
+    language = Column(String(10), nullable=False, default='zh')  # 界面语言：zh / en
     created_at = Column(DateTime, nullable=False, server_default=func.now())
     updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
 

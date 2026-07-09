@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status, Request
+from fastapi import Depends, HTTPException, Header, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from jose import JWTError, jwt
@@ -112,6 +112,16 @@ def verify_refresh_token(token: str) -> int:
         return int(user_id)
     except JWTError:
         raise credentials_exception
+
+
+def get_language(accept_language: str = Header(default='zh')) -> str:
+    """
+    从 Accept-Language header 提取语言代码。
+    返回 'zh' 或 'en'，默认 'zh'
+    """
+    if accept_language == 'en':
+        return 'en'
+    return 'zh'
 
 
 def require_rate_limit(endpoint: str):

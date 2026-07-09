@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
+import { useLanguageStore } from '@/stores/language'
 
 const api = axios.create({
   baseURL: '/api',
@@ -39,6 +40,13 @@ api.interceptors.request.use((config) => {
     config.signal = controller.signal
     controller.abort()
   }
+  return config
+})
+
+// 请求拦截器：自动添加 Accept-Language header
+api.interceptors.request.use((config) => {
+  const langStore = useLanguageStore()
+  config.headers['Accept-Language'] = langStore.currentLanguage
   return config
 })
 

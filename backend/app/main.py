@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 from app.config import get_settings
 from app.database import init_db
-from app.routers import auth, ai, notes, quiz, wrong_book, plan, documents, stats, system, admin
+from app.routers import auth, ai, notes, quiz, wrong_book, plan, documents, stats, system, admin, users
 from app.routers.notes import flashcard_router
 from app.routers import homework
 from app.routers import tts
@@ -70,6 +70,7 @@ app.include_router(advice.router)
 app.include_router(relations.router)
 app.include_router(monitor.router)
 app.include_router(admin.router)
+app.include_router(users.router)
 
 # 挂载静态文件（上传文件）
 os.makedirs(settings.upload_dir, exist_ok=True)
