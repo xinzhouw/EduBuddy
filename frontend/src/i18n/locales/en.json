@@ -347,7 +347,9 @@
     "unknown_error": "Unknown error",
     "chars_unit": "chars",
     "tts_read_report": "Read grading report aloud",
-    "retry": "Retry"
+    "retry": "Retry",
+    "pdf_print_btn": "Print / Save as PDF",
+    "pdf_close_btn": "Close"
   },
   "ai_chat": {
     "history_title": "Conversations",

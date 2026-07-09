@@ -347,7 +347,9 @@
     "unknown_error": "未知错误",
     "chars_unit": "字",
     "tts_read_report": "朗读批改报告",
-    "retry": "重试"
+    "retry": "重试",
+    "pdf_print_btn": "打印 / 另存为 PDF",
+    "pdf_close_btn": "关闭"
   },
   "ai_chat": {
     "history_title": "历史对话",

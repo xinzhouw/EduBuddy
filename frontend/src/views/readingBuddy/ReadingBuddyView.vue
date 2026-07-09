@@ -2,27 +2,27 @@
   <div class="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
     <div class="max-w-4xl mx-auto">
 
-      <!-- 页面标题 -->
+      <!-- Page title -->
       <div class="mb-6 flex items-center gap-3">
         <div class="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center shadow-md">
           <span class="text-xl">📖</span>
         </div>
         <div>
-          <h1 class="text-2xl font-bold text-slate-800">读书郎</h1>
-          <p class="text-sm text-slate-500">上传文件或输入文本，一键转换为语音朗读，支持导出音频</p>
+          <h1 class="text-2xl font-bold text-slate-800">{{ $t('reading_buddy.title') }}</h1>
+          <p class="text-sm text-slate-500">{{ $t('reading_buddy.subtitle') }}</p>
         </div>
       </div>
 
-      <!-- 主体卡片 -->
+      <!-- Main card grid -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        <!-- 左侧：内容输入区 -->
+        <!-- Left: content input area -->
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col gap-5">
           <h2 class="text-base font-semibold text-slate-700 flex items-center gap-2">
-            <span>📥</span> 内容来源
+            <span>📥</span> {{ $t('reading_buddy.source_tab') }}
           </h2>
 
-          <!-- Tab 切换 -->
+          <!-- Tab switcher -->
           <div class="flex gap-1 bg-slate-100 rounded-xl p-1">
             <button
               v-for="tab in tabs"
@@ -37,20 +37,20 @@
             </button>
           </div>
 
-          <!-- 文本输入 -->
+          <!-- Text input tab -->
           <div v-if="activeTab === 'text'" class="flex flex-col gap-3">
             <textarea
               v-model="inputText"
-              placeholder="在此粘贴或输入要朗读的文章、段落……"
+              :placeholder="$t('reading_buddy.text_placeholder')"
               class="w-full h-52 px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition"
             />
             <div class="flex items-center justify-between text-xs text-slate-400">
-              <span>{{ inputText.length }} / 50000 字</span>
+              <span>{{ $t('reading_buddy.char_count', { n: inputText.length }) }}</span>
               <button
                 v-if="inputText"
                 @click="inputText = ''"
                 class="text-slate-400 hover:text-red-400 transition-colors"
-              >清空</button>
+              >{{ $t('reading_buddy.clear_btn') }}</button>
             </div>
             <button
               @click="submitText"
@@ -59,13 +59,13 @@
             >
               <span v-if="isExtracting" class="animate-spin">⏳</span>
               <span v-else>✅</span>
-              {{ isExtracting ? '处理中…' : '确认文本' }}
+              {{ isExtracting ? $t('reading_buddy.processing') : $t('reading_buddy.confirm_text_btn') }}
             </button>
           </div>
 
-          <!-- 文件上传 -->
+          <!-- File upload tab -->
           <div v-else class="flex flex-col gap-3">
-            <!-- 拖拽区域 -->
+            <!-- Drag-and-drop zone -->
             <div
               class="relative border-2 border-dashed rounded-xl p-6 text-center transition-all duration-150 cursor-pointer"
               :class="isDragging
@@ -85,8 +85,8 @@
               />
               <div v-if="!uploadedFile">
                 <p class="text-3xl mb-2">📂</p>
-                <p class="text-sm font-medium text-slate-600">点击或拖拽上传文件</p>
-                <p class="text-xs text-slate-400 mt-1">支持 PDF、Word(.docx)、图片(JPG/PNG/WebP)</p>
+                <p class="text-sm font-medium text-slate-600">{{ $t('reading_buddy.drag_upload') }}</p>
+                <p class="text-xs text-slate-400 mt-1">{{ $t('reading_buddy.file_types') }}</p>
               </div>
               <div v-else class="flex items-center gap-3 justify-center">
                 <span class="text-2xl">{{ fileIcon(uploadedFile.name) }}</span>
@@ -97,7 +97,7 @@
                 <button
                   @click.stop="clearFile"
                   class="ml-auto text-slate-400 hover:text-red-400 transition-colors text-lg"
-                  title="移除文件"
+                  :title="$t('reading_buddy.remove_file')"
                 >✕</button>
               </div>
             </div>
@@ -109,39 +109,39 @@
             >
               <span v-if="isExtracting" class="animate-spin inline-block">⏳</span>
               <span v-else>🔍</span>
-              {{ isExtracting ? '识别中…' : '提取文字' }}
+              {{ isExtracting ? $t('reading_buddy.extracting') : $t('reading_buddy.extract_text') }}
             </button>
 
-            <!-- 错误提示 -->
+            <!-- Error message -->
             <p v-if="extractError" class="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">
               ⚠️ {{ extractError }}
             </p>
           </div>
         </div>
 
-        <!-- 右侧：语音控制区 -->
+        <!-- Right: TTS controls -->
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col gap-5">
           <h2 class="text-base font-semibold text-slate-700 flex items-center gap-2">
-            <span>🎙️</span> 语音朗读
+            <span>🎙️</span> {{ $t('reading_buddy.tts_tab') }}
           </h2>
 
-          <!-- 语音设置 -->
+          <!-- TTS settings -->
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="text-xs text-slate-500 font-medium mb-1 block">朗读语言</label>
+              <label class="text-xs text-slate-500 font-medium mb-1 block">{{ $t('reading_buddy.language_label') }}</label>
               <select
                 v-model="ttsLang"
                 class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
               >
-                <option value="zh-CN">中文（普通话）</option>
-                <option value="zh-TW">中文（台湾）</option>
+                <option value="zh-CN">{{ $t('reading_buddy.lang_zh_cn') }}</option>
+                <option value="zh-TW">{{ $t('reading_buddy.lang_zh_tw') }}</option>
                 <option value="en-US">English (US)</option>
                 <option value="en-GB">English (UK)</option>
-                <option value="ja-JP">日本語</option>
+                <option value="ja-JP">{{ $t('reading_buddy.lang_ja_jp') }}</option>
               </select>
             </div>
             <div>
-              <label class="text-xs text-slate-500 font-medium mb-1 block">朗读速度 ({{ ttsRate.toFixed(1) }}x)</label>
+              <label class="text-xs text-slate-500 font-medium mb-1 block">{{ $t('reading_buddy.speed_label') }} ({{ ttsRate.toFixed(1) }}x)</label>
               <input
                 type="range"
                 v-model.number="ttsRate"
@@ -150,7 +150,7 @@
               />
             </div>
             <div>
-              <label class="text-xs text-slate-500 font-medium mb-1 block">音调 ({{ ttsPitch.toFixed(1) }})</label>
+              <label class="text-xs text-slate-500 font-medium mb-1 block">{{ $t('reading_buddy.pitch_label') }} ({{ ttsPitch.toFixed(1) }})</label>
               <input
                 type="range"
                 v-model.number="ttsPitch"
@@ -159,7 +159,7 @@
               />
             </div>
             <div>
-              <label class="text-xs text-slate-500 font-medium mb-1 block">音量 ({{ Math.round(ttsVolume * 100) }}%)</label>
+              <label class="text-xs text-slate-500 font-medium mb-1 block">{{ $t('reading_buddy.volume_label') }} ({{ Math.round(ttsVolume * 100) }}%)</label>
               <input
                 type="range"
                 v-model.number="ttsVolume"
@@ -169,18 +169,18 @@
             </div>
           </div>
 
-          <!-- 文本字数信息 -->
+          <!-- Text character count info -->
           <div v-if="readyText" class="bg-amber-50 rounded-xl px-4 py-3 border border-amber-100">
-            <p class="text-xs text-amber-700 font-medium mb-1">✅ 文本已就绪</p>
-            <p class="text-xs text-amber-600">共 {{ readyText.length }} 字，预计约 {{ estimatedDuration }} 分钟</p>
+            <p class="text-xs text-amber-700 font-medium mb-1">✅ {{ $t('reading_buddy.text_ready') }}</p>
+            <p class="text-xs text-amber-600">{{ $t('reading_buddy.text_ready_info', { n: readyText.length, min: estimatedDuration }) }}</p>
           </div>
           <div v-else class="bg-slate-50 rounded-xl px-4 py-3 border border-slate-100 text-center">
-            <p class="text-sm text-slate-400">请先在左侧输入文本或上传文件</p>
+            <p class="text-sm text-slate-400">{{ $t('reading_buddy.no_text_hint') }}</p>
           </div>
 
-          <!-- 播放控制按钮 -->
+          <!-- Playback control buttons -->
           <div class="flex flex-col gap-3">
-            <!-- 播放/暂停/停止 -->
+            <!-- Play / pause / stop -->
             <div class="flex gap-2">
               <button
                 v-if="ttsState === 'idle'"
@@ -188,11 +188,11 @@
                 :disabled="!readyText"
                 class="flex-1 btn-play"
               >
-                ▶ 开始朗读
+                ▶ {{ $t('reading_buddy.start_reading') }}
               </button>
               <template v-else-if="ttsState === 'playing'">
                 <button @click="togglePause" class="flex-1 btn-pause">
-                  ⏸ 暂停
+                  ⏸ {{ $t('reading_buddy.pause_reading') }}
                 </button>
                 <button @click="stopSpeech" class="btn-stop">
                   ⏹
@@ -200,7 +200,7 @@
               </template>
               <template v-else-if="ttsState === 'paused'">
                 <button @click="togglePause" class="flex-1 btn-resume">
-                  ▶ 继续
+                  ▶ {{ $t('reading_buddy.resume_reading') }}
                 </button>
                 <button @click="stopSpeech" class="btn-stop">
                   ⏹
@@ -208,7 +208,7 @@
               </template>
             </div>
 
-            <!-- 波形动画 -->
+            <!-- Waveform animation -->
             <div v-if="ttsState === 'playing'" class="flex items-end justify-center gap-1 h-8">
               <span
                 v-for="i in 5" :key="i"
@@ -216,15 +216,15 @@
                 :style="{ animationDelay: `${(i - 1) * 0.12}s` }"
               />
             </div>
-            <p v-else-if="ttsState === 'paused'" class="text-center text-xs text-amber-600">⏸ 已暂停</p>
+            <p v-else-if="ttsState === 'paused'" class="text-center text-xs text-amber-600">⏸ {{ $t('reading_buddy.paused') }}</p>
 
-            <!-- 录制导出 -->
+            <!-- Record and export -->
             <div class="border-t border-slate-100 pt-3 flex flex-col gap-2">
               <p class="text-xs text-slate-500 font-medium flex items-center gap-1">
-                <span>💾</span> 录制并导出音频
+                <span>💾</span> {{ $t('reading_buddy.record_export') }}
               </p>
               <p class="text-xs text-slate-400">
-                点击「开始录制」后再点「开始朗读」，完成后点「停止录制」即可下载音频文件（WebM 格式）
+                {{ $t('reading_buddy.record_hint') }}
               </p>
               <div class="flex gap-2">
                 <button
@@ -233,15 +233,15 @@
                   :disabled="!readyText || ttsState === 'playing'"
                   class="flex-1 btn-record"
                 >
-                  🔴 开始录制
+                  🔴 {{ $t('reading_buddy.start_record') }}
                 </button>
                 <template v-else>
                   <div class="flex items-center gap-2 flex-1 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
                     <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-                    <span class="text-xs text-red-600 font-medium">录制中 {{ recordingDuration }}s</span>
+                    <span class="text-xs text-red-600 font-medium">{{ $t('reading_buddy.recording', { n: recordingDuration }) }}</span>
                   </div>
                   <button @click="stopRecording" class="btn-stop-record">
-                    ⏹ 停止
+                    ⏹ {{ $t('reading_buddy.stop_record') }}
                   </button>
                 </template>
               </div>
@@ -250,22 +250,22 @@
                 @click="downloadAudio"
                 class="btn-download"
               >
-                ⬇️ 下载音频文件
+                ⬇️ {{ $t('reading_buddy.download_audio') }}
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 文本预览区 -->
+      <!-- Text preview area -->
       <div v-if="readyText" class="mt-6 bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
         <div class="flex items-center justify-between mb-3">
           <h2 class="text-base font-semibold text-slate-700 flex items-center gap-2">
-            <span>📄</span> 待朗读文本
-            <span class="text-xs font-normal text-slate-400 ml-1">（{{ readyText.length }} 字）</span>
+            <span>📄</span> {{ $t('reading_buddy.ready_text_title') }}
+            <span class="text-xs font-normal text-slate-400 ml-1">{{ $t('reading_buddy.char_label', { n: readyText.length }) }}</span>
           </h2>
           <button @click="clearReadyText" class="text-xs text-slate-400 hover:text-red-400 transition-colors">
-            🗑️ 清除
+            🗑️ {{ $t('reading_buddy.clear_text') }}
           </button>
         </div>
         <div class="max-h-64 overflow-y-auto bg-slate-50 rounded-xl px-4 py-3 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap border border-slate-100">
@@ -279,17 +279,22 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import apiClient from '@/api/index'
 
+const { t } = useI18n()
+
 // ── Tabs ──────────────────────────────────────────────────────────────────────
-const tabs = [
-  { key: 'text', icon: '✏️', label: '文本输入' },
-  { key: 'file', icon: '📂', label: '文件上传' },
-] as const
-type TabKey = typeof tabs[number]['key']
+type TabKey = 'text' | 'file'
+
+const tabs = computed(() => [
+  { key: 'text' as TabKey, icon: '✏️', label: t('reading_buddy.text_input_tab') },
+  { key: 'file' as TabKey, icon: '📂', label: t('reading_buddy.file_upload_tab') },
+])
+
 const activeTab = ref<TabKey>('text')
 
-// ── 输入状态 ──────────────────────────────────────────────────────────────────
+// ── Input state ───────────────────────────────────────────────────────────────
 const inputText = ref('')
 const uploadedFile = ref<File | null>(null)
 const fileInputRef = ref<HTMLInputElement | null>(null)
@@ -297,10 +302,10 @@ const isDragging = ref(false)
 const isExtracting = ref(false)
 const extractError = ref('')
 
-// 已处理好、可朗读的文本
+// Processed text ready for TTS
 const readyText = ref('')
 
-// ── TTS 设置 ──────────────────────────────────────────────────────────────────
+// ── TTS settings ──────────────────────────────────────────────────────────────
 const ttsLang = ref('zh-CN')
 const ttsRate = ref(1.0)
 const ttsPitch = ref(1.0)
@@ -310,7 +315,7 @@ const ttsState = ref<'idle' | 'playing' | 'paused'>('idle')
 let utterance: SpeechSynthesisUtterance | null = null
 const voices = ref<SpeechSynthesisVoice[]>([])
 
-// ── 录制 ──────────────────────────────────────────────────────────────────────
+// ── Recording ─────────────────────────────────────────────────────────────────
 const isRecording = ref(false)
 const recordedBlob = ref<Blob | null>(null)
 const recordingDuration = ref(0)
@@ -320,14 +325,14 @@ let audioChunks: Blob[] = []
 
 // ── Computed ──────────────────────────────────────────────────────────────────
 const estimatedDuration = computed(() => {
-  if (!readyText.value) return '0'
-  // 中文约 200 字/分钟 * ttsRate
+  if (!readyText.value) return `0${t('reading_buddy.minutes_short')}`
+  // ~200 Chinese chars/min * ttsRate
   const mins = readyText.value.length / (200 * ttsRate.value)
-  if (mins < 1) return `${Math.ceil(mins * 60)} 秒`
-  return `${mins.toFixed(1)}`
+  if (mins < 1) return `${Math.ceil(mins * 60)}${t('reading_buddy.seconds_short')}`
+  return `${mins.toFixed(1)}${t('reading_buddy.minutes_short')}`
 })
 
-// ── 文件工具 ──────────────────────────────────────────────────────────────────
+// ── File utilities ────────────────────────────────────────────────────────────
 function fileIcon(name: string) {
   const ext = name.split('.').pop()?.toLowerCase()
   if (ext === 'pdf') return '📕'
@@ -365,7 +370,7 @@ function clearFile() {
   extractError.value = ''
 }
 
-// ── 提交文本 ──────────────────────────────────────────────────────────────────
+// ── Submit text ───────────────────────────────────────────────────────────────
 async function submitText() {
   if (!inputText.value.trim()) return
   isExtracting.value = true
@@ -376,13 +381,13 @@ async function submitText() {
     })
     readyText.value = resp.data.text
   } catch (e: any) {
-    extractError.value = e?.response?.data?.detail || '文本处理失败，请重试'
+    extractError.value = e?.response?.data?.detail || t('reading_buddy.extract_failed')
   } finally {
     isExtracting.value = false
   }
 }
 
-// ── 提交文件 ──────────────────────────────────────────────────────────────────
+// ── Submit file ───────────────────────────────────────────────────────────────
 async function submitFile() {
   if (!uploadedFile.value) return
   isExtracting.value = true
@@ -395,7 +400,7 @@ async function submitFile() {
     })
     readyText.value = resp.data.text
   } catch (e: any) {
-    extractError.value = e?.response?.data?.detail || '文件识别失败，请检查文件格式或重试'
+    extractError.value = e?.response?.data?.detail || t('reading_buddy.file_extract_failed')
   } finally {
     isExtracting.value = false
   }
@@ -407,9 +412,9 @@ function clearReadyText() {
   recordedBlob.value = null
 }
 
-// ── TTS 朗读 ──────────────────────────────────────────────────────────────────
+// ── TTS playback ──────────────────────────────────────────────────────────────
 function pickVoice(lang: string): SpeechSynthesisVoice | null {
-  // 完全匹配 → 语言前缀匹配
+  // Exact match first, then language prefix match
   return (
     voices.value.find(v => v.lang === lang) ||
     voices.value.find(v => v.lang.startsWith(lang.split('-')[0])) ||
@@ -456,21 +461,21 @@ function stopSpeech() {
   utterance = null
 }
 
-// ── 录制音频（使用系统音频 / AudioContext） ───────────────────────────────────
-// 注意：Web Speech API 直接输出到扬声器，浏览器不允许捕获 TTS 音频流
-// 因此采用「录制扬声器输出」（getDisplayMedia / getUserMedia loopback）策略
-// 如果浏览器不支持，则提示用户使用系统录音工具
+// ── Audio recording (system audio / AudioContext) ─────────────────────────────
+// Note: Web Speech API outputs directly to speaker; browsers don't allow capturing TTS audio stream.
+// Strategy: capture speaker output via getDisplayMedia / getUserMedia loopback.
+// If browser doesn't support it, prompt user to use a system recording tool.
 async function startRecording() {
   recordedBlob.value = null
   audioChunks = []
   recordingDuration.value = 0
 
   try {
-    // 优先尝试捕获系统/选项卡音频（Chrome 支持 getDisplayMedia + audio）
+    // Prefer capturing system/tab audio (Chrome supports getDisplayMedia + audio)
     let stream: MediaStream | null = null
 
     try {
-      // @ts-ignore — getDisplayMedia 含音频，Chrome 实验性支持
+      // @ts-ignore — getDisplayMedia with audio, experimentally supported in Chrome
       stream = await (navigator.mediaDevices as any).getDisplayMedia({
         video: false,
         audio: {
@@ -480,7 +485,7 @@ async function startRecording() {
         },
       })
     } catch {
-      // 若用户取消选屏共享，尝试麦克风作为备选（用户可以对着外放录制）
+      // If user cancels screen share, fall back to microphone (user can record external speaker)
       try {
         stream = await navigator.mediaDevices.getUserMedia({
           audio: { echoCancellation: false, noiseSuppression: false },
@@ -491,7 +496,7 @@ async function startRecording() {
     }
 
     if (!stream) {
-      alert('无法获取音频流。\n\n建议：\n① 点击「开始录制」时选择「整个屏幕」并勾选「分享系统音频」\n② 或使用系统录音软件录制外放声音')
+      alert(t('reading_buddy.no_audio_stream'))
       return
     }
 
@@ -502,7 +507,7 @@ async function startRecording() {
     mediaRecorder.onstop = () => {
       const mime = getSupportedMime()
       recordedBlob.value = new Blob(audioChunks, { type: mime })
-      stream?.getTracks().forEach(t => t.stop())
+      stream?.getTracks().forEach(track => track.stop())
     }
     mediaRecorder.start(200)
     isRecording.value = true
@@ -511,8 +516,8 @@ async function startRecording() {
       recordingDuration.value++
     }, 1000)
   } catch (err) {
-    console.error('录制失败', err)
-    alert('录制初始化失败，请检查浏览器权限设置')
+    console.error('Recording failed', err)
+    alert(t('reading_buddy.record_init_failed'))
   }
 }
 
@@ -529,8 +534,8 @@ function stopRecording() {
 
 function getSupportedMime(): string {
   const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4']
-  for (const t of types) {
-    if (MediaRecorder.isTypeSupported(t)) return t
+  for (const type of types) {
+    if (MediaRecorder.isTypeSupported(type)) return type
   }
   return ''
 }
@@ -543,12 +548,12 @@ function downloadAudio() {
   const ext = recordedBlob.value.type.includes('ogg') ? 'ogg'
     : recordedBlob.value.type.includes('mp4') ? 'mp4'
     : 'webm'
-  a.download = `读书郎_${Date.now()}.${ext}`
+  a.download = `${t('reading_buddy.title')}_${Date.now()}.${ext}`
   a.click()
   URL.revokeObjectURL(url)
 }
 
-// ── 生命周期 ──────────────────────────────────────────────────────────────────
+// ── Lifecycle ─────────────────────────────────────────────────────────────────
 onMounted(() => {
   const load = () => {
     voices.value = window.speechSynthesis.getVoices()
@@ -591,7 +596,7 @@ onUnmounted(() => {
   @apply flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold shadow-sm transition-all duration-150;
 }
 
-/* 波形动画 */
+/* Waveform animation */
 .wave-bar {
   display: inline-block;
   width: 4px;

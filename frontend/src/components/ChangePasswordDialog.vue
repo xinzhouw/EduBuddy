@@ -1,43 +1,43 @@
 <template>
   <el-dialog
     v-model="visible"
-    title="修改密码"
+    :title="$t('change_password.title')"
     width="400px"
     @close="handleDialogClose"
   >
     <el-form :model="form" ref="formRef">
-      <!-- 旧密码 -->
-      <el-form-item label="旧密码" prop="oldPassword">
+      <!-- Old password -->
+      <el-form-item :label="$t('change_password.old_password')" prop="oldPassword">
         <el-input
           v-model="form.oldPassword"
           type="password"
           :show-password="true"
-          placeholder="请输入旧密码"
+          :placeholder="$t('change_password.old_password_placeholder')"
           autocomplete="off"
         />
       </el-form-item>
 
-      <!-- 新密码（实时反馈） -->
-      <el-form-item label="新密码" prop="newPassword">
+      <!-- New password (live validation) -->
+      <el-form-item :label="$t('change_password.new_password')" prop="newPassword">
         <PasswordInput ref="passwordInput" />
       </el-form-item>
 
-      <!-- 确认新密码 -->
-      <el-form-item label="确认新密码" prop="confirmPassword">
+      <!-- Confirm new password -->
+      <el-form-item :label="$t('change_password.confirm_password')" prop="confirmPassword">
         <el-input
           v-model="form.confirmPassword"
           type="password"
           :show-password="true"
-          placeholder="请再次输入新密码"
+          :placeholder="$t('change_password.confirm_password_placeholder')"
           autocomplete="new-password"
         />
       </el-form-item>
     </el-form>
 
     <template #footer>
-      <el-button @click="visible = false">取消</el-button>
+      <el-button @click="visible = false">{{ $t('change_password.cancel_btn') }}</el-button>
       <el-button type="primary" :loading="loading" @click="handleSubmit">
-        修改
+        {{ $t('change_password.submit_btn') }}
       </el-button>
     </template>
   </el-dialog>
@@ -45,9 +45,12 @@
 
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import PasswordInput from '@/components/PasswordInput.vue'
 import api from '@/api'
+
+const { t } = useI18n()
 
 const visible = ref(false)
 const loading = ref(false)
@@ -67,7 +70,7 @@ async function resetForm() {
     confirmPassword: ''
   }
 
-  // 清空 DOM 中的所有密码字段
+  // Clear all password fields in the DOM
   await nextTick()
   const passwordInputs = document.querySelectorAll('input[type="password"]')
   passwordInputs.forEach(input => {
@@ -81,26 +84,26 @@ async function resetForm() {
 }
 
 async function handleDialogClose() {
-  // 对话框关闭时清空所有敏感数据
+  // Clear all sensitive data when dialog closes
   await resetForm()
 }
 
 async function handleSubmit() {
-  // 验证旧密码非空
+  // Validate old password is not empty
   if (!form.value.oldPassword) {
-    ElMessage.error('请输入旧密码')
+    ElMessage.error(t('change_password.old_password_required'))
     return
   }
 
-  // 验证新密码强度
+  // Validate new password strength
   if (passwordInput.value!.validation.issues.length > 0) {
-    ElMessage.error('新密码不符合要求')
+    ElMessage.error(t('change_password.new_password_invalid'))
     return
   }
 
-  // 验证新密码一致
+  // Validate new passwords match
   if (passwordInput.value!.password !== form.value.confirmPassword) {
-    ElMessage.error('两次输入的新密码不一致')
+    ElMessage.error(t('change_password.password_mismatch'))
     return
   }
 
@@ -110,21 +113,21 @@ async function handleSubmit() {
       old_password: form.value.oldPassword,
       new_password: passwordInput.value!.password
     })
-    ElMessage.success('密码已修改')
+    ElMessage.success(t('change_password.success'))
     visible.value = false
     await resetForm()
   } catch (error: any) {
-    ElMessage.error(error.response?.data?.detail || '修改失败')
+    ElMessage.error(error.response?.data?.detail || t('change_password.failed'))
   } finally {
     loading.value = false
   }
 }
 
 async function clearAutofill() {
-  // 等待浏览器密码管理器的自动填充完成
+  // Wait for browser password manager autofill to complete
   await new Promise(resolve => setTimeout(resolve, 100))
 
-  const oldPasswordInput = document.querySelector('input[placeholder="请输入旧密码"]') as HTMLInputElement
+  const oldPasswordInput = document.querySelector(`input[placeholder="${t('change_password.old_password_placeholder')}"]`) as HTMLInputElement
   if (oldPasswordInput && oldPasswordInput.value) {
     oldPasswordInput.value = ''
     oldPasswordInput.dispatchEvent(new Event('input', { bubbles: true }))
