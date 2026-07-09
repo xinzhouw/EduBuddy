@@ -1,8 +1,8 @@
 <template>
   <div class="space-y-4">
-    <!-- 上传区 -->
+    <!-- Upload area -->
     <div class="card">
-      <h3 class="font-semibold text-gray-700 mb-4">📄 上传文档</h3>
+      <h3 class="font-semibold text-gray-700 mb-4">📄 {{ $t('docs.upload_title') }}</h3>
       <el-upload
         drag
         :show-file-list="false"
@@ -12,20 +12,20 @@
       >
         <div class="py-8 text-center">
           <p class="text-4xl mb-3">📤</p>
-          <p class="text-gray-600">拖拽文件到此处或<span class="text-blue-500">点击上传</span></p>
-          <p class="text-xs text-gray-400 mt-2">支持 PDF、DOCX、JPG、PNG，最大 20MB</p>
+          <p class="text-gray-600">{{ $t('docs.drag_hint') }}<span class="text-blue-500">{{ $t('docs.click_upload') }}</span></p>
+          <p class="text-xs text-gray-400 mt-2">{{ $t('docs.file_types_hint') }}</p>
         </div>
       </el-upload>
     </div>
 
-    <!-- 文档列表 -->
+    <!-- Document list -->
     <div v-if="loading" class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <el-skeleton v-for="i in 4" :key="i" :rows="3" animated class="card" />
     </div>
 
     <div v-else-if="docs.length === 0" class="text-center py-12 text-gray-400">
       <span class="text-5xl">📂</span>
-      <p class="mt-4">上传第一份资料，让AI帮你提炼重点</p>
+      <p class="mt-4">{{ $t('docs.empty_hint') }}</p>
     </div>
 
     <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -49,31 +49,31 @@
               :disabled="doc.status !== 'done' || !doc.content_text"
               plain
             >
-              {{ expandedContent[doc.id] ? '收起内容' : '查看内容' }}
+              {{ expandedContent[doc.id] ? $t('docs.collapse_content') : $t('docs.view_content') }}
             </el-button>
-            <el-button size="small" @click="analyzeDoc(doc, 'extract_key_points')" :disabled="doc.status !== 'done'" plain>提取知识点</el-button>
-            <el-button size="small" type="danger" plain @click="deleteDoc(doc.id)">删除</el-button>
+            <el-button size="small" @click="analyzeDoc(doc, 'extract_key_points')" :disabled="doc.status !== 'done'" plain>{{ $t('docs.extract_key_points') }}</el-button>
+            <el-button size="small" type="danger" plain @click="deleteDoc(doc.id)">{{ $t('docs.delete_btn') }}</el-button>
           </div>
         </div>
 
-        <!-- 识别到的文件内容 -->
+        <!-- Recognized file content -->
         <div v-if="expandedContent[doc.id] && doc.content_text" class="mt-3 bg-gray-50 border border-gray-200 rounded-lg p-3">
           <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-medium text-gray-500">📝 文件内容识别结果</span>
+            <span class="text-xs font-medium text-gray-500">📝 {{ $t('docs.file_content_label') }}</span>
             <el-button
               size="small"
               :type="copiedId === doc.id ? 'success' : 'default'"
               plain
               @click="copyContent(doc)"
             >
-              <span v-if="copiedId === doc.id">✅ 已复制</span>
-              <span v-else>📋 复制内容</span>
+              <span v-if="copiedId === doc.id">✅ {{ $t('docs.copied') }}</span>
+              <span v-else>📋 {{ $t('docs.copy_content') }}</span>
             </el-button>
           </div>
           <pre class="text-sm text-gray-700 whitespace-pre-wrap break-words max-h-64 overflow-y-auto leading-relaxed">{{ doc.content_text }}</pre>
         </div>
 
-        <!-- AI分析结果 -->
+        <!-- AI analysis results -->
         <div v-if="analyzing[doc.id]" class="mt-3 bg-blue-50 rounded-lg p-3">
           <p class="text-sm text-gray-600 whitespace-pre-wrap">
             {{ analysisResults[doc.id] }}<span class="typing-cursor"></span>
@@ -89,10 +89,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { docsApi } from '@/api/docs'
 import { ElMessage } from 'element-plus'
 
+const { t } = useI18n()
 const authStore = useAuthStore()
 const docs = ref<any[]>([])
 const loading = ref(false)
@@ -103,7 +105,14 @@ const copiedId = ref<number | null>(null)
 
 function fileIcon(type: string) { return { pdf: '📕', docx: '📘', jpg: '🖼️', png: '🖼️' }[type] || '📄' }
 function formatSize(b: number) { return b > 1048576 ? `${(b / 1048576).toFixed(1)}MB` : `${(b / 1024).toFixed(0)}KB` }
-function statusLabel(s: string) { return { pending: '待处理', processing: '解析中', done: '已完成', error: '解析失败' }[s] || s }
+function statusLabel(s: string) {
+  return ({
+    pending: t('docs.status_pending'),
+    processing: t('docs.status_processing'),
+    done: t('docs.status_done'),
+    error: t('docs.status_error'),
+  } as Record<string, string>)[s] || s
+}
 function statusClass(s: string) { return { done: 'text-green-500', error: 'text-red-500', processing: 'text-amber-500' }[s] || 'text-gray-400' }
 
 function toggleContentText(doc: any) {
@@ -115,12 +124,12 @@ async function copyContent(doc: any) {
   try {
     await navigator.clipboard.writeText(doc.content_text)
     copiedId.value = doc.id
-    ElMessage.success('内容已复制到剪贴板')
+    ElMessage.success(t('docs.copy_success'))
     setTimeout(() => {
       if (copiedId.value === doc.id) copiedId.value = null
     }, 2000)
   } catch {
-    // 降级方案：使用 document.execCommand
+    // Fallback: use document.execCommand
     const textarea = document.createElement('textarea')
     textarea.value = doc.content_text
     textarea.style.position = 'fixed'
@@ -130,7 +139,7 @@ async function copyContent(doc: any) {
     document.execCommand('copy')
     document.body.removeChild(textarea)
     copiedId.value = doc.id
-    ElMessage.success('内容已复制到剪贴板')
+    ElMessage.success(t('docs.copy_success'))
     setTimeout(() => {
       if (copiedId.value === doc.id) copiedId.value = null
     }, 2000)
@@ -139,8 +148,8 @@ async function copyContent(doc: any) {
 
 function beforeUpload(file: File) {
   const allowed = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/png']
-  if (!allowed.includes(file.type)) { ElMessage.error('不支持的文件类型'); return false }
-  if (file.size > 20 * 1024 * 1024) { ElMessage.error('文件超过20MB'); return false }
+  if (!allowed.includes(file.type)) { ElMessage.error(t('docs.unsupported_type')); return false }
+  if (file.size > 20 * 1024 * 1024) { ElMessage.error(t('docs.file_too_large')); return false }
   return true
 }
 
@@ -149,13 +158,13 @@ async function handleUpload({ file }: any) {
   fd.append('file', file)
   const res: any = await docsApi.upload(fd)
   const newDoc = res.data
-  ElMessage.success('上传成功，正在识别文件内容…')
+  ElMessage.success(t('docs.upload_success'))
   docs.value.unshift(newDoc)
-  // 上传后自动展开内容
+  // Auto-expand content after upload
   if (newDoc.content_text) {
     expandedContent.value[newDoc.id] = true
   } else {
-    // 等待一段时间后重新获取，以便后端处理完毕
+    // Wait and re-fetch so backend can finish processing
     setTimeout(async () => {
       try {
         const detail: any = await docsApi.get(newDoc.id)
@@ -206,7 +215,7 @@ async function deleteDoc(id: number) {
   docs.value = docs.value.filter(d => d.id !== id)
   delete expandedContent.value[id]
   delete analysisResults.value[id]
-  ElMessage.success('已删除')
+  ElMessage.success(t('docs.delete_success'))
 }
 
 async function loadDocs() {

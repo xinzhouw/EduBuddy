@@ -1,69 +1,69 @@
 <template>
   <div class="space-y-6">
 
-    <!-- 返回 + 标题 -->
+    <!-- Back + title -->
     <div class="flex items-center gap-3">
       <button @click="router.back()" class="w-9 h-9 rounded-xl bg-white border border-gray-100 shadow-sm flex items-center justify-center text-gray-500 hover:text-gray-700 hover:shadow-md transition-all">
         ‹
       </button>
       <div v-if="student">
-        <h1 class="text-xl font-bold text-gray-800">{{ student.nickname }} 的学习概览</h1>
-        <p class="text-sm text-gray-400">{{ student.grade }} · 最后活跃：{{ student.last_login_date || '未知' }}</p>
+        <h1 class="text-xl font-bold text-gray-800">{{ $t('monitor.student_overview', { name: student.nickname }) }}</h1>
+        <p class="text-sm text-gray-400">{{ student.grade }} · {{ $t('monitor.last_active') }}{{ student.last_login_date || $t('monitor.last_active_unknown') }}</p>
       </div>
-      <div v-else class="text-gray-500 text-sm">加载中…</div>
+      <div v-else class="text-gray-500 text-sm">{{ $t('common.loading') }}</div>
     </div>
 
     <div v-if="loading" class="flex items-center justify-center py-20 text-gray-400">
-      <span class="animate-spin mr-2">⏳</span> 加载中…
+      <span class="animate-spin mr-2">⏳</span> {{ $t('common.loading') }}
     </div>
 
     <template v-else-if="overview">
-      <!-- 概览卡片 -->
+      <!-- Stats cards -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="stat-card text-center">
           <p class="text-2xl font-bold text-blue-600">{{ overview.today_study_minutes }}<span class="text-sm font-normal text-gray-400 ml-1">min</span></p>
-          <p class="text-sm text-gray-500 mt-1">今日学习</p>
+          <p class="text-sm text-gray-500 mt-1">{{ $t('monitor.today_study') }}</p>
         </div>
         <div class="stat-card text-center">
           <p class="text-2xl font-bold text-orange-500">{{ overview.streak_days }} 🔥</p>
-          <p class="text-sm text-gray-500 mt-1">连续打卡</p>
+          <p class="text-sm text-gray-500 mt-1">{{ $t('monitor.streak_days') }}</p>
         </div>
         <div class="stat-card text-center">
           <p class="text-2xl font-bold text-green-600">{{ overview.total_questions_done }}</p>
-          <p class="text-sm text-gray-500 mt-1">累计答题</p>
+          <p class="text-sm text-gray-500 mt-1">{{ $t('monitor.total_answers') }}</p>
         </div>
         <div class="stat-card text-center">
           <p class="text-2xl font-bold text-purple-600">{{ Math.round((overview.average_accuracy || 0) * 100) }}%</p>
-          <p class="text-sm text-gray-500 mt-1">平均正确率</p>
+          <p class="text-sm text-gray-500 mt-1">{{ $t('monitor.avg_accuracy') }}</p>
         </div>
       </div>
 
-      <!-- 详细统计图表 -->
+      <!-- Charts -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- 学习时长趋势 -->
+        <!-- Study time trend -->
         <div class="card">
           <div class="flex items-center justify-between mb-4">
-            <h3 class="font-semibold text-gray-700">📈 学习时长趋势</h3>
+            <h3 class="font-semibold text-gray-700">📈 {{ $t('monitor.time_trend') }}</h3>
             <div class="flex gap-2">
               <button
                 class="text-xs px-3 py-1 rounded-lg border transition-colors"
                 :class="period === 'week' ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'"
                 @click="changePeriod('week')"
-              >本周</button>
+              >{{ $t('monitor.this_week') }}</button>
               <button
                 class="text-xs px-3 py-1 rounded-lg border transition-colors"
                 :class="period === 'month' ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'"
                 @click="changePeriod('month')"
-              >本月</button>
+              >{{ $t('monitor.this_month') }}</button>
             </div>
           </div>
           <div ref="timeChartEl" style="height: 180px"></div>
         </div>
 
-        <!-- 各学科正确率 -->
+        <!-- Accuracy by subject -->
         <div class="card">
-          <h3 class="font-semibold text-gray-700 mb-4">📊 各学科正确率</h3>
-          <div v-if="!accuracyData.length" class="text-center py-8 text-gray-400 text-sm">暂无数据</div>
+          <h3 class="font-semibold text-gray-700 mb-4">📊 {{ $t('monitor.accuracy_by_subject') }}</h3>
+          <div v-if="!accuracyData.length" class="text-center py-8 text-gray-400 text-sm">{{ $t('monitor.no_data') }}</div>
           <div v-else class="space-y-3">
             <div v-for="item in accuracyData" :key="item.subject" class="flex items-center gap-3">
               <span class="text-sm text-gray-600 w-12 shrink-0">{{ item.subject }}</span>
@@ -83,18 +83,18 @@
         </div>
       </div>
 
-      <!-- 雷达图 -->
+      <!-- Radar + wrong dist -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div class="card">
-          <h3 class="font-semibold text-gray-700 mb-4">🕸️ 学科掌握雷达</h3>
-          <div v-if="!radarData.length" class="text-center py-8 text-gray-400 text-sm">暂无数据</div>
+          <h3 class="font-semibold text-gray-700 mb-4">🕸️ {{ $t('monitor.subject_radar') }}</h3>
+          <div v-if="!radarData.length" class="text-center py-8 text-gray-400 text-sm">{{ $t('monitor.no_data') }}</div>
           <div v-else ref="radarChartEl" style="height: 200px"></div>
         </div>
 
-        <!-- 错题分布 -->
+        <!-- Wrong distribution -->
         <div class="card">
-          <h3 class="font-semibold text-gray-700 mb-4">❌ 错题分布</h3>
-          <div v-if="!wrongDist.length" class="text-center py-8 text-gray-400 text-sm">暂无错题</div>
+          <h3 class="font-semibold text-gray-700 mb-4">❌ {{ $t('monitor.wrong_distribution') }}</h3>
+          <div v-if="!wrongDist.length" class="text-center py-8 text-gray-400 text-sm">{{ $t('monitor.no_wrong') }}</div>
           <div v-else class="space-y-2">
             <div v-for="item in wrongDist" :key="item.subject" class="flex items-center justify-between">
               <span class="text-sm text-gray-600 w-16 shrink-0">{{ item.subject }}</span>
@@ -108,10 +108,10 @@
         </div>
       </div>
 
-      <!-- 今日学习计划 -->
+      <!-- Recent study plan (read-only) -->
       <div class="card">
-        <h3 class="font-semibold text-gray-700 mb-4">📅 近期学习计划（只读）</h3>
-        <div v-if="!planData" class="text-center py-6 text-gray-400 text-sm">暂无学习计划</div>
+        <h3 class="font-semibold text-gray-700 mb-4">📅 {{ $t('monitor.study_plan_title') }}</h3>
+        <div v-if="!planData" class="text-center py-6 text-gray-400 text-sm">{{ $t('monitor.no_plan') }}</div>
         <div v-else>
           <div
             v-for="(tasks, dateKey) in planData.tasks_by_date"
@@ -137,10 +137,10 @@
         </div>
       </div>
 
-      <!-- AI 学习报告 -->
+      <!-- AI report -->
       <div class="card">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="font-semibold text-gray-700">🤖 AI 学习报告</h3>
+          <h3 class="font-semibold text-gray-700">🤖 {{ $t('monitor.ai_report_title') }}</h3>
           <button
             @click="generateReport"
             :disabled="reportLoading"
@@ -148,14 +148,14 @@
           >
             <span v-if="reportLoading" class="animate-spin inline-block">⏳</span>
             <span v-else>✨</span>
-            {{ reportLoading ? '生成中…' : '生成报告' }}
+            {{ reportLoading ? $t('monitor.generating_report') : $t('monitor.generate_report') }}
           </button>
         </div>
         <div v-if="reportContent" class="bg-slate-50 rounded-xl p-5 border border-slate-100">
           <div class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{{ reportContent }}</div>
         </div>
         <div v-else-if="!reportLoading" class="text-center py-6 text-gray-400 text-sm">
-          点击「生成报告」，AI 将为该学生生成近30天学习分析
+          {{ $t('monitor.report_hint') }}
         </div>
       </div>
     </template>
@@ -166,8 +166,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { monitorApi } from '@/api/relations'
-// 按需导入 ECharts，减少包体积
+// Import ECharts on-demand to reduce bundle size
 import * as echarts from 'echarts/core'
 import { LineChart, RadarChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent, RadarComponent } from 'echarts/components'
@@ -177,6 +178,7 @@ echarts.use([LineChart, RadarChart, GridComponent, TooltipComponent, LegendCompo
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 const studentId = Number(route.params.id)
 
@@ -211,7 +213,7 @@ function renderTimeChart() {
       axisLabel: { color: '#9ca3af', fontSize: 11 },
     },
     yAxis: {
-      type: 'value', name: '分钟',
+      type: 'value', name: t('monitor.minutes_unit'),
       nameTextStyle: { color: '#9ca3af', fontSize: 11 },
       axisLine: { show: false },
       splitLine: { lineStyle: { color: '#f3f4f6' } },
@@ -222,7 +224,7 @@ function renderTimeChart() {
       lineStyle: { color: '#3b82f6', width: 2 },
       itemStyle: { color: '#3b82f6' },
     }],
-    tooltip: { trigger: 'axis', formatter: (p: any) => `${p[0].name}<br>${p[0].value} 分钟` },
+    tooltip: { trigger: 'axis', formatter: (p: any) => `${p[0].name}<br>${p[0].value} ${t('monitor.minutes_unit')}` },
   })
 }
 
@@ -238,7 +240,7 @@ function renderRadarChart() {
     },
     series: [{
       type: 'radar',
-      data: [{ value: radarData.value.map((d: any) => d.score), name: '掌握深度' }],
+      data: [{ value: radarData.value.map((d: any) => d.score), name: t('monitor.subject_radar') }],
       areaStyle: { color: 'rgba(99,102,241,0.15)' },
       lineStyle: { color: '#6366f1', width: 2 },
       itemStyle: { color: '#6366f1' },
@@ -290,7 +292,7 @@ async function generateReport() {
 
 onMounted(async () => {
   try {
-    // 并行请求概览 + 统计 + 计划
+    // Parallel requests: overview + stats + plan
     const [ovRes, statsRes, planRes]: any[] = await Promise.all([
       monitorApi.getStudentOverview(studentId),
       monitorApi.getStudentStats(studentId, period.value),
