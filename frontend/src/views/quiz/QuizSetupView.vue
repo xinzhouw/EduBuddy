@@ -1,9 +1,9 @@
 <template>
   <div class="max-w-2xl mx-auto">
     <div class="card space-y-6">
-      <h2 class="text-xl font-bold text-gray-800">📚 开始练习</h2>
+      <h2 class="text-xl font-bold text-gray-800">📚 {{ $t('quiz.page_title') }}</h2>
 
-      <!-- 扫描输入区域 -->
+      <!-- Scan input area -->
       <div class="border-2 border-dashed rounded-xl p-4 transition-colors"
         :class="isDragging ? 'border-blue-400 bg-blue-50' : 'border-gray-200 bg-gray-50 hover:border-blue-300'"
         @dragover.prevent="isDragging = true"
@@ -11,8 +11,8 @@
         @drop.prevent="onDrop">
         <div v-if="!scanning && !scanResult" class="text-center">
           <p class="text-2xl mb-1">📷</p>
-          <p class="text-sm font-medium text-gray-700 mb-1">扫描图片 / 文档 自动识别题目</p>
-          <p class="text-xs text-gray-400 mb-3">支持 JPG、PNG、PDF、Word，拖拽或点击上传</p>
+          <p class="text-sm font-medium text-gray-700 mb-1">{{ $t('quiz.scan_title') }}</p>
+          <p class="text-xs text-gray-400 mb-3">{{ $t('quiz.scan_hint') }}</p>
           <label class="inline-block cursor-pointer">
             <input
               ref="fileInputRef"
@@ -22,52 +22,52 @@
               @change="onFileChange"
             />
             <span class="px-4 py-2 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 transition-colors">
-              选择文件
+              {{ $t('quiz.choose_file') }}
             </span>
           </label>
         </div>
 
-        <!-- 识别中 -->
+        <!-- Recognizing -->
         <div v-else-if="scanning" class="text-center py-2">
           <div class="inline-block w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
-          <p class="text-sm text-gray-600">AI 正在识别题目内容…</p>
+          <p class="text-sm text-gray-600">{{ $t('quiz.recognizing') }}</p>
         </div>
 
-        <!-- 识别结果 -->
+        <!-- Recognition result -->
         <div v-else-if="scanResult" class="space-y-3">
           <div class="flex items-start justify-between gap-2">
             <div class="flex items-center gap-2">
               <span class="text-green-500 text-lg">✅</span>
-              <span class="text-sm font-medium text-gray-700">识别成功，信息已自动填入</span>
+              <span class="text-sm font-medium text-gray-700">{{ $t('quiz.recognize_success') }}</span>
             </div>
             <button class="text-xs text-gray-400 hover:text-red-500 transition-colors flex-shrink-0" @click="clearScan">
-              ✕ 清除
+              ✕ {{ $t('quiz.clear_btn') }}
             </button>
           </div>
 
-          <!-- 识别到的文字 -->
+          <!-- Recognized text -->
           <div v-if="scanResult.recognized_text" class="bg-white border border-gray-200 rounded-lg p-3 max-h-36 overflow-y-auto">
-            <p class="text-xs text-gray-400 mb-1">识别到的题目内容：</p>
+            <p class="text-xs text-gray-400 mb-1">{{ $t('quiz.recognized_content') }}</p>
             <div class="text-sm text-gray-700 leading-relaxed latex-content" v-html="renderRecognizedText(scanResult.recognized_text)"></div>
           </div>
 
           <div class="grid grid-cols-2 gap-3 text-sm">
             <div class="bg-blue-50 rounded-lg px-3 py-2">
-              <span class="text-gray-500 text-xs">学科</span>
+              <span class="text-gray-500 text-xs">{{ $t('quiz.subject_label') }}</span>
               <p class="font-semibold text-blue-700">{{ scanResult.subject }}</p>
             </div>
             <div class="bg-purple-50 rounded-lg px-3 py-2">
-              <span class="text-gray-500 text-xs">知识点</span>
+              <span class="text-gray-500 text-xs">{{ $t('quiz.topic_label') }}</span>
               <p class="font-semibold text-purple-700">{{ scanResult.topic }}</p>
             </div>
           </div>
 
           <div class="flex gap-2">
             <button class="flex-1 text-xs text-center py-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors" @click="clearScan">
-              重新上传
+              {{ $t('quiz.reupload_btn') }}
             </button>
             <button class="flex-1 text-xs text-center py-2 rounded-lg bg-blue-50 text-blue-600 font-medium hover:bg-blue-100 transition-colors" @click="applyToForm">
-              ✔ 应用到表单
+              ✔ {{ $t('quiz.apply_btn') }}
             </button>
           </div>
         </div>
@@ -75,52 +75,52 @@
 
       <div class="flex items-center gap-2 text-gray-300">
         <div class="flex-1 h-px bg-gray-200"></div>
-        <span class="text-xs">或手动填写</span>
+        <span class="text-xs">{{ $t('quiz.manual_fill') }}</span>
         <div class="flex-1 h-px bg-gray-200"></div>
       </div>
 
       <div class="grid grid-cols-2 gap-4">
         <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">学科</label>
+          <label class="block text-sm font-medium text-gray-600 mb-1">{{ $t('quiz.subject_label') }}</label>
           <el-select v-model="form.subject" class="w-full">
-            <el-option v-for="s in subjects" :key="s" :label="s" :value="s" />
+            <el-option v-for="s in subjects" :key="s.key" :label="$t('subjects.' + s.key)" :value="s.value" />
           </el-select>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">知识点</label>
-          <el-input v-model="form.topic" placeholder="如：二次函数、牛顿定律" />
+          <label class="block text-sm font-medium text-gray-600 mb-1">{{ $t('quiz.topic_label') }}</label>
+          <el-input v-model="form.topic" :placeholder="$t('quiz.topic_placeholder')" />
         </div>
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-600 mb-2">难度</label>
+        <label class="block text-sm font-medium text-gray-600 mb-2">{{ $t('quiz.difficulty_label') }}</label>
         <div class="grid grid-cols-4 gap-3">
           <button v-for="d in difficulties" :key="d.value"
             @click="form.difficulty = d.value"
             class="p-3 rounded-lg border-2 text-center transition-all"
             :class="form.difficulty === d.value ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'">
             <p class="text-lg">{{ d.icon }}</p>
-            <p class="text-xs font-medium mt-1">{{ d.label }}</p>
+            <p class="text-xs font-medium mt-1">{{ $t('quiz.' + d.key) }}</p>
           </button>
         </div>
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-600 mb-2">题型</label>
+        <label class="block text-sm font-medium text-gray-600 mb-2">{{ $t('quiz.question_type_label') }}</label>
         <div class="flex flex-wrap gap-2">
-          <el-checkbox v-for="t in questionTypes" :key="t.value" v-model="t.checked" :label="t.label" />
+          <el-checkbox v-for="qt in questionTypes" :key="qt.value" v-model="qt.checked" :label="$t('quiz.type_' + qt.value)" />
         </div>
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-600 mb-1">题目数量</label>
+        <label class="block text-sm font-medium text-gray-600 mb-1">{{ $t('quiz.question_count_label') }}</label>
         <el-select v-model="form.count" style="width:100px">
-          <el-option v-for="n in [3, 5, 10, 15]" :key="n" :label="`${n}道`" :value="n" />
+          <el-option v-for="n in [3, 5, 10, 15]" :key="n" :label="n + $t('quiz.question_count_unit')" :value="n" />
         </el-select>
       </div>
 
       <el-button type="primary" size="large" class="w-full" :loading="loading" @click="startQuiz">
-        🚀 开始练习
+        🚀 {{ $t('quiz.start_btn') }}
       </el-button>
     </div>
   </div>
@@ -129,28 +129,35 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { quizApi } from '@/api/quiz'
 import { ElMessage } from 'element-plus'
 import { renderRecognizedText } from '@/utils/markdown'
 
 const router = useRouter()
+const { t, getLocaleMessage } = useI18n()
 const loading = ref(false)
-const subjects = ['数学', '物理', '化学', '生物', '语文', '英语', '历史', '地理', '政治']
+
+// Subject keys match zh.json subjects section; API expects Chinese names
+const subjectKeys = ['math', 'physics', 'chemistry', 'biology', 'chinese', 'english', 'history', 'geography', 'politics']
+const zhMessages = getLocaleMessage('zh') as any
+const subjects = subjectKeys.map(key => ({ key, value: zhMessages.subjects[key] as string }))
+
 const difficulties = [
-  { value: 1, icon: '🌱', label: '基础' },
-  { value: 2, icon: '📘', label: '中等' },
-  { value: 3, icon: '🔥', label: '困难' },
-  { value: 4, icon: '🏆', label: '挑战' },
+  { value: 1, icon: '🌱', key: 'difficulty_easy' },
+  { value: 2, icon: '📘', key: 'difficulty_medium' },
+  { value: 3, icon: '🔥', key: 'difficulty_hard' },
+  { value: 4, icon: '🏆', key: 'difficulty_challenge' },
 ]
 const questionTypes = reactive([
-  { value: 'single_choice', label: '单选题', checked: true },
-  { value: 'fill_blank', label: '填空题', checked: true },
-  { value: 'true_false', label: '判断题', checked: false },
-  { value: 'subjective', label: '简答题', checked: false },
+  { value: 'single_choice', checked: true },
+  { value: 'fill_blank', checked: true },
+  { value: 'true_false', checked: false },
+  { value: 'subjective', checked: false },
 ])
-const form = reactive({ subject: '数学', topic: '', difficulty: 2, count: 5 })
+const form = reactive({ subject: subjects[0].value, topic: '', difficulty: 2, count: 5 })
 
-// ===== 扫描识别相关状态 =====
+// ===== Scan recognition state =====
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const isDragging = ref(false)
 const scanning = ref(false)
@@ -161,7 +168,7 @@ const scanResult = ref<{
   question_count: number
 } | null>(null)
 
-// 按文件扩展名推断 MIME type（用于拖拽上传时 file.type 为空的情况）
+// Infer MIME type from file extension (for drag-drop where file.type may be empty)
 function inferMimeType(file: File): string {
   if (file.type) return file.type
   const ext = file.name.split('.').pop()?.toLowerCase() || ''
@@ -185,11 +192,11 @@ async function handleFile(file: File) {
   ]
   const mimeType = inferMimeType(file)
   if (!allowed.includes(mimeType)) {
-    ElMessage.warning('不支持的文件类型，请上传 JPG、PNG、PDF 或 Word 文件')
+    ElMessage.warning(t('quiz.unsupported_file'))
     return
   }
   if (file.size > 10 * 1024 * 1024) {
-    ElMessage.warning('文件大小超过限制（最大 10MB）')
+    ElMessage.warning(t('quiz.file_too_large'))
     return
   }
 
@@ -199,18 +206,18 @@ async function handleFile(file: File) {
     const res: any = await quizApi.extractTopicFromFile(file)
     if (res?.code === 200 && res.data) {
       scanResult.value = res.data
-      // 自动填入表单
+      // Auto-fill form
       applyToFormFromResult(res.data)
-      ElMessage.success('题目识别成功，已自动填写学科和知识点')
+      ElMessage.success(t('quiz.recognize_ok'))
     } else {
-      ElMessage.error('识别失败，请重试')
+      ElMessage.error(t('quiz.recognize_failed'))
     }
   } catch (e: any) {
-    const msg = e?.response?.data?.detail || '识别失败，请检查文件内容后重试'
+    const msg = e?.response?.data?.detail || t('quiz.recognize_failed')
     ElMessage.error(msg)
   } finally {
     scanning.value = false
-    // 重置 input，允许再次选同一文件
+    // Reset input to allow selecting the same file again
     if (fileInputRef.value) fileInputRef.value.value = ''
   }
 }
@@ -230,7 +237,7 @@ function onDrop(e: DragEvent) {
 
 function applyToFormFromResult(result: typeof scanResult.value) {
   if (!result) return
-  if (subjects.includes(result.subject)) {
+  if (subjects.some(s => s.value === result.subject)) {
     form.subject = result.subject
   }
   if (result.topic) {
@@ -240,7 +247,7 @@ function applyToFormFromResult(result: typeof scanResult.value) {
 
 function applyToForm() {
   applyToFormFromResult(scanResult.value)
-  ElMessage.success('已应用到表单')
+  ElMessage.success(t('common.success'))
 }
 
 function clearScan() {
@@ -248,11 +255,11 @@ function clearScan() {
   scanning.value = false
 }
 
-// ===== 开始练习 =====
+// ===== Start quiz =====
 async function startQuiz() {
-  if (!form.topic.trim()) return ElMessage.warning('请输入知识点')
-  const selectedTypes = questionTypes.filter(t => t.checked).map(t => t.value)
-  if (selectedTypes.length === 0) return ElMessage.warning('请至少选择一种题型')
+  if (!form.topic.trim()) return ElMessage.warning(t('error.required_field'))
+  const selectedTypes = questionTypes.filter(qt => qt.checked).map(qt => qt.value)
+  if (selectedTypes.length === 0) return ElMessage.warning(t('error.required_field'))
 
   loading.value = true
   try {
@@ -263,7 +270,7 @@ async function startQuiz() {
       question_types: selectedTypes,
       count: form.count,
     })
-    // 将数据存入 sessionStorage 再跳转
+    // Store data in sessionStorage then navigate
     sessionStorage.setItem('quizSession', JSON.stringify(res.data))
     router.push('/quiz/session')
   } finally {
